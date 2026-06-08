@@ -8341,3 +8341,371 @@ nav=function(p){
   },2500);
 })();
 </script>
+
+<!-- V22 hotfix: fixed topbar on all pages + align material pages layout -->
+<style id="pv22-fixed-topbar-material-layout-style">
+  :root{
+    --pv22-topbar-h:54px;
+    --pv22-sidebar-w:206px;
+  }
+
+  @media (min-width:769px){
+    html,
+    body{
+      height:auto !important;
+      min-height:100% !important;
+      overflow-y:auto !important;
+      overflow-x:hidden !important;
+      scroll-padding-top:var(--pv22-topbar-h) !important;
+    }
+
+    #app{
+      display:block !important;
+      height:auto !important;
+      min-height:100vh !important;
+      overflow:visible !important;
+      padding-top:0 !important;
+      background:var(--bg) !important;
+    }
+
+    .topbar{
+      position:fixed !important;
+      top:0 !important;
+      left:0 !important;
+      right:0 !important;
+      width:100% !important;
+      height:var(--pv22-topbar-h) !important;
+      min-height:var(--pv22-topbar-h) !important;
+      max-height:var(--pv22-topbar-h) !important;
+      z-index:5000 !important;
+      box-sizing:border-box !important;
+      transform:none !important;
+    }
+
+    .layout{
+      display:block !important;
+      width:100% !important;
+      height:auto !important;
+      min-height:calc(100vh - var(--pv22-topbar-h)) !important;
+      margin-top:var(--pv22-topbar-h) !important;
+      padding-top:0 !important;
+      overflow:visible !important;
+      box-sizing:border-box !important;
+    }
+
+    .sidebar{
+      position:fixed !important;
+      top:var(--pv22-topbar-h) !important;
+      left:0 !important;
+      bottom:0 !important;
+      width:var(--pv22-sidebar-w) !important;
+      min-width:var(--pv22-sidebar-w) !important;
+      max-width:var(--pv22-sidebar-w) !important;
+      height:calc(100vh - var(--pv22-topbar-h)) !important;
+      flex:none !important;
+      z-index:4500 !important;
+      overflow-y:auto !important;
+      overflow-x:hidden !important;
+      transform:none !important;
+      box-shadow:none !important;
+      background:#fff !important;
+    }
+
+    .content{
+      display:block !important;
+      margin-left:var(--pv22-sidebar-w) !important;
+      width:calc(100% - var(--pv22-sidebar-w)) !important;
+      max-width:calc(100% - var(--pv22-sidebar-w)) !important;
+      min-width:0 !important;
+      min-height:calc(100vh - var(--pv22-topbar-h)) !important;
+      height:auto !important;
+      overflow:visible !important;
+      overflow-x:hidden !important;
+      background:var(--bg) !important;
+      box-sizing:border-box !important;
+    }
+
+    .page{
+      box-sizing:border-box !important;
+    }
+
+    #pg-taoPhieu,
+    #pg-danhSachPhieu,
+    #pg-hoanThanhPhieu{
+      width:100% !important;
+      max-width:none !important;
+      margin:0 !important;
+      padding:18px 24px 120px 24px !important;
+      box-sizing:border-box !important;
+      overflow:visible !important;
+    }
+
+    #pg-taoPhieu > .ph,
+    #pg-danhSachPhieu > .ph,
+    #pg-hoanThanhPhieu > .ph{
+      margin:0 0 16px 0 !important;
+      padding:0 !important;
+      text-align:left !important;
+    }
+
+    #pg-taoPhieu > .ph h1,
+    #pg-danhSachPhieu > .ph h1,
+    #pg-hoanThanhPhieu > .ph h1{
+      line-height:1.25 !important;
+    }
+
+    #pvFormRoot,
+    #pvHistoryRoot,
+    #pvCompleteRoot,
+    #pvb_formWrap{
+      width:100% !important;
+      max-width:none !important;
+      margin:0 !important;
+      padding:0 !important;
+      box-sizing:border-box !important;
+    }
+
+    #pvb_formWrap .fsec,
+    #pvFormRoot .card,
+    #pvHistoryRoot .card,
+    #pvCompleteRoot .card{
+      width:100% !important;
+      max-width:none !important;
+      margin-left:0 !important;
+      margin-right:0 !important;
+      box-sizing:border-box !important;
+      overflow:visible !important;
+    }
+
+    #pvCompleteRoot .tblwrap,
+    #pvCompleteRoot .pv18-scroll,
+    #pvCompleteRoot .pv17-scroll,
+    #pvFormRoot .tblwrap,
+    #pvHistoryRoot .tblwrap{
+      width:100% !important;
+      max-width:100% !important;
+      overflow-x:auto !important;
+      overflow-y:visible !important;
+      box-sizing:border-box !important;
+    }
+
+    .pv-actions{
+      z-index:4300 !important;
+    }
+  }
+
+  @media (max-width:768px){
+    :root{--pv22-topbar-h:50px;--pv22-sidebar-w:240px;}
+    html,
+    body{
+      height:auto !important;
+      min-height:100% !important;
+      overflow-y:auto !important;
+      overflow-x:hidden !important;
+      scroll-padding-top:var(--pv22-topbar-h) !important;
+    }
+    #app{
+      display:block !important;
+      min-height:100vh !important;
+      overflow:visible !important;
+      background:var(--bg) !important;
+    }
+    .topbar{
+      position:fixed !important;
+      top:0 !important;
+      left:0 !important;
+      right:0 !important;
+      width:100% !important;
+      height:var(--pv22-topbar-h) !important;
+      min-height:var(--pv22-topbar-h) !important;
+      z-index:5000 !important;
+    }
+    .layout{
+      margin-top:var(--pv22-topbar-h) !important;
+      min-height:calc(100vh - var(--pv22-topbar-h)) !important;
+      overflow:visible !important;
+    }
+    .sidebar{
+      top:var(--pv22-topbar-h) !important;
+      height:calc(100vh - var(--pv22-topbar-h)) !important;
+      z-index:4500 !important;
+    }
+    .content{
+      margin-left:0 !important;
+      width:100% !important;
+      max-width:100% !important;
+      height:auto !important;
+      min-height:calc(100vh - var(--pv22-topbar-h)) !important;
+      overflow:visible !important;
+      box-sizing:border-box !important;
+    }
+    #pg-taoPhieu,
+    #pg-danhSachPhieu,
+    #pg-hoanThanhPhieu{
+      width:100% !important;
+      max-width:none !important;
+      margin:0 !important;
+      padding:14px 10px 110px 10px !important;
+      box-sizing:border-box !important;
+    }
+  }
+</style>
+<script id="pv22-fixed-topbar-material-layout-js">
+(function(){
+  var SIDEBAR_W = 206;
+  var TOPBAR_H = 54;
+
+  function isDesktop(){ return window.innerWidth > 768; }
+
+  function setImportant(el, prop, val){
+    if(el) el.style.setProperty(prop, val, 'important');
+  }
+
+  function applyPv22Layout(){
+    try{
+      var desktop = isDesktop();
+      var topbar = document.querySelector('.topbar');
+      var layout = document.querySelector('.layout');
+      var sidebar = document.getElementById('mainSidebar') || document.querySelector('.sidebar');
+      var content = document.querySelector('.content');
+      var app = document.getElementById('app');
+      var h = desktop ? TOPBAR_H : 50;
+      var w = desktop ? SIDEBAR_W : 240;
+
+      document.documentElement.style.setProperty('--pv22-topbar-h', h + 'px');
+      document.documentElement.style.setProperty('--pv22-sidebar-w', w + 'px');
+      document.documentElement.style.setProperty('overflow-y','auto','important');
+      document.documentElement.style.setProperty('overflow-x','hidden','important');
+      document.body.style.setProperty('overflow-y','auto','important');
+      document.body.style.setProperty('overflow-x','hidden','important');
+      document.body.style.setProperty('height','auto','important');
+
+      if(app){
+        setImportant(app,'display','block');
+        setImportant(app,'height','auto');
+        setImportant(app,'min-height','100vh');
+        setImportant(app,'overflow','visible');
+      }
+
+      if(topbar){
+        setImportant(topbar,'position','fixed');
+        setImportant(topbar,'top','0');
+        setImportant(topbar,'left','0');
+        setImportant(topbar,'right','0');
+        setImportant(topbar,'width','100%');
+        setImportant(topbar,'height',h + 'px');
+        setImportant(topbar,'min-height',h + 'px');
+        setImportant(topbar,'z-index','5000');
+        setImportant(topbar,'transform','none');
+      }
+
+      if(layout){
+        setImportant(layout,'display','block');
+        setImportant(layout,'width','100%');
+        setImportant(layout,'height','auto');
+        setImportant(layout,'min-height','calc(100vh - ' + h + 'px)');
+        setImportant(layout,'margin-top',h + 'px');
+        setImportant(layout,'padding-top','0');
+        setImportant(layout,'overflow','visible');
+      }
+
+      if(sidebar){
+        if(desktop){
+          sidebar.classList.remove('open');
+          setImportant(sidebar,'position','fixed');
+          setImportant(sidebar,'top',h + 'px');
+          setImportant(sidebar,'left','0');
+          setImportant(sidebar,'bottom','0');
+          setImportant(sidebar,'width',w + 'px');
+          setImportant(sidebar,'min-width',w + 'px');
+          setImportant(sidebar,'max-width',w + 'px');
+          setImportant(sidebar,'height','calc(100vh - ' + h + 'px)');
+          setImportant(sidebar,'transform','none');
+          setImportant(sidebar,'overflow-y','auto');
+          setImportant(sidebar,'z-index','4500');
+          var ov=document.getElementById('mobOverlay');
+          if(ov) ov.classList.remove('show');
+        }else{
+          setImportant(sidebar,'top',h + 'px');
+          setImportant(sidebar,'height','calc(100vh - ' + h + 'px)');
+          setImportant(sidebar,'z-index','4500');
+        }
+      }
+
+      if(content){
+        if(desktop){
+          setImportant(content,'display','block');
+          setImportant(content,'margin-left',w + 'px');
+          setImportant(content,'width','calc(100% - ' + w + 'px)');
+          setImportant(content,'max-width','calc(100% - ' + w + 'px)');
+          setImportant(content,'min-height','calc(100vh - ' + h + 'px)');
+          setImportant(content,'height','auto');
+          setImportant(content,'overflow','visible');
+          setImportant(content,'overflow-x','hidden');
+        }else{
+          setImportant(content,'margin-left','0');
+          setImportant(content,'width','100%');
+          setImportant(content,'max-width','100%');
+          setImportant(content,'min-height','calc(100vh - ' + h + 'px)');
+          setImportant(content,'height','auto');
+          setImportant(content,'overflow','visible');
+        }
+      }
+
+      ['pg-taoPhieu','pg-danhSachPhieu','pg-hoanThanhPhieu'].forEach(function(id){
+        var pg=document.getElementById(id);
+        if(!pg) return;
+        setImportant(pg,'width','100%');
+        setImportant(pg,'max-width','none');
+        setImportant(pg,'margin','0');
+        setImportant(pg,'box-sizing','border-box');
+        setImportant(pg,'overflow','visible');
+        setImportant(pg,'padding',desktop ? '18px 24px 120px 24px' : '14px 10px 110px 10px');
+      });
+    }catch(e){}
+  }
+
+  function resetMainScroll(){
+    try{ window.scrollTo(0,0); }catch(e){}
+    try{
+      var c=document.querySelector('.content');
+      if(c) c.scrollTop=0;
+    }catch(e){}
+  }
+
+  function afterRoute(){
+    applyPv22Layout();
+    setTimeout(applyPv22Layout,60);
+    setTimeout(applyPv22Layout,250);
+  }
+
+  var oldNav = window.nav;
+  if(typeof oldNav === 'function' && !oldNav.__pv22Wrapped){
+    var wrapped = function(p){
+      var ret = oldNav.apply(this, arguments);
+      afterRoute();
+      if(p === 'taoPhieu' || p === 'hoanThanhPhieu' || p === 'danhSachPhieu'){
+        setTimeout(resetMainScroll,20);
+      }
+      return ret;
+    };
+    wrapped.__pv22Wrapped = true;
+    window.nav = wrapped;
+  }
+
+  window.pv22ApplyFixedTopbarLayout = applyPv22Layout;
+
+  function boot(){
+    applyPv22Layout();
+    setTimeout(applyPv22Layout,100);
+    setTimeout(applyPv22Layout,500);
+    setTimeout(applyPv22Layout,1200);
+  }
+
+  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+  else boot();
+  window.addEventListener('resize', applyPv22Layout);
+  window.addEventListener('load', boot);
+  setInterval(function(){ if(window.CU) applyPv22Layout(); }, 2000);
+})();
+</script>
