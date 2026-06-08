@@ -1521,7 +1521,7 @@ tbody tr{border-bottom:1px solid #f1f5f9;transition:.1s}tbody tr:hover{backgroun
 // API APPS SCRIPT DUY NHẤT - SAU KHI DEPLOY CODE.GS MỚI, DÁN LINK /exec VÀO ĐÂY
 // Tất cả chức năng BDSC + Phiếu vật tư đều dùng chung URL này.
 // ==========================================================
-const API_URL = 'DAN_LINK_APPS_SCRIPT_MOI_VAO_DAY';
+const API_URL = 'https://script.google.com/macros/s/AKfycbyt0IWgZqZ_LtPPRCoKsGt0KkxfsDuBxwCojelXmIXRrirl_D2r2Zb7g-39hhM9qVzvng/exec';
 
 // ═══════════════════ DỮ LIỆU THỰC TẾ TỪ EXCEL ═══════════════════
 const MACHINES=[
@@ -7800,50 +7800,57 @@ nav=function(p){
 })();
 </script>
 
+<!-- V26 clean rebuild: Material pages use the same stable app layout as the rest of the system -->
+<style id="egreen-v26-layout">
+  :root{--eg-topbar-h:54px;--eg-mobile-topbar-h:50px;--eg-sidebar-w:206px;}
 
-<!-- V25 clean hotfix: vật tư dùng lại layout chuẩn của các mục khác, không vá fixed phức tạp -->
-<style id="pv25-material-main-ui-style">
-  /* Ẩn mục danh sách cũ, chỉ giữ Tạo phiếu và Hoàn thành phiếu như yêu cầu */
-  #ni-danhSachPhieu{display:none !important;}
-
-  /* Trả layout về đúng kiểu chung của hệ thống: topbar + sidebar + content */
   @media (min-width:769px){
-    html,body{height:100% !important;overflow:hidden !important;}
-    #app{height:100vh !important;min-height:100vh !important;display:flex !important;flex-direction:column !important;overflow:hidden !important;}
-    .topbar{position:sticky !important;top:0 !important;height:54px !important;min-height:54px !important;flex:0 0 54px !important;z-index:300 !important;}
-    .layout{display:flex !important;flex:1 1 auto !important;width:100% !important;height:calc(100vh - 54px) !important;min-height:0 !important;overflow:hidden !important;align-items:stretch !important;}
-    .sidebar{position:sticky !important;top:54px !important;left:auto !important;bottom:auto !important;width:206px !important;min-width:206px !important;max-width:206px !important;flex:0 0 206px !important;height:calc(100vh - 54px) !important;overflow-y:auto !important;overflow-x:hidden !important;transform:none !important;box-shadow:none !important;z-index:180 !important;}
-    .content{position:relative !important;flex:1 1 auto !important;min-width:0 !important;width:auto !important;max-width:none !important;height:calc(100vh - 54px) !important;min-height:0 !important;margin:0 !important;padding:0 !important;overflow-y:auto !important;overflow-x:hidden !important;background:var(--bg) !important;box-sizing:border-box !important;}
+    html,body{height:100%;min-height:100%;overflow:hidden;background:var(--bg);}
+    #app{display:flex !important;flex-direction:column !important;height:100vh !important;min-height:0 !important;overflow:hidden !important;}
+    .topbar{position:relative !important;top:auto !important;left:auto !important;right:auto !important;width:100% !important;height:var(--eg-topbar-h) !important;min-height:var(--eg-topbar-h) !important;flex:0 0 var(--eg-topbar-h) !important;z-index:300 !important;}
+    .layout{display:flex !important;flex:1 1 auto !important;min-height:0 !important;height:calc(100vh - var(--eg-topbar-h)) !important;width:100% !important;overflow:hidden !important;align-items:stretch !important;}
+    .sidebar{position:relative !important;top:auto !important;left:auto !important;bottom:auto !important;width:var(--eg-sidebar-w) !important;min-width:var(--eg-sidebar-w) !important;max-width:var(--eg-sidebar-w) !important;flex:0 0 var(--eg-sidebar-w) !important;height:100% !important;overflow-y:auto !important;overflow-x:hidden !important;transform:none !important;box-shadow:none !important;z-index:50 !important;}
+    .content{position:relative !important;display:block !important;flex:1 1 auto !important;min-width:0 !important;width:auto !important;max-width:none !important;height:100% !important;min-height:0 !important;margin:0 !important;overflow-y:auto !important;overflow-x:hidden !important;background:var(--bg) !important;}
     .page{box-sizing:border-box !important;}
     .page:not(.on){display:none !important;}
     .page.on{display:block !important;}
 
-    /* Hai trang vật tư dùng đúng lề/padding như các page khác, không căn giữa lệch */
-    #pg-taoPhieu,#pg-hoanThanhPhieu,#pg-danhSachPhieu{width:100% !important;max-width:100% !important;margin:0 !important;padding:16px 20px 90px 20px !important;box-sizing:border-box !important;overflow:visible !important;}
-    #pg-taoPhieu > .ph,#pg-hoanThanhPhieu > .ph,#pg-danhSachPhieu > .ph{margin:0 0 16px 0 !important;text-align:left !important;}
+    #pg-taoPhieu,#pg-hoanThanhPhieu,#pg-danhSachPhieu{width:100% !important;max-width:100% !important;margin:0 !important;padding:16px 20px 96px !important;box-sizing:border-box !important;}
+    #pg-taoPhieu > .ph,#pg-hoanThanhPhieu > .ph,#pg-danhSachPhieu > .ph{margin:0 0 16px 0 !important;padding:0 !important;text-align:left !important;}
     #pvFormRoot,#pvHistoryRoot,#pvCompleteRoot,#pvb_formWrap{width:100% !important;max-width:100% !important;margin:0 !important;padding:0 !important;box-sizing:border-box !important;}
-    #pvb_formWrap .fsec,#pvFormRoot .card,#pvHistoryRoot .card,#pvCompleteRoot .card{width:100% !important;max-width:100% !important;margin-left:0 !important;margin-right:0 !important;box-sizing:border-box !important;}
-    #pvHistoryRoot .tblwrap,#pvCompleteRoot .tblwrap,#pvCompleteRoot .pv17-scroll,#pvCompleteRoot .pv18-scroll{width:100% !important;max-width:100% !important;overflow-x:auto !important;overflow-y:visible !important;box-sizing:border-box !important;}
-    #pvCompleteRoot .tbl{min-width:1120px;}
-    #pvCompleteRoot .pv18-actions,#pvCompleteRoot .pv25-actions{display:flex;gap:5px;align-items:center;justify-content:flex-start;flex-wrap:wrap;}
-    #pvCompleteRoot .pv18-actions .btn,#pvCompleteRoot .pv25-actions .btn{margin:1px 0;}
-  }
-  @media (max-width:768px){
-    html,body{height:auto !important;min-height:100% !important;overflow-y:auto !important;overflow-x:hidden !important;}
-    #app,.layout,.content{height:auto !important;min-height:100vh !important;overflow:visible !important;}
-    .content{margin-left:0 !important;width:100% !important;max-width:100% !important;}
-    #pg-taoPhieu,#pg-hoanThanhPhieu,#pg-danhSachPhieu{width:100% !important;max-width:100% !important;margin:0 !important;padding:14px 10px 90px !important;box-sizing:border-box !important;}
-    .topbar{position:sticky !important;top:0 !important;z-index:300 !important;}
+    #pvb_formWrap .fsec,#pvCompleteRoot .card,#pvHistoryRoot .card,#pvFormRoot .card{width:100% !important;max-width:100% !important;margin-left:0 !important;margin-right:0 !important;box-sizing:border-box !important;}
+    #pvCompleteRoot .tblwrap,#pvHistoryRoot .tblwrap,#pvCompleteRoot .pv18-scroll,#pvCompleteRoot .pv17-scroll{width:100% !important;max-width:100% !important;overflow-x:auto !important;overflow-y:visible !important;}
   }
 
+  @media (max-width:768px){
+    html,body{height:auto;min-height:100%;overflow-y:auto;overflow-x:hidden;}
+    #app{min-height:100vh;overflow:visible;}
+    .topbar{position:sticky !important;top:0 !important;height:var(--eg-mobile-topbar-h) !important;min-height:var(--eg-mobile-topbar-h) !important;z-index:300 !important;}
+    .layout{display:flex !important;overflow:visible !important;}
+    .content{width:100% !important;max-width:100% !important;margin-left:0 !important;height:auto !important;min-height:calc(100vh - var(--eg-mobile-topbar-h)) !important;overflow:visible !important;}
+    #pg-taoPhieu,#pg-hoanThanhPhieu,#pg-danhSachPhieu{width:100% !important;max-width:100% !important;margin:0 !important;padding:14px 10px 96px !important;box-sizing:border-box !important;}
+  }
+
+  #ni-danhSachPhieu{display:none !important;}
   .bg-p{background:#f5f3ff;color:var(--pu);border:1px solid #ddd6fe}.bg-p:hover{background:#ede9fe}
-  .pv25-mat-select{min-width:230px;}
+  .egmat-actions{display:flex;gap:5px;align-items:center;justify-content:flex-start;flex-wrap:wrap;}
+  .egmat-actions .btn{margin:1px 0;}
+  .egmat-mat-select{min-width:230px;}
+  .egmat-complete-head{display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap;}
+  .egmat-form-grid{display:grid;grid-template-columns:1fr 1fr;gap:11px;padding:14px 16px;}
+  .egmat-form-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;align-items:center;}
+  #egmat_complete_table{width:100%;min-width:980px;border-collapse:collapse;background:#fff;font-size:12px;}
+  #egmat_complete_table th,#egmat_complete_table td{border:1px solid var(--bd);padding:7px;vertical-align:middle;}
+  #egmat_complete_table th{background:#e8f7f0;color:#083d24;font-weight:800;}
+  #egmat_complete_table input,#egmat_complete_table select{width:100%;border:1px solid var(--bd);border-radius:6px;padding:5px;font-size:12px;background:#fff;}
+  @media(max-width:800px){.egmat-form-grid{grid-template-columns:1fr}.egmat-mat-select{min-width:180px}}
 </style>
-<script id="pv25-material-main-ui-js">
+<script id="egreen-v26-material-module">
 (function(){
-  function esc(s){return (typeof pvEsc==='function')?pvEsc(s):String(s??'').replace(/[&<>\"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[c]||c;});}
-  function js(s){return (typeof pvJs==='function')?pvJs(s):String(s??'').replace(/\\/g,'\\\\').replace(/'/g,"\\'");}
-  function norm(s){return (typeof pvNorm==='function')?pvNorm(s):String(s??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();}
+  var PHAT_SINH='Phát sinh', CHUAN_BI='Chuẩn bị';
+  function esc(s){return (typeof pvEsc==='function')?pvEsc(s):String(s==null?'':s).replace(/[&<>\"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[c]||c;});}
+  function js(s){return (typeof pvJs==='function')?pvJs(s):String(s==null?'':s).replace(/\\/g,'\\\\').replace(/'/g,"\\'");}
+  function norm(s){return (typeof pvNorm==='function')?pvNorm(s):String(s==null?'':s).normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/đ/g,'d').toLowerCase().trim();}
   function getObj(o,keys){
     if(!o)return '';
     if(typeof pvGetObj==='function')return pvGetObj(o,keys)||'';
@@ -7851,42 +7858,9 @@ nav=function(p){
     return '';
   }
   function uniq(list){var out=[],seen={};(list||[]).forEach(function(v){v=String(v||'').trim();if(!v)return;var k=norm(v);if(!seen[k]){seen[k]=1;out.push(v);}});return out;}
-  var PHAT_SINH='Phát sinh', CHUAN_BI='Chuẩn bị';
-
-  function applyMainLayout(){
-    try{
-      if(window.innerWidth>768){
-        var c=document.querySelector('.content'), sb=document.getElementById('mainSidebar')||document.querySelector('.sidebar'), ov=document.getElementById('mobOverlay');
-        if(c){
-          c.style.setProperty('margin','0','important');
-          c.style.setProperty('width','auto','important');
-          c.style.setProperty('max-width','none','important');
-          c.style.setProperty('height','calc(100vh - 54px)','important');
-          c.style.setProperty('overflow-y','auto','important');
-          c.style.setProperty('overflow-x','hidden','important');
-        }
-        if(sb){
-          sb.classList.remove('open');
-          sb.style.setProperty('position','sticky','important');
-          sb.style.setProperty('top','54px','important');
-          sb.style.setProperty('height','calc(100vh - 54px)','important');
-          sb.style.setProperty('transform','none','important');
-        }
-        if(ov)ov.classList.remove('show');
-      }
-      ['pg-taoPhieu','pg-hoanThanhPhieu','pg-danhSachPhieu'].forEach(function(id){
-        var pg=document.getElementById(id); if(!pg)return;
-        pg.style.setProperty('width','100%','important');
-        pg.style.setProperty('max-width','100%','important');
-        pg.style.setProperty('margin','0','important');
-        pg.style.setProperty('box-sizing','border-box','important');
-      });
-    }catch(e){}
-  }
-
-  function enableEnterLogin(){
-    try{['lu','lp'].forEach(function(id){var el=document.getElementById(id);if(!el||el.__pv25EnterLogin)return;el.__pv25EnterLogin=true;el.addEventListener('keydown',function(ev){if((ev.key==='Enter'||ev.keyCode===13)&&!ev.isComposing){ev.preventDefault();if(typeof login==='function')login();}});});}catch(e){}
-  }
+  function isDone(r){return (typeof pv17IsCompleted==='function')?pv17IsCompleted(r):norm(r&&r.trangThai).indexOf('hoan thanh')>=0;}
+  function getList(){return ((_pvBDSCListCache&&_pvBDSCListCache.length?_pvBDSCListCache:(typeof pvBDSCReadListCache_==='function'?pvBDSCReadListCache_():[]))||[]);}
+  function scrollTop(){try{var c=document.querySelector('.content');if(c)c.scrollTop=0;}catch(e){} try{window.scrollTo(0,0);}catch(e){}}
 
   function peopleList(){
     var names=[];
@@ -7896,106 +7870,118 @@ nav=function(p){
     try{if(window.CU)names.push(CU.name||CU.fullName||CU.u||'');}catch(e){}
     return uniq(names);
   }
-  window.pv25PeopleOptionsHTML=function(selected){
+  function peopleOptions(selected){
     selected=String(selected||'').trim();
     var list=peopleList();
     if(selected&&!list.some(function(n){return norm(n)===norm(selected);}))list=[selected].concat(list);
     return '<option value="">-- Chọn người nhập kho --</option>'+list.map(function(n){return '<option value="'+esc(n)+'" '+(norm(n)===norm(selected)?'selected':'')+'>'+esc(n)+'</option>';}).join('');
-  };
-
+  }
   function matName(x){return (typeof pvTenVatTu==='function')?pvTenVatTu(x):getObj(x,['Tên Chi Tiết / Linh Kiện Thay Thế','Tên vật tư','tenVatTu','lk']);}
   function matCum(x){return (typeof pvCum==='function')?pvCum(x):getObj(x,['Cụm Linh Kiện','Cụm linh kiện','cumLinhKien','cum']);}
-  window.pv25MaterialList=function(){
+  function materialList(){
     var arr=[];
     try{if(window.PV&&PV.data&&Array.isArray(PV.data.vatTu))arr=arr.concat(PV.data.vatTu);}catch(e){}
-    try{if((!arr||!arr.length)&&typeof PARTS_MAP!=='undefined'){Object.entries(PARTS_MAP).forEach(function(pair){var cum=pair[0],parts=pair[1];(parts||[]).forEach(function(p){arr.push({'Tên vật tư':p,'Cụm linh kiện':cum});});});}}catch(e){}
+    try{if((!arr||!arr.length)&&typeof PARTS_MAP!=='undefined')Object.entries(PARTS_MAP).forEach(function(pair){(pair[1]||[]).forEach(function(p){arr.push({'Tên vật tư':p,'Cụm linh kiện':pair[0]});});});}catch(e){}
     var out=[],seen={};
     (arr||[]).forEach(function(x){var name=matName(x);if(!name)return;var k=norm(name);if(seen[k])return;seen[k]=1;out.push({tenVatTu:name,cumLinhKien:matCum(x),maVatTu:getObj(x,['Mã vật tư','Ma vat tu','maVatTu']),donViTinh:getObj(x,['ĐVT','Đơn vị tính','DVT','donViTinh'])});});
     return out;
-  };
-  window.pv25UsedMaterialSet=function(skipTr){
+  }
+  function usedMaterialSet(skipTr){
     var used={};
-    document.querySelectorAll('#pv18_complete_table tbody tr,#pv17_complete_table tbody tr').forEach(function(tr){
+    document.querySelectorAll('#egmat_complete_table tbody tr,#pv18_complete_table tbody tr,#pv17_complete_table tbody tr').forEach(function(tr){
       if(skipTr&&tr===skipTr)return;
-      var el=tr.querySelector('[data-k="tenVatTu"]');
-      var v=el?String(el.value||'').trim():'';
+      var el=tr.querySelector('[data-k="tenVatTu"]');var v=el?String(el.value||'').trim():'';
       if(v)used[norm(v)]=1;
     });
     return used;
-  };
-  window.pv25MatOptionsHTML=function(selected,skipTr){
-    selected=String(selected||'').trim();
-    var used=pv25UsedMaterialSet(skipTr);
-    var list=pv25MaterialList().filter(function(m){return !used[norm(m.tenVatTu)]||norm(m.tenVatTu)===norm(selected);});
+  }
+  function matOptions(selected,skipTr){
+    selected=String(selected||'').trim();var used=usedMaterialSet(skipTr);
+    var list=materialList().filter(function(m){return !used[norm(m.tenVatTu)]||norm(m.tenVatTu)===norm(selected);});
     return '<option value="">-- Chọn vật tư phát sinh --</option>'+list.map(function(m){var label=[m.tenVatTu,m.cumLinhKien].filter(Boolean).join(' - ');return '<option value="'+esc(m.tenVatTu)+'" '+(norm(m.tenVatTu)===norm(selected)?'selected':'')+'>'+esc(label)+'</option>';}).join('');
-  };
-  window.pv25RefreshMaterialSelects=function(){
-    document.querySelectorAll('select.pv25-mat-select').forEach(function(sel){var cur=sel.value;sel.innerHTML=pv25MatOptionsHTML(cur,sel.closest('tr'));sel.value=cur;});
-  };
-  window.pv25OnMatSelect=function(sel){
-    var tr=sel.closest('tr'); if(!tr)return;
-    var mat=pv25MaterialList().find(function(m){return norm(m.tenVatTu)===norm(sel.value);});
+  }
+  window.egmatRefreshMaterialSelects=function(){document.querySelectorAll('select.egmat-mat-select').forEach(function(sel){var cur=sel.value;sel.innerHTML=matOptions(cur,sel.closest('tr'));sel.value=cur;});};
+  window.egmatOnMatSelect=function(sel){
+    var tr=sel.closest('tr');if(!tr)return;
+    var mat=materialList().find(function(m){return norm(m.tenVatTu)===norm(sel.value);});
     function set(k,v){var el=tr.querySelector('[data-k="'+k+'"]');if(el)el.value=v||'';}
     if(mat){set('cumLinhKien',mat.cumLinhKien);set('maVatTu',mat.maVatTu);set('donViTinh',mat.donViTinh);set('nguonVatTu',PHAT_SINH);}
     var loai=tr.querySelector('[data-k="loaiDong"]');if(loai)loai.value=PHAT_SINH;
-    pv25RefreshMaterialSelects();
+    egmatRefreshMaterialSelects();
   };
-  window.pv25OnLoaiDongChange=function(sel){
-    var tr=sel.closest('tr');if(!tr)return;
+  window.egmatOnLoaiDongChange=function(sel){
+    var tr=sel.closest('tr');if(!tr||norm(sel.value)!==norm(PHAT_SINH))return;
     var holder=tr.children[1];if(!holder)return;
     var old=holder.querySelector('[data-k="tenVatTu"]');
-    if(sel.value===PHAT_SINH){
-      var val=old?old.value:'';
-      if(!old||old.tagName!=='SELECT'){
-        if(old)old.outerHTML='<select class="pv25-mat-select" data-k="tenVatTu" onchange="pv25OnMatSelect(this)">'+pv25MatOptionsHTML(val,tr)+'</select>';
-      }
-      var nsel=holder.querySelector('select.pv25-mat-select');if(nsel)nsel.value=val;
-      var nguon=tr.querySelector('[data-k="nguonVatTu"]');if(nguon)nguon.value=PHAT_SINH;
+    if(old&&old.tagName!=='SELECT'){
+      var val=old.value||'';
+      old.outerHTML='<select class="egmat-mat-select" data-k="tenVatTu" onchange="egmatOnMatSelect(this)">'+matOptions(val,tr)+'</select>';
+      var nsel=holder.querySelector('select.egmat-mat-select');if(nsel)nsel.value=val;
     }
-    pv25RefreshMaterialSelects();
+    egmatRefreshMaterialSelects();
   };
 
   window.pv17ListRowsHTML=function(rows,mode){
-    if(!rows||!rows.length){return '<div class="cb"><i>'+(mode==='done'?'Chưa có phiếu đã hoàn thành.':'Không có phiếu xuất cần cập nhật.')+'</i></div>';}
-    return '<div class="tblwrap"><table class="tbl"><thead><tr><th style="width:135px">Mã phiếu</th><th style="width:130px">Ngày tạo</th><th style="width:150px">Mã máy</th><th>Tên trại</th><th style="width:150px">Đội trưởng</th><th style="width:160px">Mục đích</th><th style="width:110px">Trạng thái</th><th style="width:230px">Thao tác</th></tr></thead><tbody>'+rows.map(function(r){
+    if(!rows||!rows.length)return '<div class="cb"><i>'+(mode==='done'?'Chưa có phiếu đã hoàn thành.':'Không có phiếu xuất vật tư chờ cập nhật.')+'</i></div>';
+    return '<div class="tblwrap"><table class="tbl"><thead><tr><th style="width:135px">Mã phiếu</th><th style="width:130px">Ngày tạo</th><th style="width:140px">Mã máy</th><th>Tên trại</th><th style="width:145px">Đội trưởng</th><th style="width:150px">Mục đích</th><th style="width:105px">Trạng thái</th><th style="width:240px">Thao tác</th></tr></thead><tbody>'+rows.map(function(r){
       var actions='<button class="btn bg-a sm" onclick="pvBDSCPreviewSaved(\''+js(r.maPhieu)+'\')">👁 Xem</button><button class="btn bg-g sm" onclick="pvBDSCExportPdf(\''+js(r.maPhieu)+'\')">PDF</button><button class="btn bg-p sm" onclick="pvBDSCExportWord(\''+js(r.maPhieu)+'\')">Word</button>'+(mode==='wait'?'<button class="btn bg-b sm" onclick="pv17OpenComplete(\''+js(r.maPhieu)+'\')">🔄 Cập nhật</button>':'');
-      return '<tr><td><b>'+esc(r.maPhieu)+'</b></td><td>'+esc(r.ngayTao)+'</td><td>'+esc(r.danhSachMaMay||r.maMay)+'</td><td>'+esc(r.danhSachTenTrai||r.tenTrai)+'</td><td>'+esc(r.doiTruong)+'</td><td>'+esc(r.mucDich)+'</td><td><span class="b '+(pv17IsCompleted(r)?'bg':'ba')+'">'+esc(r.trangThai||'Đã tạo')+'</span></td><td><div class="pv25-actions">'+actions+'</div></td></tr>';
+      return '<tr><td><b>'+esc(r.maPhieu)+'</b></td><td>'+esc(r.ngayTao)+'</td><td>'+esc(r.danhSachMaMay||r.maMay)+'</td><td>'+esc(r.danhSachTenTrai||r.tenTrai)+'</td><td>'+esc(r.doiTruong)+'</td><td>'+esc(r.mucDich)+'</td><td><span class="b '+(isDone(r)?'bg':'ba')+'">'+esc(r.trangThai||'Đã tạo')+'</span></td><td><div class="egmat-actions">'+actions+'</div></td></tr>';
     }).join('')+'</tbody></table></div>';
   };
 
+  window.pv17RenderCompletePage=function(){
+    var root=document.getElementById('pvCompleteRoot');if(!root)return;
+    document.querySelectorAll('.nitem').forEach(function(x){x.classList.remove('on');});
+    var ni=document.getElementById('ni-hoanThanhPhieu');if(ni)ni.classList.add('on');
+    var list=getList(), wait=list.filter(function(r){return !isDone(r);}), done=list.filter(isDone);
+    root.innerHTML='<div class="card"><div class="cb egmat-complete-head"><b>Danh sách phiếu xuất vật tư chờ cập nhật ('+wait.length+')</b><button class="btn bg-g sm" onclick="pvBDSCRefreshHistory_(true).then(function(){pv17RenderCompletePage();})">↻ Làm mới</button></div>'+pv17ListRowsHTML(wait,'wait')+'</div><div class="card" style="margin-top:14px"><div class="cb"><b>Danh sách phiếu đã hoàn thành ('+done.length+')</b></div>'+pv17ListRowsHTML(done,'done')+'</div>';
+    updateBadge();
+  };
+
   window.pv17CompleteRowHTML=function(x,i){
-    x=x||{};
-    var sx=x.soLuongXuatKho||x.soLuongCan||'';
+    x=x||{};var sx=x.soLuongXuatKho||x.soLuongCan||'';
     var loai=String(x.loaiDong||(!String(x.tenVatTu||'').trim()?PHAT_SINH:CHUAN_BI));
     var isPhatSinh=norm(loai)===norm(PHAT_SINH)||norm(x.nguonVatTu||'')===norm(PHAT_SINH)||!String(x.tenVatTu||'').trim();
-    var matCtl=isPhatSinh?'<select class="pv25-mat-select" data-k="tenVatTu" onchange="pv25OnMatSelect(this)">'+pv25MatOptionsHTML(x.tenVatTu||'',null)+'</select>':'<input value="'+esc(x.tenVatTu||'')+'" data-k="tenVatTu">';
-    return '<tr><td style="text-align:center">'+(i+1)+'</td><td>'+matCtl+'<input type="hidden" data-k="nguonVatTu" value="'+esc(x.nguonVatTu||'')+'"><input type="hidden" data-k="cumLinhKien" value="'+esc(x.cumLinhKien||'')+'"><input type="hidden" data-k="maVatTu" value="'+esc(x.maVatTu||'')+'"><input type="hidden" data-k="donViTinh" value="'+esc(x.donViTinh||'')+'"></td><td><input type="number" min="0" value="'+esc(String(sx))+'" data-k="soLuongXuatKho"></td><td><input type="number" min="0" value="'+esc(String(x.soLuongSuDung||''))+'" data-k="soLuongSuDung"></td><td><input type="number" min="0" value="'+esc(String(x.soLuongNhapKho||''))+'" data-k="soLuongNhapKho"></td><td><select data-k="tinhTrangNhapKho">'+['','Mới','Cũ','Tốt','Hỏng'].map(function(s){return '<option '+(s===(x.tinhTrangNhapKho||'')?'selected':'')+'>'+s+'</option>';}).join('')+'</select></td><td><input value="'+esc(x.ghiChu||'')+'" data-k="ghiChu"></td><td><select data-k="loaiDong" onchange="pv25OnLoaiDongChange(this)"><option '+(norm(loai)===norm(CHUAN_BI)?'selected':'')+'>'+CHUAN_BI+'</option><option '+(norm(loai)===norm(PHAT_SINH)?'selected':'')+'>'+PHAT_SINH+'</option></select></td></tr>';
+    var matCtl=isPhatSinh?'<select class="egmat-mat-select" data-k="tenVatTu" onchange="egmatOnMatSelect(this)">'+matOptions(x.tenVatTu||'',null)+'</select>':'<input value="'+esc(x.tenVatTu||'')+'" data-k="tenVatTu">';
+    return '<tr><td style="text-align:center">'+(i+1)+'</td><td>'+matCtl+'<input type="hidden" data-k="nguonVatTu" value="'+esc(x.nguonVatTu||'')+'"><input type="hidden" data-k="cumLinhKien" value="'+esc(x.cumLinhKien||'')+'"><input type="hidden" data-k="maVatTu" value="'+esc(x.maVatTu||'')+'"><input type="hidden" data-k="donViTinh" value="'+esc(x.donViTinh||'')+'"></td><td><input type="number" min="0" value="'+esc(String(sx))+'" data-k="soLuongXuatKho"></td><td><input type="number" min="0" value="'+esc(String(x.soLuongSuDung||''))+'" data-k="soLuongSuDung"></td><td><input type="number" min="0" value="'+esc(String(x.soLuongNhapKho||''))+'" data-k="soLuongNhapKho"></td><td><select data-k="tinhTrangNhapKho">'+['','Mới','Cũ','Tốt','Hỏng'].map(function(s){return '<option '+(s===(x.tinhTrangNhapKho||'')?'selected':'')+'>'+s+'</option>';}).join('')+'</select></td><td><input value="'+esc(x.ghiChu||'')+'" data-k="ghiChu"></td><td><select data-k="loaiDong" onchange="egmatOnLoaiDongChange(this)"><option '+(norm(loai)===norm(CHUAN_BI)?'selected':'')+'>'+CHUAN_BI+'</option><option '+(norm(loai)===norm(PHAT_SINH)?'selected':'')+'>'+PHAT_SINH+'</option></select></td></tr>';
   };
-
-  window.pv17AddCompleteRow=function(){
-    var tb=document.querySelector('#pv18_complete_table tbody')||document.querySelector('#pv17_complete_table tbody');
-    if(!tb)return;
-    tb.insertAdjacentHTML('beforeend',pv17CompleteRowHTML({loaiDong:PHAT_SINH,nguonVatTu:PHAT_SINH},tb.children.length));
-    pv25RefreshMaterialSelects();
-  };
-
+  window.pv17AddCompleteRow=function(){var tb=document.querySelector('#egmat_complete_table tbody,#pv18_complete_table tbody,#pv17_complete_table tbody');if(!tb)return;tb.insertAdjacentHTML('beforeend',pv17CompleteRowHTML({loaiDong:PHAT_SINH,nguonVatTu:PHAT_SINH},tb.children.length));egmatRefreshMaterialSelects();};
+  window.pv17CollectCompleteItems=function(){return Array.from(document.querySelectorAll('#egmat_complete_table tbody tr,#pv18_complete_table tbody tr,#pv17_complete_table tbody tr')).map(function(tr,i){var obj={stt:i+1};tr.querySelectorAll('[data-k]').forEach(function(el){obj[el.dataset.k]=el.value;});obj.soLuongCan=obj.soLuongXuatKho;return obj;}).filter(function(x){return String(x.tenVatTu||'').trim();});};
   window.pv17RenderCompleteForm=function(root,phieu,items){
     var dt=new Date();dt.setMinutes(dt.getMinutes()-dt.getTimezoneOffset());
-    root.innerHTML='<div class="card"><div class="cb pv18-form-head"><div><b>Cập nhật hoàn thành phiếu: '+esc(phieu.maPhieu)+'</b><div class="pv17-small">'+esc(phieu.danhSachMaMay||phieu.maMay)+' · '+esc(phieu.danhSachTenTrai||phieu.tenTrai)+'</div></div><button class="btn sm" onclick="pv17RenderCompletePage()">← Quay lại</button></div><div class="pv18-form-grid"><div class="iw"><div class="il">Ngày giờ nhập kho *</div><input class="inp" type="datetime-local" id="pv17_ngayNhap" value="'+dt.toISOString().slice(0,16)+'"></div><div class="iw"><div class="il">Người nhập kho *</div><select class="inp" id="pv17_nguoiNhap">'+pv25PeopleOptionsHTML(phieu.nguoiNhapKho||'')+'</select></div></div><div class="pv18-scroll" style="margin-top:12px"><table id="pv18_complete_table"><thead><tr><th style="width:44px">STT</th><th style="width:300px">Hạng mục vật tư</th><th style="width:90px">SL xuất kho</th><th style="width:90px">SL sử dụng</th><th style="width:90px">SL nhập kho</th><th style="width:130px">Tình trạng nhập</th><th style="width:170px">Ghi chú</th><th style="width:105px">Loại dòng</th></tr></thead><tbody>'+((items||[]).map(function(x,i){return pv17CompleteRowHTML(x,i);}).join(''))+'</tbody></table></div><div class="pv18-form-actions"><button class="btn bg-a sm" onclick="pv17AddCompleteRow()">➕ Thêm vật tư phát sinh</button><button class="btn bg-g" onclick="pv17SubmitComplete(\''+js(phieu.maPhieu)+'\')">✅ Lưu hoàn thiện</button></div><div class="ih" style="margin-top:8px">Khi lưu hoàn thiện, hệ thống xóa link/file PDF - Word xuất kho cũ. Lần bấm PDF/Word sau sẽ tạo bản hoàn thành mới.</div></div>';
-    setTimeout(pv25RefreshMaterialSelects,0);
+    var selectedNguoi=(phieu&&phieu.nguoiNhapKho)||(window.CU&&(CU.name||CU.fullName))||'';
+    root.innerHTML='<div class="card"><div class="cb egmat-complete-head"><div><b>Cập nhật hoàn thành phiếu: '+esc(phieu.maPhieu)+'</b><div class="pv17-small">'+esc(phieu.danhSachMaMay||phieu.maMay)+' · '+esc(phieu.danhSachTenTrai||phieu.tenTrai)+'</div></div><button class="btn sm" onclick="pv17RenderCompletePage()">← Quay lại</button></div><div class="egmat-form-grid"><div class="iw"><div class="il">Ngày giờ nhập kho *</div><input class="inp" type="datetime-local" id="pv17_ngayNhap" value="'+dt.toISOString().slice(0,16)+'"></div><div class="iw"><div class="il">Người nhập kho *</div><select class="inp" id="pv17_nguoiNhap">'+peopleOptions(selectedNguoi)+'</select></div></div><div class="pv18-scroll" style="margin-top:12px"><table id="egmat_complete_table"><thead><tr><th style="width:44px">STT</th><th style="width:300px">Hạng mục vật tư</th><th style="width:90px">SL xuất kho</th><th style="width:90px">SL sử dụng</th><th style="width:90px">SL nhập kho</th><th style="width:130px">Tình trạng nhập</th><th style="width:170px">Ghi chú</th><th style="width:105px">Loại dòng</th></tr></thead><tbody>'+((items||[]).map(function(x,i){return pv17CompleteRowHTML(x,i);}).join(''))+'</tbody></table></div><div class="egmat-form-actions"><button class="btn bg-a sm" onclick="pv17AddCompleteRow()">➕ Thêm vật tư phát sinh</button><button class="btn bg-g" onclick="pv17SubmitComplete(\''+js(phieu.maPhieu)+'\')">✅ Lưu hoàn thiện</button></div><div class="ih" style="margin-top:8px">Khi lưu hoàn thiện, hệ thống xóa link/file PDF - Word xuất kho cũ. Lần bấm PDF/Word sau sẽ tạo bản hoàn thành mới.</div></div>';
+    setTimeout(egmatRefreshMaterialSelects,0);
   };
-
   window.pv16RenderCompletePage=window.pv17RenderCompletePage;
   window.pv16SubmitComplete=window.pv17SubmitComplete;
 
+  function updateBadge(){try{var list=getList();var wait=list.filter(function(r){return !isDone(r);}).length;var el=document.getElementById('nb-phieu-complete');if(el)el.textContent=wait;}catch(e){}}
+  function applyNavItems(){var old=document.getElementById('ni-danhSachPhieu');if(old)old.style.display='none';var cur=document.getElementById('ni-hoanThanhPhieu');if(cur)cur.style.display='flex';updateBadge();}
+  function enableEnterLogin(){try{['lu','lp'].forEach(function(id){var el=document.getElementById(id);if(!el||el.__egmatEnter)return;el.__egmatEnter=true;el.addEventListener('keydown',function(ev){if((ev.key==='Enter'||ev.keyCode===13)&&!ev.isComposing){ev.preventDefault();if(typeof login==='function')login();}});});}catch(e){}}
+
+  var oldBadge=window.pvBDSCUpdateBadge;
+  window.pvBDSCUpdateBadge=function(count){if(typeof oldBadge==='function')oldBadge(count);updateBadge();applyNavItems();};
   var oldNav=window.nav;
-  if(typeof oldNav==='function'&&!oldNav.__pv25Wrapped){
-    window.nav=function(p){var ret=oldNav.apply(this,arguments);setTimeout(function(){applyMainLayout();var c=document.querySelector('.content');if(c&&(p==='taoPhieu'||p==='hoanThanhPhieu'))c.scrollTop=0;},0);setTimeout(applyMainLayout,150);return ret;};
-    window.nav.__pv25Wrapped=true;
-  }
-  function boot(){enableEnterLogin();applyMainLayout();if(window.curPage==='hoanThanhPhieu'&&typeof pv17RenderCompletePage==='function')pv17RenderCompletePage();}
+  window.nav=function(p){
+    if(p==='danhSachPhieu')p='hoanThanhPhieu';
+    if(p==='hoanThanhPhieu'){
+      if(window.innerWidth<=768&&typeof closeSidebar==='function')closeSidebar();
+      document.querySelectorAll('.page').forEach(function(x){x.classList.remove('on');});
+      document.querySelectorAll('.nitem').forEach(function(x){x.classList.remove('on');});
+      var pg=document.getElementById('pg-hoanThanhPhieu');if(pg)pg.classList.add('on');
+      var ni=document.getElementById('ni-hoanThanhPhieu');if(ni)ni.classList.add('on');
+      window.curPage='hoanThanhPhieu';
+      if(typeof pvBDSCStartPolling_==='function')pvBDSCStartPolling_();
+      pv17RenderCompletePage();scrollTop();return;
+    }
+    var ret=typeof oldNav==='function'?oldNav.apply(this,arguments):undefined;
+    if(p==='taoPhieu'||p==='hoanThanhPhieu')setTimeout(scrollTop,0);
+    return ret;
+  };
+  function boot(){applyNavItems();enableEnterLogin();setTimeout(applyNavItems,300);setTimeout(applyNavItems,1000);}
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);else boot();
-  window.addEventListener('load',boot);window.addEventListener('resize',applyMainLayout);
-  setInterval(function(){enableEnterLogin();if(window.CU)applyMainLayout();},2500);
+  window.addEventListener('load',boot);setInterval(function(){enableEnterLogin();if(window.CU)applyNavItems();},2500);
 })();
 </script>
+</body></html>
