@@ -5909,197 +5909,6 @@ ${ktv2Line}
   </tr>
 </table>
 
-
-
-<!-- V28: global scroll controls + material type selector from column "Các loại" -->
-<style id="egreen-v28-global-arrows-types">
-  .eg-scroll-controls{position:fixed;right:18px;bottom:74px;z-index:9000;display:flex;flex-direction:column;gap:8px;pointer-events:auto;}
-  .eg-scroll-btn{width:38px;height:38px;border-radius:999px;border:1px solid rgba(13,110,63,.22);background:#0d6e3f;color:#fff;box-shadow:0 6px 22px rgba(0,0,0,.18);font-size:18px;font-weight:900;line-height:1;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:.15s;font-family:var(--font);}
-  .eg-scroll-btn:hover{background:#083d24;transform:translateY(-1px)}
-  .eg-scroll-btn:active{transform:translateY(0)}
-  .eg28-type-select,.eg28-selected-type{border:1.5px solid var(--bd);border-radius:7px;padding:4px 7px;font-size:11px;background:#fff;color:var(--s);font-family:var(--font);min-width:150px;}
-  .eg28-type-select:focus,.eg28-selected-type:focus{border-color:var(--g);box-shadow:0 0 0 2px rgba(13,110,63,.1);outline:none;}
-  .eg28-type-wrap{display:flex;align-items:center;gap:5px;flex-wrap:wrap;}
-  .eg28-type-label{font-size:10px;color:var(--mu);font-weight:700;}
-  .eg28-no-type{font-size:11px;color:var(--mu);font-style:italic;}
-  #egmat_complete_table .eg28-type-select{width:100%;min-width:150px;}
-  @media(max-width:768px){.eg-scroll-controls{right:12px;bottom:82px}.eg-scroll-btn{width:36px;height:36px}.eg28-selected-type{min-width:125px}}
-</style>
-<script id="egreen-v28-global-arrows-types">
-(function(){
-  var PHAT_SINH='Phát sinh', CHUAN_BI='Chuẩn bị';
-  var TYPE_FALLBACK={
-    'bugi':['BKR6E','DCPR8E','Mar10A-J 4706','BP6ES'],
-    'o bi truc danh lua':['Vòng bi SKF 6007 - 2Z'],
-    'o bi cu phat':['Vòng bi E 30206J','Vòng bi 6312C3','Vòng bi 6317','Vòng bi 6215ZZCM','Vòng bi 6310-2Z'],
-    'day dai bom nuoc':['RECMF - 8560','A-7473','A-5639','12PK1625','A64','8610','C60 - RECMF 9600','A54','5PK1110','5PK1050'],
-    'bau loc gio / cum loc gio':['LỌC GIÓ 6D105(AS1024)','A-6465A (Nitco)/ A-6117-S','Lọc gió A6117S','Lọc gió Donaldson P532473','P831197'],
-    'loc nhot so 1':['C-5602','T-5121','LF9009','Lọc nhớt Sakura O-18051','WF2072','Lọc nhớt Sakura O-1808','Lọc nhớt Sakura O-1809','Lọc nhớt Sakura O-1804','Lọc nhớt Sakura O-1806'],
-    'loc nhot so 2':['C-5602','T-5121','LF9009','Lọc nhớt Sakura O-18051','WF2072','Lọc nhớt Sakura O-1808','Lọc nhớt Sakura O-1809','Lọc nhớt Sakura O-1804','Lọc nhớt Sakura O-1806']
-  };
-  function esc(s){return (typeof pvEsc==='function')?pvEsc(s):String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]||c;});}
-  function js(s){return (typeof pvJs==='function')?pvJs(s):String(s==null?'':s).replace(/\\/g,'\\\\').replace(/'/g,"\\'");}
-  function norm(s){return (typeof pvNorm==='function')?pvNorm(s):String(s==null?'':s).normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/đ/g,'d').replace(/Đ/g,'D').toLowerCase().replace(/\s+/g,' ').trim();}
-  function getObj(o,keys){
-    if(!o)return '';
-    if(typeof pvGetObj==='function'){try{return pvGetObj(o,keys)||'';}catch(e){}}
-    for(var i=0;i<keys.length;i++){var k=keys[i];if(o[k]!==undefined&&o[k]!==null&&String(o[k]).trim())return String(o[k]).trim();}
-    return '';
-  }
-  function matName(x){try{return (typeof pvTenVatTu==='function')?pvTenVatTu(x):getObj(x,['Tên Chi Tiết / Linh Kiện Thay Thế','Tên vật tư','tenVatTu','lk']);}catch(e){return getObj(x,['Tên Chi Tiết / Linh Kiện Thay Thế','Tên vật tư','tenVatTu','lk']);}}
-  function matCum(x){try{return (typeof pvCum==='function')?pvCum(x):getObj(x,['Cụm Linh Kiện','Cụm linh kiện','cumLinhKien','cum']);}catch(e){return getObj(x,['Cụm Linh Kiện','Cụm linh kiện','cumLinhKien','cum']);}}
-  function parseTypes(raw){
-    raw=String(raw||'').replace(/\r/g,'\n');
-    if(!raw.trim())return [];
-    var parts=raw.split(/\n|;|\|/).map(function(x){return x.trim();}).filter(Boolean);
-    var out=[],seen={};
-    parts.forEach(function(x){var k=norm(x);if(!seen[k]){seen[k]=1;out.push(x);}});
-    return out;
-  }
-  function materialList(){
-    var arr=[];
-    try{if(window.PV&&PV.data&&Array.isArray(PV.data.vatTu))arr=arr.concat(PV.data.vatTu);}catch(e){}
-    try{if((!arr||!arr.length)&&typeof PARTS_MAP!=='undefined')Object.entries(PARTS_MAP).forEach(function(pair){(pair[1]||[]).forEach(function(p){arr.push({'Tên vật tư':p,'Cụm linh kiện':pair[0]});});});}catch(e){}
-    var out=[],seen={};
-    (arr||[]).forEach(function(x){var name=matName(x);if(!name)return;var k=norm(name);if(seen[k])return;seen[k]=1;out.push({raw:x,tenVatTu:name,cumLinhKien:matCum(x),maVatTu:getObj(x,['Mã vật tư','Mã Vật Tư','Ma vat tu','maVatTu']),donViTinh:getObj(x,['ĐVT','Đơn Vị Tính','Đơn vị tính','DVT','donViTinh']),cacLoai:getObj(x,['Các loại','Cac loai','Loại','Loai','loaiVatTu','loai'])});});
-    return out;
-  }
-  function typeListFor(name){
-    name=String(name||'').trim();if(!name)return [];
-    var n=norm(name);
-    var mat=materialList().find(function(m){return norm(m.tenVatTu)===n;});
-    var dyn=mat?parseTypes(mat.cacLoai):[];
-    if(dyn.length)return dyn;
-    return TYPE_FALLBACK[n]||[];
-  }
-  function firstValidType(name,val){
-    var list=typeListFor(name), v=String(val||'').trim();
-    if(!v)return '';
-    return list.some(function(x){return norm(x)===norm(v);})?v:'';
-  }
-  function typeOptions(name,selected){
-    var list=typeListFor(name), sel=firstValidType(name,selected);
-    return '<option value="">-- Chọn loại --</option>'+list.map(function(t){return '<option value="'+esc(t)+'" '+(norm(t)===norm(sel)?'selected':'')+'>'+esc(t)+'</option>';}).join('');
-  }
-  function selectedTypeControl(x){
-    var list=typeListFor(x&&x.tenVatTu), id=x&&x.id, val=x&&x.loaiVatTu;
-    if(!list.length)return '';
-    return '<div class="eg28-type-wrap"><span class="eg28-type-label">Loại</span><select class="eg28-selected-type" onchange="eg28SetSelectedType(\''+js(id)+'\',this.value)">'+typeOptions(x.tenVatTu,val)+'</select></div>';
-  }
-  window.eg28SetSelectedType=function(id,val){
-    try{var it=(PV.data.selected||[]).find(function(x){return String(x.id)===String(id);});if(it)it.loaiVatTu=val||'';}catch(e){}
-  };
-  window.eg28TypeCellHTML=function(name,selected){
-    var list=typeListFor(name);
-    if(!list.length)return '<span class="eg28-no-type">-</span><input type="hidden" data-k="loaiVatTu" value="">';
-    return '<select class="eg28-type-select" data-k="loaiVatTu">'+typeOptions(name,selected)+'</select>';
-  };
-  window.eg28UpdateRowType=function(el){
-    var tr=el&&el.closest?el.closest('tr'):null;if(!tr)return;
-    var nameEl=tr.querySelector('[data-k="tenVatTu"]');var name=nameEl?nameEl.value:'';
-    var cell=tr.querySelector('.eg28-type-cell');if(cell)cell.innerHTML=eg28TypeCellHTML(name,'');
-  };
-  window.eg28OnMatSelect=function(sel){
-    var tr=sel.closest('tr');if(!tr)return;
-    var mat=materialList().find(function(m){return norm(m.tenVatTu)===norm(sel.value);});
-    function set(k,v){var el=tr.querySelector('[data-k="'+k+'"]');if(el)el.value=v||'';}
-    if(mat){set('cumLinhKien',mat.cumLinhKien);set('maVatTu',mat.maVatTu);set('donViTinh',mat.donViTinh);set('nguonVatTu',PHAT_SINH);}else{set('cumLinhKien','');set('maVatTu','');set('donViTinh','');}
-    var loai=tr.querySelector('[data-k="loaiDong"]');if(loai)loai.value=PHAT_SINH;
-    eg28UpdateRowType(sel);
-    if(typeof eg28RefreshMaterialSelects==='function')eg28RefreshMaterialSelects();
-  };
-  window.egmatOnMatSelect=window.eg28OnMatSelect;
-  var oldLoaiDong=window.egmatOnLoaiDongChange;
-  window.egmatOnLoaiDongChange=function(sel){
-    if(typeof oldLoaiDong==='function')oldLoaiDong(sel);
-    var tr=sel&&sel.closest?sel.closest('tr'):null;if(!tr)return;
-    if(norm(sel.value)===norm(PHAT_SINH)){
-      var nameEl=tr.querySelector('[data-k="tenVatTu"]');
-      if(nameEl&&nameEl.tagName!=='SELECT')nameEl.setAttribute('oninput','eg28UpdateRowType(this)');
-      eg28UpdateRowType(nameEl||sel);
-    }
-  };
-  window.eg28RefreshMaterialSelects=function(){
-    try{document.querySelectorAll('select.egmat-mat-select').forEach(function(sel){var cur=sel.value;if(typeof matOptions==='function'){try{sel.innerHTML=matOptions(cur,sel.closest('tr'));sel.value=cur;}catch(e){}} eg28UpdateRowType(sel);});}catch(e){}
-  };
-  window.egmatRefreshMaterialSelects=window.eg28RefreshMaterialSelects;
-
-  window.pvBDSCSelectMaterial=function(id,checked){
-    if(!checked)return;
-    var x=(PV.data.vatTu||[]).find(function(v){return pvMatId(v)===id;});if(!x)return;
-    var qEl=document.getElementById('pvb_qty_'+pvCss(id));var sEl=document.getElementById('pvb_st_'+pvCss(id));
-    var qty=qEl?parseFloat(qEl.value)||1:1;var st=sEl?sEl.value:'Mới';var ten=matName(x);
-    if(!(PV.data.selected||[]).find(function(i){return i.id===id;}))PV.data.selected.push({id:id,tenVatTu:ten,cumLinhKien:matCum(x),maVatTu:getObj(x,['Mã vật tư','Mã Vật Tư','Ma vat tu','maVatTu'])||'',donViTinh:getObj(x,['ĐVT','Đơn vị tính','Đơn Vị Tính','DVT'])||'',soLuongCan:qty,tinhTrangXuatKho:st,nguonVatTu:'Chọn thêm',fixed:false,included:true,loaiDong:CHUAN_BI,loaiVatTu:''});
-    pvBDSCRenderVatTuSearch();pvBDSCRenderSelected();
-  };
-  window.pvBDSCRenderSelected=function(){
-    var box=document.getElementById('pvb_selectedItems');if(!box)return;
-    if(!PV.data.selected||!PV.data.selected.length){box.innerHTML='<i style="font-size:12px;color:var(--mu)">Chưa chọn vật tư.</i>';return;}
-    box.innerHTML=PV.data.selected.map(function(x){var checked=x.included!==false;return '<div class="'+(checked?'':'pv17-dim')+'" style="display:flex;align-items:center;gap:8px;padding:7px 10px;border:1px solid var(--bd);border-radius:8px;margin-bottom:5px;background:#fff;flex-wrap:wrap"><input type="checkbox" '+(checked?'checked':'')+' onchange="pv17ToggleInclude(\''+js(x.id)+'\',this.checked)" title="Tích để đưa vào phiếu" style="width:16px;height:16px;accent-color:var(--g);cursor:pointer"><div style="flex:1;min-width:150px;font-size:12px"><b>'+esc(x.tenVatTu)+'</b><br><span style="color:var(--mu)">'+esc(x.cumLinhKien)+' · '+esc(x.nguonVatTu)+'</span></div>'+selectedTypeControl(x)+'<input type="number" min="0" value="'+esc(String(x.soLuongCan||''))+'" style="width:60px;border:1.5px solid var(--bd);border-radius:6px;padding:3px 6px;font-size:11px;text-align:center" onchange="pvBDSCUpdQty(\''+js(x.id)+'\',this.value)"><select style="border:1.5px solid var(--bd);border-radius:6px;padding:3px 5px;font-size:11px" onchange="pvBDSCUpdSt(\''+js(x.id)+'\',this.value)">'+['Mới','Cũ','Tốt','K.xđ'].map(function(s){return '<option '+(s===x.tinhTrangXuatKho?'selected':'')+'>'+s+'</option>';}).join('')+'</select><span style="font-size:10px;color:var(--mu)">'+(x.fixed?'Cố định':'Chọn thêm')+'</span>'+(x.fixed?'':'<button class="btn bg-r sm" onclick="pvBDSCRemoveMat(\''+js(x.id)+'\')">Bỏ</button>')+'</div>';}).join('');
-  };
-  window.pvBDSCPayload=function(){
-    var md=(document.querySelector('input[name="pvb_mucDich"]:checked')||{}).value||'Bảo dưỡng sửa chữa';
-    var ms=(typeof pv17MachineSummary==='function')?pv17MachineSummary():(typeof pv16MachineSummary==='function'?pv16MachineSummary():{list:[],maMay:'',tenTrai:'',donVi:'',khuVuc:'',tinhTP:'',danhSachMaMay:'',danhSachTenTrai:''});
-    var items=(PV.data.selected||[]).filter(function(x){return x.included!==false;}).map(function(x,i){return {stt:i+1,nguonVatTu:x.nguonVatTu,cumLinhKien:x.cumLinhKien,tenVatTu:x.tenVatTu,loaiVatTu:x.loaiVatTu||'',maVatTu:x.maVatTu,donViTinh:x.donViTinh,soLuongCan:x.soLuongCan,tinhTrangXuatKho:x.tinhTrangXuatKho,loaiDong:x.loaiDong||CHUAN_BI,included:true};});
-    return {doiTruong:pvBDSCGetVal('pvb_doiTruong'),thanhVien:_pvbTVSelected.slice(),maMay:ms.maMay,tenTrai:ms.tenTrai,donVi:ms.donVi,khuVuc:ms.khuVuc,tinhTP:ms.tinhTP,machines:ms.list,danhSachMaMay:ms.danhSachMaMay,danhSachTenTrai:ms.danhSachTenTrai,ngayGioXuatKho:pvBDSCFmtDT(pvBDSCGetVal('pvb_ngayGioXuatKho')),nguoiXuatKho:pvBDSCGetVal('pvb_nguoiXuatKho'),ngayGioNhapKho:pvBDSCFmtDT(pvBDSCGetVal('pvb_ngayGioNhapKho')),nguoiNhapKho:pvBDSCGetVal('pvb_nguoiNhapKho'),mucDich:md,cuThe:md==='Bảo dưỡng sửa chữa'?((PV.hienTuongSel||[]).join('; ')||'-'):(pvBDSCGetVal('pvb_cuTheNhapTay')||'-'),ghiChu:'',items:items};
-  };
-
-  window.pv17CompleteRowHTML=function(x,i){
-    x=x||{};var sx=x.soLuongXuatKho||x.soLuongCan||'';
-    var loai=String(x.loaiDong||(!String(x.tenVatTu||'').trim()?PHAT_SINH:CHUAN_BI));
-    var isPhatSinh=norm(loai)===norm(PHAT_SINH)||norm(x.nguonVatTu||'')===norm(PHAT_SINH)||!String(x.tenVatTu||'').trim();
-    var matCtl=isPhatSinh?'<select class="egmat-mat-select" data-k="tenVatTu" onchange="eg28OnMatSelect(this)">'+(typeof matOptions==='function'?matOptions(x.tenVatTu||'',null):'<option value="'+esc(x.tenVatTu||'')+'">'+esc(x.tenVatTu||'')+'</option>')+'</select>':'<input value="'+esc(x.tenVatTu||'')+'" data-k="tenVatTu" oninput="eg28UpdateRowType(this)">';
-    return '<tr><td style="text-align:center">'+(i+1)+'</td><td>'+matCtl+'<input type="hidden" data-k="nguonVatTu" value="'+esc(x.nguonVatTu||'')+'"><input type="hidden" data-k="cumLinhKien" value="'+esc(x.cumLinhKien||'')+'"><input type="hidden" data-k="maVatTu" value="'+esc(x.maVatTu||'')+'"><input type="hidden" data-k="donViTinh" value="'+esc(x.donViTinh||'')+'"></td><td class="eg28-type-cell">'+eg28TypeCellHTML(x.tenVatTu||'',x.loaiVatTu||'')+'</td><td><input type="number" min="0" value="'+esc(String(sx))+'" data-k="soLuongXuatKho"></td><td><input type="number" min="0" value="'+esc(String(x.soLuongSuDung||''))+'" data-k="soLuongSuDung"></td><td><input type="number" min="0" value="'+esc(String(x.soLuongNhapKho||''))+'" data-k="soLuongNhapKho"></td><td><select data-k="tinhTrangNhapKho">'+['','Mới','Cũ','Tốt','Hỏng'].map(function(s){return '<option '+(s===(x.tinhTrangNhapKho||'')?'selected':'')+'>'+s+'</option>';}).join('')+'</select></td><td><input value="'+esc(x.ghiChu||'')+'" data-k="ghiChu"></td><td><select data-k="loaiDong" onchange="egmatOnLoaiDongChange(this)"><option '+(norm(loai)===norm(CHUAN_BI)?'selected':'')+'>'+CHUAN_BI+'</option><option '+(norm(loai)===norm(PHAT_SINH)?'selected':'')+'>'+PHAT_SINH+'</option></select></td></tr>';
-  };
-  window.pv17CollectCompleteItems=function(){return Array.from(document.querySelectorAll('#egmat_complete_table tbody tr,#pv18_complete_table tbody tr,#pv17_complete_table tbody tr')).map(function(tr,i){var obj={stt:i+1};tr.querySelectorAll('[data-k]').forEach(function(el){obj[el.dataset.k]=el.value;});obj.soLuongCan=obj.soLuongXuatKho;return obj;}).filter(function(x){return String(x.tenVatTu||'').trim();});};
-  window.pv17RenderCompleteForm=function(root,phieu,items){
-    var pg=document.getElementById('pg-hoanThanhPhieu');if(pg){pg.classList.add('egmat-form-mode');pg.classList.remove('egmat-list-mode');}
-    var dt=new Date();dt.setMinutes(dt.getMinutes()-dt.getTimezoneOffset());
-    var selectedNguoi=(phieu&&phieu.nguoiNhapKho)||(window.CU&&(CU.name||CU.fullName))||'';
-    var peopleOpts=(typeof peopleOptions==='function')?peopleOptions(selectedNguoi):'<option value="'+esc(selectedNguoi)+'">'+esc(selectedNguoi)+'</option>';
-    root.innerHTML='<div class="card"><div class="cb egmat-complete-head"><div><b>Cập nhật hoàn thành phiếu: '+esc(phieu.maPhieu)+'</b><div class="pv17-small">'+esc(phieu.danhSachMaMay||phieu.maMay)+' · '+esc(phieu.danhSachTenTrai||phieu.tenTrai)+'</div></div><button class="btn sm" onclick="pv17RenderCompletePage()">← Quay lại</button></div><div class="egmat-form-grid"><div class="iw"><div class="il">Ngày giờ nhập kho *</div><input class="inp" type="datetime-local" id="pv17_ngayNhap" value="'+dt.toISOString().slice(0,16)+'"></div><div class="iw"><div class="il">Người nhập kho *</div><select class="inp" id="pv17_nguoiNhap">'+peopleOpts+'</select></div></div><div class="pv18-scroll" style="margin-top:12px"><table id="egmat_complete_table"><thead><tr><th style="width:44px">STT</th><th style="width:285px">Hạng mục vật tư</th><th style="width:170px">Loại vật tư</th><th style="width:90px">SL xuất kho</th><th style="width:90px">SL sử dụng</th><th style="width:90px">SL nhập kho</th><th style="width:130px">Tình trạng nhập</th><th style="width:170px">Ghi chú</th><th style="width:105px">Loại dòng</th></tr></thead><tbody>'+((items||[]).map(function(x,i){return pv17CompleteRowHTML(x,i);}).join(''))+'</tbody></table></div><div class="egmat-form-actions"><button class="btn bg-a sm" onclick="pv17AddCompleteRow()">➕ Thêm vật tư phát sinh</button><button class="btn bg-g" onclick="pv17SubmitComplete(\''+js(phieu.maPhieu)+'\')">✅ Lưu hoàn thiện</button></div><div class="ih" style="margin-top:8px">Vật tư có danh sách "Các loại" sẽ hiện thêm ô chọn loại tương ứng.</div></div>';
-    setTimeout(eg28RefreshMaterialSelects,0);
-    var c=document.querySelector('.content');if(c){try{c.scrollTo({top:0,behavior:'smooth'});}catch(e){c.scrollTop=0;}}
-  };
-  window.pv16RenderCompleteForm=window.pv17RenderCompleteForm;
-
-  function scrollable(el){return !!(el&&el.scrollHeight>el.clientHeight+4);}
-  function appVisible(){var app=document.getElementById('app');if(!app)return true;var cs=getComputedStyle(app);return cs.display!=='none'&&cs.visibility!=='hidden';}
-  function ensureScrollButtons(){
-    var box=document.getElementById('egScrollControls');
-    if(!box){box=document.createElement('div');box.id='egScrollControls';box.className='eg-scroll-controls';box.innerHTML='<button type="button" class="eg-scroll-btn" title="Cuộn lên" onclick="egScrollStep(-1)">▲</button><button type="button" class="eg-scroll-btn" title="Cuộn xuống" onclick="egScrollStep(1)">▼</button>';document.body.appendChild(box);}
-    box.style.display=appVisible()?'flex':'none';
-  }
-  function findScrollableFrom(el){
-    var cur=el;
-    while(cur&&cur!==document.body&&cur!==document.documentElement){
-      var cs=getComputedStyle(cur);
-      if((cs.overflowY==='auto'||cs.overflowY==='scroll')&&scrollable(cur))return cur;
-      cur=cur.parentElement;
-    }
-    return null;
-  }
-  function currentScrollTarget(){
-    var hover=document.querySelector(':hover');
-    var chain=[];while(hover){chain.push(hover);hover=hover.parentElement;}
-    for(var i=0;i<chain.length;i++){var s=findScrollableFrom(chain[i]);if(s)return s;}
-    var active=document.activeElement;var a=findScrollableFrom(active);if(a)return a;
-    var page=document.querySelector('.page.on');var p=findScrollableFrom(page);if(p)return p;
-    var content=document.querySelector('.content');if(scrollable(content))return content;
-    return document.scrollingElement||document.documentElement;
-  }
-  window.egScrollStep=function(dir){
-    ensureScrollButtons();
-    var t=currentScrollTarget();var h=t.clientHeight||window.innerHeight||600;
-    var delta=(dir>0?1:-1)*Math.max(260,Math.round(h*0.78));
-    try{t.scrollBy({top:delta,behavior:'smooth'});}catch(e){t.scrollTop+=delta;}
-  };
-  function boot(){ensureScrollButtons();try{if(typeof pvBDSCRenderSelected==='function')pvBDSCRenderSelected();}catch(e){}}
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);else boot();
-  window.addEventListener('load',boot);setInterval(ensureScrollButtons,1200);
-})();
-</script>
-
 </body></html>`;
 
     // Kiểm tra placeholder sót
@@ -6283,198 +6092,7 @@ function showPrintModal(html, fname, reportId){
           .sign-name { font-size:12pt; font-weight:bold; }
         </style>
       </head>
-      <body><div class="Section1">${bodyOnly}</div>
-
-<!-- V28: global scroll controls + material type selector from column "Các loại" -->
-<style id="egreen-v28-global-arrows-types">
-  .eg-scroll-controls{position:fixed;right:18px;bottom:74px;z-index:9000;display:flex;flex-direction:column;gap:8px;pointer-events:auto;}
-  .eg-scroll-btn{width:38px;height:38px;border-radius:999px;border:1px solid rgba(13,110,63,.22);background:#0d6e3f;color:#fff;box-shadow:0 6px 22px rgba(0,0,0,.18);font-size:18px;font-weight:900;line-height:1;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:.15s;font-family:var(--font);}
-  .eg-scroll-btn:hover{background:#083d24;transform:translateY(-1px)}
-  .eg-scroll-btn:active{transform:translateY(0)}
-  .eg28-type-select,.eg28-selected-type{border:1.5px solid var(--bd);border-radius:7px;padding:4px 7px;font-size:11px;background:#fff;color:var(--s);font-family:var(--font);min-width:150px;}
-  .eg28-type-select:focus,.eg28-selected-type:focus{border-color:var(--g);box-shadow:0 0 0 2px rgba(13,110,63,.1);outline:none;}
-  .eg28-type-wrap{display:flex;align-items:center;gap:5px;flex-wrap:wrap;}
-  .eg28-type-label{font-size:10px;color:var(--mu);font-weight:700;}
-  .eg28-no-type{font-size:11px;color:var(--mu);font-style:italic;}
-  #egmat_complete_table .eg28-type-select{width:100%;min-width:150px;}
-  @media(max-width:768px){.eg-scroll-controls{right:12px;bottom:82px}.eg-scroll-btn{width:36px;height:36px}.eg28-selected-type{min-width:125px}}
-</style>
-<script id="egreen-v28-global-arrows-types">
-(function(){
-  var PHAT_SINH='Phát sinh', CHUAN_BI='Chuẩn bị';
-  var TYPE_FALLBACK={
-    'bugi':['BKR6E','DCPR8E','Mar10A-J 4706','BP6ES'],
-    'o bi truc danh lua':['Vòng bi SKF 6007 - 2Z'],
-    'o bi cu phat':['Vòng bi E 30206J','Vòng bi 6312C3','Vòng bi 6317','Vòng bi 6215ZZCM','Vòng bi 6310-2Z'],
-    'day dai bom nuoc':['RECMF - 8560','A-7473','A-5639','12PK1625','A64','8610','C60 - RECMF 9600','A54','5PK1110','5PK1050'],
-    'bau loc gio / cum loc gio':['LỌC GIÓ 6D105(AS1024)','A-6465A (Nitco)/ A-6117-S','Lọc gió A6117S','Lọc gió Donaldson P532473','P831197'],
-    'loc nhot so 1':['C-5602','T-5121','LF9009','Lọc nhớt Sakura O-18051','WF2072','Lọc nhớt Sakura O-1808','Lọc nhớt Sakura O-1809','Lọc nhớt Sakura O-1804','Lọc nhớt Sakura O-1806'],
-    'loc nhot so 2':['C-5602','T-5121','LF9009','Lọc nhớt Sakura O-18051','WF2072','Lọc nhớt Sakura O-1808','Lọc nhớt Sakura O-1809','Lọc nhớt Sakura O-1804','Lọc nhớt Sakura O-1806']
-  };
-  function esc(s){return (typeof pvEsc==='function')?pvEsc(s):String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]||c;});}
-  function js(s){return (typeof pvJs==='function')?pvJs(s):String(s==null?'':s).replace(/\\/g,'\\\\').replace(/'/g,"\\'");}
-  function norm(s){return (typeof pvNorm==='function')?pvNorm(s):String(s==null?'':s).normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/đ/g,'d').replace(/Đ/g,'D').toLowerCase().replace(/\s+/g,' ').trim();}
-  function getObj(o,keys){
-    if(!o)return '';
-    if(typeof pvGetObj==='function'){try{return pvGetObj(o,keys)||'';}catch(e){}}
-    for(var i=0;i<keys.length;i++){var k=keys[i];if(o[k]!==undefined&&o[k]!==null&&String(o[k]).trim())return String(o[k]).trim();}
-    return '';
-  }
-  function matName(x){try{return (typeof pvTenVatTu==='function')?pvTenVatTu(x):getObj(x,['Tên Chi Tiết / Linh Kiện Thay Thế','Tên vật tư','tenVatTu','lk']);}catch(e){return getObj(x,['Tên Chi Tiết / Linh Kiện Thay Thế','Tên vật tư','tenVatTu','lk']);}}
-  function matCum(x){try{return (typeof pvCum==='function')?pvCum(x):getObj(x,['Cụm Linh Kiện','Cụm linh kiện','cumLinhKien','cum']);}catch(e){return getObj(x,['Cụm Linh Kiện','Cụm linh kiện','cumLinhKien','cum']);}}
-  function parseTypes(raw){
-    raw=String(raw||'').replace(/\r/g,'\n');
-    if(!raw.trim())return [];
-    var parts=raw.split(/\n|;|\|/).map(function(x){return x.trim();}).filter(Boolean);
-    var out=[],seen={};
-    parts.forEach(function(x){var k=norm(x);if(!seen[k]){seen[k]=1;out.push(x);}});
-    return out;
-  }
-  function materialList(){
-    var arr=[];
-    try{if(window.PV&&PV.data&&Array.isArray(PV.data.vatTu))arr=arr.concat(PV.data.vatTu);}catch(e){}
-    try{if((!arr||!arr.length)&&typeof PARTS_MAP!=='undefined')Object.entries(PARTS_MAP).forEach(function(pair){(pair[1]||[]).forEach(function(p){arr.push({'Tên vật tư':p,'Cụm linh kiện':pair[0]});});});}catch(e){}
-    var out=[],seen={};
-    (arr||[]).forEach(function(x){var name=matName(x);if(!name)return;var k=norm(name);if(seen[k])return;seen[k]=1;out.push({raw:x,tenVatTu:name,cumLinhKien:matCum(x),maVatTu:getObj(x,['Mã vật tư','Mã Vật Tư','Ma vat tu','maVatTu']),donViTinh:getObj(x,['ĐVT','Đơn Vị Tính','Đơn vị tính','DVT','donViTinh']),cacLoai:getObj(x,['Các loại','Cac loai','Loại','Loai','loaiVatTu','loai'])});});
-    return out;
-  }
-  function typeListFor(name){
-    name=String(name||'').trim();if(!name)return [];
-    var n=norm(name);
-    var mat=materialList().find(function(m){return norm(m.tenVatTu)===n;});
-    var dyn=mat?parseTypes(mat.cacLoai):[];
-    if(dyn.length)return dyn;
-    return TYPE_FALLBACK[n]||[];
-  }
-  function firstValidType(name,val){
-    var list=typeListFor(name), v=String(val||'').trim();
-    if(!v)return '';
-    return list.some(function(x){return norm(x)===norm(v);})?v:'';
-  }
-  function typeOptions(name,selected){
-    var list=typeListFor(name), sel=firstValidType(name,selected);
-    return '<option value="">-- Chọn loại --</option>'+list.map(function(t){return '<option value="'+esc(t)+'" '+(norm(t)===norm(sel)?'selected':'')+'>'+esc(t)+'</option>';}).join('');
-  }
-  function selectedTypeControl(x){
-    var list=typeListFor(x&&x.tenVatTu), id=x&&x.id, val=x&&x.loaiVatTu;
-    if(!list.length)return '';
-    return '<div class="eg28-type-wrap"><span class="eg28-type-label">Loại</span><select class="eg28-selected-type" onchange="eg28SetSelectedType(\''+js(id)+'\',this.value)">'+typeOptions(x.tenVatTu,val)+'</select></div>';
-  }
-  window.eg28SetSelectedType=function(id,val){
-    try{var it=(PV.data.selected||[]).find(function(x){return String(x.id)===String(id);});if(it)it.loaiVatTu=val||'';}catch(e){}
-  };
-  window.eg28TypeCellHTML=function(name,selected){
-    var list=typeListFor(name);
-    if(!list.length)return '<span class="eg28-no-type">-</span><input type="hidden" data-k="loaiVatTu" value="">';
-    return '<select class="eg28-type-select" data-k="loaiVatTu">'+typeOptions(name,selected)+'</select>';
-  };
-  window.eg28UpdateRowType=function(el){
-    var tr=el&&el.closest?el.closest('tr'):null;if(!tr)return;
-    var nameEl=tr.querySelector('[data-k="tenVatTu"]');var name=nameEl?nameEl.value:'';
-    var cell=tr.querySelector('.eg28-type-cell');if(cell)cell.innerHTML=eg28TypeCellHTML(name,'');
-  };
-  window.eg28OnMatSelect=function(sel){
-    var tr=sel.closest('tr');if(!tr)return;
-    var mat=materialList().find(function(m){return norm(m.tenVatTu)===norm(sel.value);});
-    function set(k,v){var el=tr.querySelector('[data-k="'+k+'"]');if(el)el.value=v||'';}
-    if(mat){set('cumLinhKien',mat.cumLinhKien);set('maVatTu',mat.maVatTu);set('donViTinh',mat.donViTinh);set('nguonVatTu',PHAT_SINH);}else{set('cumLinhKien','');set('maVatTu','');set('donViTinh','');}
-    var loai=tr.querySelector('[data-k="loaiDong"]');if(loai)loai.value=PHAT_SINH;
-    eg28UpdateRowType(sel);
-    if(typeof eg28RefreshMaterialSelects==='function')eg28RefreshMaterialSelects();
-  };
-  window.egmatOnMatSelect=window.eg28OnMatSelect;
-  var oldLoaiDong=window.egmatOnLoaiDongChange;
-  window.egmatOnLoaiDongChange=function(sel){
-    if(typeof oldLoaiDong==='function')oldLoaiDong(sel);
-    var tr=sel&&sel.closest?sel.closest('tr'):null;if(!tr)return;
-    if(norm(sel.value)===norm(PHAT_SINH)){
-      var nameEl=tr.querySelector('[data-k="tenVatTu"]');
-      if(nameEl&&nameEl.tagName!=='SELECT')nameEl.setAttribute('oninput','eg28UpdateRowType(this)');
-      eg28UpdateRowType(nameEl||sel);
-    }
-  };
-  window.eg28RefreshMaterialSelects=function(){
-    try{document.querySelectorAll('select.egmat-mat-select').forEach(function(sel){var cur=sel.value;if(typeof matOptions==='function'){try{sel.innerHTML=matOptions(cur,sel.closest('tr'));sel.value=cur;}catch(e){}} eg28UpdateRowType(sel);});}catch(e){}
-  };
-  window.egmatRefreshMaterialSelects=window.eg28RefreshMaterialSelects;
-
-  window.pvBDSCSelectMaterial=function(id,checked){
-    if(!checked)return;
-    var x=(PV.data.vatTu||[]).find(function(v){return pvMatId(v)===id;});if(!x)return;
-    var qEl=document.getElementById('pvb_qty_'+pvCss(id));var sEl=document.getElementById('pvb_st_'+pvCss(id));
-    var qty=qEl?parseFloat(qEl.value)||1:1;var st=sEl?sEl.value:'Mới';var ten=matName(x);
-    if(!(PV.data.selected||[]).find(function(i){return i.id===id;}))PV.data.selected.push({id:id,tenVatTu:ten,cumLinhKien:matCum(x),maVatTu:getObj(x,['Mã vật tư','Mã Vật Tư','Ma vat tu','maVatTu'])||'',donViTinh:getObj(x,['ĐVT','Đơn vị tính','Đơn Vị Tính','DVT'])||'',soLuongCan:qty,tinhTrangXuatKho:st,nguonVatTu:'Chọn thêm',fixed:false,included:true,loaiDong:CHUAN_BI,loaiVatTu:''});
-    pvBDSCRenderVatTuSearch();pvBDSCRenderSelected();
-  };
-  window.pvBDSCRenderSelected=function(){
-    var box=document.getElementById('pvb_selectedItems');if(!box)return;
-    if(!PV.data.selected||!PV.data.selected.length){box.innerHTML='<i style="font-size:12px;color:var(--mu)">Chưa chọn vật tư.</i>';return;}
-    box.innerHTML=PV.data.selected.map(function(x){var checked=x.included!==false;return '<div class="'+(checked?'':'pv17-dim')+'" style="display:flex;align-items:center;gap:8px;padding:7px 10px;border:1px solid var(--bd);border-radius:8px;margin-bottom:5px;background:#fff;flex-wrap:wrap"><input type="checkbox" '+(checked?'checked':'')+' onchange="pv17ToggleInclude(\''+js(x.id)+'\',this.checked)" title="Tích để đưa vào phiếu" style="width:16px;height:16px;accent-color:var(--g);cursor:pointer"><div style="flex:1;min-width:150px;font-size:12px"><b>'+esc(x.tenVatTu)+'</b><br><span style="color:var(--mu)">'+esc(x.cumLinhKien)+' · '+esc(x.nguonVatTu)+'</span></div>'+selectedTypeControl(x)+'<input type="number" min="0" value="'+esc(String(x.soLuongCan||''))+'" style="width:60px;border:1.5px solid var(--bd);border-radius:6px;padding:3px 6px;font-size:11px;text-align:center" onchange="pvBDSCUpdQty(\''+js(x.id)+'\',this.value)"><select style="border:1.5px solid var(--bd);border-radius:6px;padding:3px 5px;font-size:11px" onchange="pvBDSCUpdSt(\''+js(x.id)+'\',this.value)">'+['Mới','Cũ','Tốt','K.xđ'].map(function(s){return '<option '+(s===x.tinhTrangXuatKho?'selected':'')+'>'+s+'</option>';}).join('')+'</select><span style="font-size:10px;color:var(--mu)">'+(x.fixed?'Cố định':'Chọn thêm')+'</span>'+(x.fixed?'':'<button class="btn bg-r sm" onclick="pvBDSCRemoveMat(\''+js(x.id)+'\')">Bỏ</button>')+'</div>';}).join('');
-  };
-  window.pvBDSCPayload=function(){
-    var md=(document.querySelector('input[name="pvb_mucDich"]:checked')||{}).value||'Bảo dưỡng sửa chữa';
-    var ms=(typeof pv17MachineSummary==='function')?pv17MachineSummary():(typeof pv16MachineSummary==='function'?pv16MachineSummary():{list:[],maMay:'',tenTrai:'',donVi:'',khuVuc:'',tinhTP:'',danhSachMaMay:'',danhSachTenTrai:''});
-    var items=(PV.data.selected||[]).filter(function(x){return x.included!==false;}).map(function(x,i){return {stt:i+1,nguonVatTu:x.nguonVatTu,cumLinhKien:x.cumLinhKien,tenVatTu:x.tenVatTu,loaiVatTu:x.loaiVatTu||'',maVatTu:x.maVatTu,donViTinh:x.donViTinh,soLuongCan:x.soLuongCan,tinhTrangXuatKho:x.tinhTrangXuatKho,loaiDong:x.loaiDong||CHUAN_BI,included:true};});
-    return {doiTruong:pvBDSCGetVal('pvb_doiTruong'),thanhVien:_pvbTVSelected.slice(),maMay:ms.maMay,tenTrai:ms.tenTrai,donVi:ms.donVi,khuVuc:ms.khuVuc,tinhTP:ms.tinhTP,machines:ms.list,danhSachMaMay:ms.danhSachMaMay,danhSachTenTrai:ms.danhSachTenTrai,ngayGioXuatKho:pvBDSCFmtDT(pvBDSCGetVal('pvb_ngayGioXuatKho')),nguoiXuatKho:pvBDSCGetVal('pvb_nguoiXuatKho'),ngayGioNhapKho:pvBDSCFmtDT(pvBDSCGetVal('pvb_ngayGioNhapKho')),nguoiNhapKho:pvBDSCGetVal('pvb_nguoiNhapKho'),mucDich:md,cuThe:md==='Bảo dưỡng sửa chữa'?((PV.hienTuongSel||[]).join('; ')||'-'):(pvBDSCGetVal('pvb_cuTheNhapTay')||'-'),ghiChu:'',items:items};
-  };
-
-  window.pv17CompleteRowHTML=function(x,i){
-    x=x||{};var sx=x.soLuongXuatKho||x.soLuongCan||'';
-    var loai=String(x.loaiDong||(!String(x.tenVatTu||'').trim()?PHAT_SINH:CHUAN_BI));
-    var isPhatSinh=norm(loai)===norm(PHAT_SINH)||norm(x.nguonVatTu||'')===norm(PHAT_SINH)||!String(x.tenVatTu||'').trim();
-    var matCtl=isPhatSinh?'<select class="egmat-mat-select" data-k="tenVatTu" onchange="eg28OnMatSelect(this)">'+(typeof matOptions==='function'?matOptions(x.tenVatTu||'',null):'<option value="'+esc(x.tenVatTu||'')+'">'+esc(x.tenVatTu||'')+'</option>')+'</select>':'<input value="'+esc(x.tenVatTu||'')+'" data-k="tenVatTu" oninput="eg28UpdateRowType(this)">';
-    return '<tr><td style="text-align:center">'+(i+1)+'</td><td>'+matCtl+'<input type="hidden" data-k="nguonVatTu" value="'+esc(x.nguonVatTu||'')+'"><input type="hidden" data-k="cumLinhKien" value="'+esc(x.cumLinhKien||'')+'"><input type="hidden" data-k="maVatTu" value="'+esc(x.maVatTu||'')+'"><input type="hidden" data-k="donViTinh" value="'+esc(x.donViTinh||'')+'"></td><td class="eg28-type-cell">'+eg28TypeCellHTML(x.tenVatTu||'',x.loaiVatTu||'')+'</td><td><input type="number" min="0" value="'+esc(String(sx))+'" data-k="soLuongXuatKho"></td><td><input type="number" min="0" value="'+esc(String(x.soLuongSuDung||''))+'" data-k="soLuongSuDung"></td><td><input type="number" min="0" value="'+esc(String(x.soLuongNhapKho||''))+'" data-k="soLuongNhapKho"></td><td><select data-k="tinhTrangNhapKho">'+['','Mới','Cũ','Tốt','Hỏng'].map(function(s){return '<option '+(s===(x.tinhTrangNhapKho||'')?'selected':'')+'>'+s+'</option>';}).join('')+'</select></td><td><input value="'+esc(x.ghiChu||'')+'" data-k="ghiChu"></td><td><select data-k="loaiDong" onchange="egmatOnLoaiDongChange(this)"><option '+(norm(loai)===norm(CHUAN_BI)?'selected':'')+'>'+CHUAN_BI+'</option><option '+(norm(loai)===norm(PHAT_SINH)?'selected':'')+'>'+PHAT_SINH+'</option></select></td></tr>';
-  };
-  window.pv17CollectCompleteItems=function(){return Array.from(document.querySelectorAll('#egmat_complete_table tbody tr,#pv18_complete_table tbody tr,#pv17_complete_table tbody tr')).map(function(tr,i){var obj={stt:i+1};tr.querySelectorAll('[data-k]').forEach(function(el){obj[el.dataset.k]=el.value;});obj.soLuongCan=obj.soLuongXuatKho;return obj;}).filter(function(x){return String(x.tenVatTu||'').trim();});};
-  window.pv17RenderCompleteForm=function(root,phieu,items){
-    var pg=document.getElementById('pg-hoanThanhPhieu');if(pg){pg.classList.add('egmat-form-mode');pg.classList.remove('egmat-list-mode');}
-    var dt=new Date();dt.setMinutes(dt.getMinutes()-dt.getTimezoneOffset());
-    var selectedNguoi=(phieu&&phieu.nguoiNhapKho)||(window.CU&&(CU.name||CU.fullName))||'';
-    var peopleOpts=(typeof peopleOptions==='function')?peopleOptions(selectedNguoi):'<option value="'+esc(selectedNguoi)+'">'+esc(selectedNguoi)+'</option>';
-    root.innerHTML='<div class="card"><div class="cb egmat-complete-head"><div><b>Cập nhật hoàn thành phiếu: '+esc(phieu.maPhieu)+'</b><div class="pv17-small">'+esc(phieu.danhSachMaMay||phieu.maMay)+' · '+esc(phieu.danhSachTenTrai||phieu.tenTrai)+'</div></div><button class="btn sm" onclick="pv17RenderCompletePage()">← Quay lại</button></div><div class="egmat-form-grid"><div class="iw"><div class="il">Ngày giờ nhập kho *</div><input class="inp" type="datetime-local" id="pv17_ngayNhap" value="'+dt.toISOString().slice(0,16)+'"></div><div class="iw"><div class="il">Người nhập kho *</div><select class="inp" id="pv17_nguoiNhap">'+peopleOpts+'</select></div></div><div class="pv18-scroll" style="margin-top:12px"><table id="egmat_complete_table"><thead><tr><th style="width:44px">STT</th><th style="width:285px">Hạng mục vật tư</th><th style="width:170px">Loại vật tư</th><th style="width:90px">SL xuất kho</th><th style="width:90px">SL sử dụng</th><th style="width:90px">SL nhập kho</th><th style="width:130px">Tình trạng nhập</th><th style="width:170px">Ghi chú</th><th style="width:105px">Loại dòng</th></tr></thead><tbody>'+((items||[]).map(function(x,i){return pv17CompleteRowHTML(x,i);}).join(''))+'</tbody></table></div><div class="egmat-form-actions"><button class="btn bg-a sm" onclick="pv17AddCompleteRow()">➕ Thêm vật tư phát sinh</button><button class="btn bg-g" onclick="pv17SubmitComplete(\''+js(phieu.maPhieu)+'\')">✅ Lưu hoàn thiện</button></div><div class="ih" style="margin-top:8px">Vật tư có danh sách "Các loại" sẽ hiện thêm ô chọn loại tương ứng.</div></div>';
-    setTimeout(eg28RefreshMaterialSelects,0);
-    var c=document.querySelector('.content');if(c){try{c.scrollTo({top:0,behavior:'smooth'});}catch(e){c.scrollTop=0;}}
-  };
-  window.pv16RenderCompleteForm=window.pv17RenderCompleteForm;
-
-  function scrollable(el){return !!(el&&el.scrollHeight>el.clientHeight+4);}
-  function appVisible(){var app=document.getElementById('app');if(!app)return true;var cs=getComputedStyle(app);return cs.display!=='none'&&cs.visibility!=='hidden';}
-  function ensureScrollButtons(){
-    var box=document.getElementById('egScrollControls');
-    if(!box){box=document.createElement('div');box.id='egScrollControls';box.className='eg-scroll-controls';box.innerHTML='<button type="button" class="eg-scroll-btn" title="Cuộn lên" onclick="egScrollStep(-1)">▲</button><button type="button" class="eg-scroll-btn" title="Cuộn xuống" onclick="egScrollStep(1)">▼</button>';document.body.appendChild(box);}
-    box.style.display=appVisible()?'flex':'none';
-  }
-  function findScrollableFrom(el){
-    var cur=el;
-    while(cur&&cur!==document.body&&cur!==document.documentElement){
-      var cs=getComputedStyle(cur);
-      if((cs.overflowY==='auto'||cs.overflowY==='scroll')&&scrollable(cur))return cur;
-      cur=cur.parentElement;
-    }
-    return null;
-  }
-  function currentScrollTarget(){
-    var hover=document.querySelector(':hover');
-    var chain=[];while(hover){chain.push(hover);hover=hover.parentElement;}
-    for(var i=0;i<chain.length;i++){var s=findScrollableFrom(chain[i]);if(s)return s;}
-    var active=document.activeElement;var a=findScrollableFrom(active);if(a)return a;
-    var page=document.querySelector('.page.on');var p=findScrollableFrom(page);if(p)return p;
-    var content=document.querySelector('.content');if(scrollable(content))return content;
-    return document.scrollingElement||document.documentElement;
-  }
-  window.egScrollStep=function(dir){
-    ensureScrollButtons();
-    var t=currentScrollTarget();var h=t.clientHeight||window.innerHeight||600;
-    var delta=(dir>0?1:-1)*Math.max(260,Math.round(h*0.78));
-    try{t.scrollBy({top:delta,behavior:'smooth'});}catch(e){t.scrollTop+=delta;}
-  };
-  function boot(){ensureScrollButtons();try{if(typeof pvBDSCRenderSelected==='function')pvBDSCRenderSelected();}catch(e){}}
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);else boot();
-  window.addEventListener('load',boot);setInterval(ensureScrollButtons,1200);
-})();
-</script>
-
-</body></html>`;
+      <body><div class="Section1">${bodyOnly}</div></body></html>`;
 
       await saveBDSCFileToDrive(wordHtml, fname, 'word', reportId);
     } finally {
@@ -7343,197 +6961,6 @@ th { text-align: center; font-weight: bold; background: #f5f5f5; }
     <div class="sign-cell">Người nhập kho</div>
   </div>
 </div>
-
-
-<!-- V28: global scroll controls + material type selector from column "Các loại" -->
-<style id="egreen-v28-global-arrows-types">
-  .eg-scroll-controls{position:fixed;right:18px;bottom:74px;z-index:9000;display:flex;flex-direction:column;gap:8px;pointer-events:auto;}
-  .eg-scroll-btn{width:38px;height:38px;border-radius:999px;border:1px solid rgba(13,110,63,.22);background:#0d6e3f;color:#fff;box-shadow:0 6px 22px rgba(0,0,0,.18);font-size:18px;font-weight:900;line-height:1;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:.15s;font-family:var(--font);}
-  .eg-scroll-btn:hover{background:#083d24;transform:translateY(-1px)}
-  .eg-scroll-btn:active{transform:translateY(0)}
-  .eg28-type-select,.eg28-selected-type{border:1.5px solid var(--bd);border-radius:7px;padding:4px 7px;font-size:11px;background:#fff;color:var(--s);font-family:var(--font);min-width:150px;}
-  .eg28-type-select:focus,.eg28-selected-type:focus{border-color:var(--g);box-shadow:0 0 0 2px rgba(13,110,63,.1);outline:none;}
-  .eg28-type-wrap{display:flex;align-items:center;gap:5px;flex-wrap:wrap;}
-  .eg28-type-label{font-size:10px;color:var(--mu);font-weight:700;}
-  .eg28-no-type{font-size:11px;color:var(--mu);font-style:italic;}
-  #egmat_complete_table .eg28-type-select{width:100%;min-width:150px;}
-  @media(max-width:768px){.eg-scroll-controls{right:12px;bottom:82px}.eg-scroll-btn{width:36px;height:36px}.eg28-selected-type{min-width:125px}}
-</style>
-<script id="egreen-v28-global-arrows-types">
-(function(){
-  var PHAT_SINH='Phát sinh', CHUAN_BI='Chuẩn bị';
-  var TYPE_FALLBACK={
-    'bugi':['BKR6E','DCPR8E','Mar10A-J 4706','BP6ES'],
-    'o bi truc danh lua':['Vòng bi SKF 6007 - 2Z'],
-    'o bi cu phat':['Vòng bi E 30206J','Vòng bi 6312C3','Vòng bi 6317','Vòng bi 6215ZZCM','Vòng bi 6310-2Z'],
-    'day dai bom nuoc':['RECMF - 8560','A-7473','A-5639','12PK1625','A64','8610','C60 - RECMF 9600','A54','5PK1110','5PK1050'],
-    'bau loc gio / cum loc gio':['LỌC GIÓ 6D105(AS1024)','A-6465A (Nitco)/ A-6117-S','Lọc gió A6117S','Lọc gió Donaldson P532473','P831197'],
-    'loc nhot so 1':['C-5602','T-5121','LF9009','Lọc nhớt Sakura O-18051','WF2072','Lọc nhớt Sakura O-1808','Lọc nhớt Sakura O-1809','Lọc nhớt Sakura O-1804','Lọc nhớt Sakura O-1806'],
-    'loc nhot so 2':['C-5602','T-5121','LF9009','Lọc nhớt Sakura O-18051','WF2072','Lọc nhớt Sakura O-1808','Lọc nhớt Sakura O-1809','Lọc nhớt Sakura O-1804','Lọc nhớt Sakura O-1806']
-  };
-  function esc(s){return (typeof pvEsc==='function')?pvEsc(s):String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]||c;});}
-  function js(s){return (typeof pvJs==='function')?pvJs(s):String(s==null?'':s).replace(/\\/g,'\\\\').replace(/'/g,"\\'");}
-  function norm(s){return (typeof pvNorm==='function')?pvNorm(s):String(s==null?'':s).normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/đ/g,'d').replace(/Đ/g,'D').toLowerCase().replace(/\s+/g,' ').trim();}
-  function getObj(o,keys){
-    if(!o)return '';
-    if(typeof pvGetObj==='function'){try{return pvGetObj(o,keys)||'';}catch(e){}}
-    for(var i=0;i<keys.length;i++){var k=keys[i];if(o[k]!==undefined&&o[k]!==null&&String(o[k]).trim())return String(o[k]).trim();}
-    return '';
-  }
-  function matName(x){try{return (typeof pvTenVatTu==='function')?pvTenVatTu(x):getObj(x,['Tên Chi Tiết / Linh Kiện Thay Thế','Tên vật tư','tenVatTu','lk']);}catch(e){return getObj(x,['Tên Chi Tiết / Linh Kiện Thay Thế','Tên vật tư','tenVatTu','lk']);}}
-  function matCum(x){try{return (typeof pvCum==='function')?pvCum(x):getObj(x,['Cụm Linh Kiện','Cụm linh kiện','cumLinhKien','cum']);}catch(e){return getObj(x,['Cụm Linh Kiện','Cụm linh kiện','cumLinhKien','cum']);}}
-  function parseTypes(raw){
-    raw=String(raw||'').replace(/\r/g,'\n');
-    if(!raw.trim())return [];
-    var parts=raw.split(/\n|;|\|/).map(function(x){return x.trim();}).filter(Boolean);
-    var out=[],seen={};
-    parts.forEach(function(x){var k=norm(x);if(!seen[k]){seen[k]=1;out.push(x);}});
-    return out;
-  }
-  function materialList(){
-    var arr=[];
-    try{if(window.PV&&PV.data&&Array.isArray(PV.data.vatTu))arr=arr.concat(PV.data.vatTu);}catch(e){}
-    try{if((!arr||!arr.length)&&typeof PARTS_MAP!=='undefined')Object.entries(PARTS_MAP).forEach(function(pair){(pair[1]||[]).forEach(function(p){arr.push({'Tên vật tư':p,'Cụm linh kiện':pair[0]});});});}catch(e){}
-    var out=[],seen={};
-    (arr||[]).forEach(function(x){var name=matName(x);if(!name)return;var k=norm(name);if(seen[k])return;seen[k]=1;out.push({raw:x,tenVatTu:name,cumLinhKien:matCum(x),maVatTu:getObj(x,['Mã vật tư','Mã Vật Tư','Ma vat tu','maVatTu']),donViTinh:getObj(x,['ĐVT','Đơn Vị Tính','Đơn vị tính','DVT','donViTinh']),cacLoai:getObj(x,['Các loại','Cac loai','Loại','Loai','loaiVatTu','loai'])});});
-    return out;
-  }
-  function typeListFor(name){
-    name=String(name||'').trim();if(!name)return [];
-    var n=norm(name);
-    var mat=materialList().find(function(m){return norm(m.tenVatTu)===n;});
-    var dyn=mat?parseTypes(mat.cacLoai):[];
-    if(dyn.length)return dyn;
-    return TYPE_FALLBACK[n]||[];
-  }
-  function firstValidType(name,val){
-    var list=typeListFor(name), v=String(val||'').trim();
-    if(!v)return '';
-    return list.some(function(x){return norm(x)===norm(v);})?v:'';
-  }
-  function typeOptions(name,selected){
-    var list=typeListFor(name), sel=firstValidType(name,selected);
-    return '<option value="">-- Chọn loại --</option>'+list.map(function(t){return '<option value="'+esc(t)+'" '+(norm(t)===norm(sel)?'selected':'')+'>'+esc(t)+'</option>';}).join('');
-  }
-  function selectedTypeControl(x){
-    var list=typeListFor(x&&x.tenVatTu), id=x&&x.id, val=x&&x.loaiVatTu;
-    if(!list.length)return '';
-    return '<div class="eg28-type-wrap"><span class="eg28-type-label">Loại</span><select class="eg28-selected-type" onchange="eg28SetSelectedType(\''+js(id)+'\',this.value)">'+typeOptions(x.tenVatTu,val)+'</select></div>';
-  }
-  window.eg28SetSelectedType=function(id,val){
-    try{var it=(PV.data.selected||[]).find(function(x){return String(x.id)===String(id);});if(it)it.loaiVatTu=val||'';}catch(e){}
-  };
-  window.eg28TypeCellHTML=function(name,selected){
-    var list=typeListFor(name);
-    if(!list.length)return '<span class="eg28-no-type">-</span><input type="hidden" data-k="loaiVatTu" value="">';
-    return '<select class="eg28-type-select" data-k="loaiVatTu">'+typeOptions(name,selected)+'</select>';
-  };
-  window.eg28UpdateRowType=function(el){
-    var tr=el&&el.closest?el.closest('tr'):null;if(!tr)return;
-    var nameEl=tr.querySelector('[data-k="tenVatTu"]');var name=nameEl?nameEl.value:'';
-    var cell=tr.querySelector('.eg28-type-cell');if(cell)cell.innerHTML=eg28TypeCellHTML(name,'');
-  };
-  window.eg28OnMatSelect=function(sel){
-    var tr=sel.closest('tr');if(!tr)return;
-    var mat=materialList().find(function(m){return norm(m.tenVatTu)===norm(sel.value);});
-    function set(k,v){var el=tr.querySelector('[data-k="'+k+'"]');if(el)el.value=v||'';}
-    if(mat){set('cumLinhKien',mat.cumLinhKien);set('maVatTu',mat.maVatTu);set('donViTinh',mat.donViTinh);set('nguonVatTu',PHAT_SINH);}else{set('cumLinhKien','');set('maVatTu','');set('donViTinh','');}
-    var loai=tr.querySelector('[data-k="loaiDong"]');if(loai)loai.value=PHAT_SINH;
-    eg28UpdateRowType(sel);
-    if(typeof eg28RefreshMaterialSelects==='function')eg28RefreshMaterialSelects();
-  };
-  window.egmatOnMatSelect=window.eg28OnMatSelect;
-  var oldLoaiDong=window.egmatOnLoaiDongChange;
-  window.egmatOnLoaiDongChange=function(sel){
-    if(typeof oldLoaiDong==='function')oldLoaiDong(sel);
-    var tr=sel&&sel.closest?sel.closest('tr'):null;if(!tr)return;
-    if(norm(sel.value)===norm(PHAT_SINH)){
-      var nameEl=tr.querySelector('[data-k="tenVatTu"]');
-      if(nameEl&&nameEl.tagName!=='SELECT')nameEl.setAttribute('oninput','eg28UpdateRowType(this)');
-      eg28UpdateRowType(nameEl||sel);
-    }
-  };
-  window.eg28RefreshMaterialSelects=function(){
-    try{document.querySelectorAll('select.egmat-mat-select').forEach(function(sel){var cur=sel.value;if(typeof matOptions==='function'){try{sel.innerHTML=matOptions(cur,sel.closest('tr'));sel.value=cur;}catch(e){}} eg28UpdateRowType(sel);});}catch(e){}
-  };
-  window.egmatRefreshMaterialSelects=window.eg28RefreshMaterialSelects;
-
-  window.pvBDSCSelectMaterial=function(id,checked){
-    if(!checked)return;
-    var x=(PV.data.vatTu||[]).find(function(v){return pvMatId(v)===id;});if(!x)return;
-    var qEl=document.getElementById('pvb_qty_'+pvCss(id));var sEl=document.getElementById('pvb_st_'+pvCss(id));
-    var qty=qEl?parseFloat(qEl.value)||1:1;var st=sEl?sEl.value:'Mới';var ten=matName(x);
-    if(!(PV.data.selected||[]).find(function(i){return i.id===id;}))PV.data.selected.push({id:id,tenVatTu:ten,cumLinhKien:matCum(x),maVatTu:getObj(x,['Mã vật tư','Mã Vật Tư','Ma vat tu','maVatTu'])||'',donViTinh:getObj(x,['ĐVT','Đơn vị tính','Đơn Vị Tính','DVT'])||'',soLuongCan:qty,tinhTrangXuatKho:st,nguonVatTu:'Chọn thêm',fixed:false,included:true,loaiDong:CHUAN_BI,loaiVatTu:''});
-    pvBDSCRenderVatTuSearch();pvBDSCRenderSelected();
-  };
-  window.pvBDSCRenderSelected=function(){
-    var box=document.getElementById('pvb_selectedItems');if(!box)return;
-    if(!PV.data.selected||!PV.data.selected.length){box.innerHTML='<i style="font-size:12px;color:var(--mu)">Chưa chọn vật tư.</i>';return;}
-    box.innerHTML=PV.data.selected.map(function(x){var checked=x.included!==false;return '<div class="'+(checked?'':'pv17-dim')+'" style="display:flex;align-items:center;gap:8px;padding:7px 10px;border:1px solid var(--bd);border-radius:8px;margin-bottom:5px;background:#fff;flex-wrap:wrap"><input type="checkbox" '+(checked?'checked':'')+' onchange="pv17ToggleInclude(\''+js(x.id)+'\',this.checked)" title="Tích để đưa vào phiếu" style="width:16px;height:16px;accent-color:var(--g);cursor:pointer"><div style="flex:1;min-width:150px;font-size:12px"><b>'+esc(x.tenVatTu)+'</b><br><span style="color:var(--mu)">'+esc(x.cumLinhKien)+' · '+esc(x.nguonVatTu)+'</span></div>'+selectedTypeControl(x)+'<input type="number" min="0" value="'+esc(String(x.soLuongCan||''))+'" style="width:60px;border:1.5px solid var(--bd);border-radius:6px;padding:3px 6px;font-size:11px;text-align:center" onchange="pvBDSCUpdQty(\''+js(x.id)+'\',this.value)"><select style="border:1.5px solid var(--bd);border-radius:6px;padding:3px 5px;font-size:11px" onchange="pvBDSCUpdSt(\''+js(x.id)+'\',this.value)">'+['Mới','Cũ','Tốt','K.xđ'].map(function(s){return '<option '+(s===x.tinhTrangXuatKho?'selected':'')+'>'+s+'</option>';}).join('')+'</select><span style="font-size:10px;color:var(--mu)">'+(x.fixed?'Cố định':'Chọn thêm')+'</span>'+(x.fixed?'':'<button class="btn bg-r sm" onclick="pvBDSCRemoveMat(\''+js(x.id)+'\')">Bỏ</button>')+'</div>';}).join('');
-  };
-  window.pvBDSCPayload=function(){
-    var md=(document.querySelector('input[name="pvb_mucDich"]:checked')||{}).value||'Bảo dưỡng sửa chữa';
-    var ms=(typeof pv17MachineSummary==='function')?pv17MachineSummary():(typeof pv16MachineSummary==='function'?pv16MachineSummary():{list:[],maMay:'',tenTrai:'',donVi:'',khuVuc:'',tinhTP:'',danhSachMaMay:'',danhSachTenTrai:''});
-    var items=(PV.data.selected||[]).filter(function(x){return x.included!==false;}).map(function(x,i){return {stt:i+1,nguonVatTu:x.nguonVatTu,cumLinhKien:x.cumLinhKien,tenVatTu:x.tenVatTu,loaiVatTu:x.loaiVatTu||'',maVatTu:x.maVatTu,donViTinh:x.donViTinh,soLuongCan:x.soLuongCan,tinhTrangXuatKho:x.tinhTrangXuatKho,loaiDong:x.loaiDong||CHUAN_BI,included:true};});
-    return {doiTruong:pvBDSCGetVal('pvb_doiTruong'),thanhVien:_pvbTVSelected.slice(),maMay:ms.maMay,tenTrai:ms.tenTrai,donVi:ms.donVi,khuVuc:ms.khuVuc,tinhTP:ms.tinhTP,machines:ms.list,danhSachMaMay:ms.danhSachMaMay,danhSachTenTrai:ms.danhSachTenTrai,ngayGioXuatKho:pvBDSCFmtDT(pvBDSCGetVal('pvb_ngayGioXuatKho')),nguoiXuatKho:pvBDSCGetVal('pvb_nguoiXuatKho'),ngayGioNhapKho:pvBDSCFmtDT(pvBDSCGetVal('pvb_ngayGioNhapKho')),nguoiNhapKho:pvBDSCGetVal('pvb_nguoiNhapKho'),mucDich:md,cuThe:md==='Bảo dưỡng sửa chữa'?((PV.hienTuongSel||[]).join('; ')||'-'):(pvBDSCGetVal('pvb_cuTheNhapTay')||'-'),ghiChu:'',items:items};
-  };
-
-  window.pv17CompleteRowHTML=function(x,i){
-    x=x||{};var sx=x.soLuongXuatKho||x.soLuongCan||'';
-    var loai=String(x.loaiDong||(!String(x.tenVatTu||'').trim()?PHAT_SINH:CHUAN_BI));
-    var isPhatSinh=norm(loai)===norm(PHAT_SINH)||norm(x.nguonVatTu||'')===norm(PHAT_SINH)||!String(x.tenVatTu||'').trim();
-    var matCtl=isPhatSinh?'<select class="egmat-mat-select" data-k="tenVatTu" onchange="eg28OnMatSelect(this)">'+(typeof matOptions==='function'?matOptions(x.tenVatTu||'',null):'<option value="'+esc(x.tenVatTu||'')+'">'+esc(x.tenVatTu||'')+'</option>')+'</select>':'<input value="'+esc(x.tenVatTu||'')+'" data-k="tenVatTu" oninput="eg28UpdateRowType(this)">';
-    return '<tr><td style="text-align:center">'+(i+1)+'</td><td>'+matCtl+'<input type="hidden" data-k="nguonVatTu" value="'+esc(x.nguonVatTu||'')+'"><input type="hidden" data-k="cumLinhKien" value="'+esc(x.cumLinhKien||'')+'"><input type="hidden" data-k="maVatTu" value="'+esc(x.maVatTu||'')+'"><input type="hidden" data-k="donViTinh" value="'+esc(x.donViTinh||'')+'"></td><td class="eg28-type-cell">'+eg28TypeCellHTML(x.tenVatTu||'',x.loaiVatTu||'')+'</td><td><input type="number" min="0" value="'+esc(String(sx))+'" data-k="soLuongXuatKho"></td><td><input type="number" min="0" value="'+esc(String(x.soLuongSuDung||''))+'" data-k="soLuongSuDung"></td><td><input type="number" min="0" value="'+esc(String(x.soLuongNhapKho||''))+'" data-k="soLuongNhapKho"></td><td><select data-k="tinhTrangNhapKho">'+['','Mới','Cũ','Tốt','Hỏng'].map(function(s){return '<option '+(s===(x.tinhTrangNhapKho||'')?'selected':'')+'>'+s+'</option>';}).join('')+'</select></td><td><input value="'+esc(x.ghiChu||'')+'" data-k="ghiChu"></td><td><select data-k="loaiDong" onchange="egmatOnLoaiDongChange(this)"><option '+(norm(loai)===norm(CHUAN_BI)?'selected':'')+'>'+CHUAN_BI+'</option><option '+(norm(loai)===norm(PHAT_SINH)?'selected':'')+'>'+PHAT_SINH+'</option></select></td></tr>';
-  };
-  window.pv17CollectCompleteItems=function(){return Array.from(document.querySelectorAll('#egmat_complete_table tbody tr,#pv18_complete_table tbody tr,#pv17_complete_table tbody tr')).map(function(tr,i){var obj={stt:i+1};tr.querySelectorAll('[data-k]').forEach(function(el){obj[el.dataset.k]=el.value;});obj.soLuongCan=obj.soLuongXuatKho;return obj;}).filter(function(x){return String(x.tenVatTu||'').trim();});};
-  window.pv17RenderCompleteForm=function(root,phieu,items){
-    var pg=document.getElementById('pg-hoanThanhPhieu');if(pg){pg.classList.add('egmat-form-mode');pg.classList.remove('egmat-list-mode');}
-    var dt=new Date();dt.setMinutes(dt.getMinutes()-dt.getTimezoneOffset());
-    var selectedNguoi=(phieu&&phieu.nguoiNhapKho)||(window.CU&&(CU.name||CU.fullName))||'';
-    var peopleOpts=(typeof peopleOptions==='function')?peopleOptions(selectedNguoi):'<option value="'+esc(selectedNguoi)+'">'+esc(selectedNguoi)+'</option>';
-    root.innerHTML='<div class="card"><div class="cb egmat-complete-head"><div><b>Cập nhật hoàn thành phiếu: '+esc(phieu.maPhieu)+'</b><div class="pv17-small">'+esc(phieu.danhSachMaMay||phieu.maMay)+' · '+esc(phieu.danhSachTenTrai||phieu.tenTrai)+'</div></div><button class="btn sm" onclick="pv17RenderCompletePage()">← Quay lại</button></div><div class="egmat-form-grid"><div class="iw"><div class="il">Ngày giờ nhập kho *</div><input class="inp" type="datetime-local" id="pv17_ngayNhap" value="'+dt.toISOString().slice(0,16)+'"></div><div class="iw"><div class="il">Người nhập kho *</div><select class="inp" id="pv17_nguoiNhap">'+peopleOpts+'</select></div></div><div class="pv18-scroll" style="margin-top:12px"><table id="egmat_complete_table"><thead><tr><th style="width:44px">STT</th><th style="width:285px">Hạng mục vật tư</th><th style="width:170px">Loại vật tư</th><th style="width:90px">SL xuất kho</th><th style="width:90px">SL sử dụng</th><th style="width:90px">SL nhập kho</th><th style="width:130px">Tình trạng nhập</th><th style="width:170px">Ghi chú</th><th style="width:105px">Loại dòng</th></tr></thead><tbody>'+((items||[]).map(function(x,i){return pv17CompleteRowHTML(x,i);}).join(''))+'</tbody></table></div><div class="egmat-form-actions"><button class="btn bg-a sm" onclick="pv17AddCompleteRow()">➕ Thêm vật tư phát sinh</button><button class="btn bg-g" onclick="pv17SubmitComplete(\''+js(phieu.maPhieu)+'\')">✅ Lưu hoàn thiện</button></div><div class="ih" style="margin-top:8px">Vật tư có danh sách "Các loại" sẽ hiện thêm ô chọn loại tương ứng.</div></div>';
-    setTimeout(eg28RefreshMaterialSelects,0);
-    var c=document.querySelector('.content');if(c){try{c.scrollTo({top:0,behavior:'smooth'});}catch(e){c.scrollTop=0;}}
-  };
-  window.pv16RenderCompleteForm=window.pv17RenderCompleteForm;
-
-  function scrollable(el){return !!(el&&el.scrollHeight>el.clientHeight+4);}
-  function appVisible(){var app=document.getElementById('app');if(!app)return true;var cs=getComputedStyle(app);return cs.display!=='none'&&cs.visibility!=='hidden';}
-  function ensureScrollButtons(){
-    var box=document.getElementById('egScrollControls');
-    if(!box){box=document.createElement('div');box.id='egScrollControls';box.className='eg-scroll-controls';box.innerHTML='<button type="button" class="eg-scroll-btn" title="Cuộn lên" onclick="egScrollStep(-1)">▲</button><button type="button" class="eg-scroll-btn" title="Cuộn xuống" onclick="egScrollStep(1)">▼</button>';document.body.appendChild(box);}
-    box.style.display=appVisible()?'flex':'none';
-  }
-  function findScrollableFrom(el){
-    var cur=el;
-    while(cur&&cur!==document.body&&cur!==document.documentElement){
-      var cs=getComputedStyle(cur);
-      if((cs.overflowY==='auto'||cs.overflowY==='scroll')&&scrollable(cur))return cur;
-      cur=cur.parentElement;
-    }
-    return null;
-  }
-  function currentScrollTarget(){
-    var hover=document.querySelector(':hover');
-    var chain=[];while(hover){chain.push(hover);hover=hover.parentElement;}
-    for(var i=0;i<chain.length;i++){var s=findScrollableFrom(chain[i]);if(s)return s;}
-    var active=document.activeElement;var a=findScrollableFrom(active);if(a)return a;
-    var page=document.querySelector('.page.on');var p=findScrollableFrom(page);if(p)return p;
-    var content=document.querySelector('.content');if(scrollable(content))return content;
-    return document.scrollingElement||document.documentElement;
-  }
-  window.egScrollStep=function(dir){
-    ensureScrollButtons();
-    var t=currentScrollTarget();var h=t.clientHeight||window.innerHeight||600;
-    var delta=(dir>0?1:-1)*Math.max(260,Math.round(h*0.78));
-    try{t.scrollBy({top:delta,behavior:'smooth'});}catch(e){t.scrollTop+=delta;}
-  };
-  function boot(){ensureScrollButtons();try{if(typeof pvBDSCRenderSelected==='function')pvBDSCRenderSelected();}catch(e){}}
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);else boot();
-  window.addEventListener('load',boot);setInterval(ensureScrollButtons,1200);
-})();
-</script>
-
 </body></html>`;
 }
 
@@ -8373,434 +7800,904 @@ nav=function(p){
 })();
 </script>
 
-<!-- V27 clean rebuild: fixed app shell, material scroll, split complete lists, arrow scroll controls -->
-<style id="egreen-v27-layout">
-  :root{--eg-topbar-h:54px;--eg-mobile-topbar-h:50px;--eg-sidebar-w:206px;}
 
+<!-- V19 hotfix: fixed sidebar, hide old export-material menu, add PDF/Word actions to waiting list, and use dropdowns for receiver/material incident rows -->
+<style id="pv19-sidebar-complete-selects-style">
   @media (min-width:769px){
-    html,body{height:100%;min-height:100%;overflow:hidden !important;background:var(--bg);}
-    #app{display:flex !important;flex-direction:column !important;height:100vh !important;min-height:0 !important;overflow:hidden !important;}
-    .topbar{position:relative !important;top:auto !important;left:auto !important;right:auto !important;width:100% !important;height:var(--eg-topbar-h) !important;min-height:var(--eg-topbar-h) !important;flex:0 0 var(--eg-topbar-h) !important;z-index:300 !important;}
-    .layout{display:flex !important;flex:1 1 auto !important;min-height:0 !important;height:calc(100vh - var(--eg-topbar-h)) !important;width:100% !important;overflow:hidden !important;align-items:stretch !important;}
-    .sidebar{position:relative !important;top:auto !important;left:auto !important;bottom:auto !important;width:var(--eg-sidebar-w) !important;min-width:var(--eg-sidebar-w) !important;max-width:var(--eg-sidebar-w) !important;flex:0 0 var(--eg-sidebar-w) !important;height:100% !important;overflow-y:auto !important;overflow-x:hidden !important;transform:none !important;box-shadow:none !important;z-index:50 !important;}
-    .content{position:relative !important;display:block !important;flex:1 1 auto !important;min-width:0 !important;width:auto !important;max-width:none !important;height:100% !important;min-height:0 !important;margin:0 !important;overflow-y:auto !important;overflow-x:hidden !important;background:var(--bg) !important;scroll-behavior:smooth;overscroll-behavior:contain;}
-    .page{box-sizing:border-box !important;}
-    .page:not(.on){display:none !important;}
-    .page.on{display:block !important;}
-
-    #pg-taoPhieu,#pg-danhSachPhieu{width:100% !important;max-width:100% !important;margin:0 !important;padding:16px 20px 130px !important;box-sizing:border-box !important;min-height:max-content !important;height:auto !important;overflow:visible !important;}
-    #pg-taoPhieu > .ph,#pg-danhSachPhieu > .ph{margin:0 0 16px 0 !important;padding:0 !important;text-align:left !important;}
-    #pvFormRoot,#pvHistoryRoot,#pvb_formWrap{width:100% !important;max-width:100% !important;margin:0 !important;padding:0 !important;box-sizing:border-box !important;}
-    #pvb_formWrap .fsec,#pvHistoryRoot .card,#pvFormRoot .card{width:100% !important;max-width:100% !important;margin-left:0 !important;margin-right:0 !important;box-sizing:border-box !important;}
-
-    #pg-hoanThanhPhieu{width:100% !important;max-width:100% !important;margin:0 !important;padding:16px 20px 20px !important;box-sizing:border-box !important;}
-    #pg-hoanThanhPhieu > .ph{margin:0 0 14px 0 !important;padding:0 !important;text-align:left !important;}
-    #pg-hoanThanhPhieu.egmat-list-mode.on{height:100% !important;min-height:0 !important;display:flex !important;flex-direction:column !important;overflow:hidden !important;}
-    #pg-hoanThanhPhieu.egmat-list-mode #pvCompleteRoot{flex:1 1 auto !important;min-height:0 !important;width:100% !important;display:flex !important;flex-direction:column !important;overflow:hidden !important;margin:0 !important;padding:0 !important;}
-    #pg-hoanThanhPhieu.egmat-form-mode.on{height:auto !important;min-height:max-content !important;overflow:visible !important;padding-bottom:130px !important;}
-    #pg-hoanThanhPhieu.egmat-form-mode #pvCompleteRoot{width:100% !important;max-width:100% !important;margin:0 !important;padding:0 !important;}
+    .layout{display:block !important;overflow:visible !important;}
+    .sidebar{
+      position:fixed !important;
+      top:54px !important;
+      left:0 !important;
+      bottom:0 !important;
+      height:calc(100vh - 54px) !important;
+      z-index:160 !important;
+      overflow-y:auto !important;
+    }
+    .content{
+      margin-left:206px !important;
+      width:calc(100% - 206px) !important;
+      max-width:calc(100% - 206px) !important;
+      flex:none !important;
+      height:calc(100vh - 54px) !important;
+      overflow-y:auto !important;
+    }
   }
-
   @media (max-width:768px){
-    html,body{height:auto;min-height:100%;overflow-y:auto;overflow-x:hidden;}
-    #app{min-height:100vh;overflow:visible;}
-    .topbar{position:sticky !important;top:0 !important;height:var(--eg-mobile-topbar-h) !important;min-height:var(--eg-mobile-topbar-h) !important;z-index:300 !important;}
-    .layout{display:flex !important;overflow:visible !important;}
-    .content{width:100% !important;max-width:100% !important;margin-left:0 !important;height:auto !important;min-height:calc(100vh - var(--eg-mobile-topbar-h)) !important;overflow:visible !important;}
-    #pg-taoPhieu,#pg-hoanThanhPhieu,#pg-danhSachPhieu{width:100% !important;max-width:100% !important;margin:0 !important;padding:14px 10px 120px !important;box-sizing:border-box !important;}
+    .content{margin-left:0 !important;width:100% !important;max-width:100% !important;}
   }
-
   #ni-danhSachPhieu{display:none !important;}
   .bg-p{background:#f5f3ff;color:var(--pu);border:1px solid #ddd6fe}.bg-p:hover{background:#ede9fe}
-  .egmat-actions{display:flex;gap:5px;align-items:center;justify-content:flex-start;flex-wrap:wrap;}
-  .egmat-actions .btn{margin:1px 0;}
-  .egmat-mat-select{min-width:230px;}
-  .egmat-complete-head{display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap;}
-  .egmat-form-grid{display:grid;grid-template-columns:1fr 1fr;gap:11px;padding:14px 16px;}
-  .egmat-form-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;align-items:center;}
-
-  .egmat-complete-split{flex:1 1 auto;min-height:0;display:grid;grid-template-rows:minmax(0,1fr) minmax(0,1fr);gap:12px;width:100%;}
-  .egmat-list-card{display:flex;flex-direction:column;min-height:0;overflow:hidden;margin:0 !important;width:100%;}
-  .egmat-list-card .cb{flex:0 0 auto;}
-  .egmat-list-body{flex:1 1 auto;min-height:0;overflow:auto;border-top:1px solid var(--bd);background:#fff;}
-  .egmat-list-body .tblwrap{height:100%;overflow:auto;border-radius:0;}
-  .egmat-list-body table{width:100%;min-width:1120px;}
-  .egmat-list-body thead th{position:sticky;top:0;z-index:2;background:#f8fafc;}
-  .egmat-list-body td,.egmat-list-body th{vertical-align:middle;}
-  @media(max-width:1000px){.egmat-list-body table{min-width:980px;}}
-
-  #egmat_complete_table{width:100%;min-width:980px;border-collapse:collapse;background:#fff;font-size:12px;}
-  #egmat_complete_table th,#egmat_complete_table td{border:1px solid var(--bd);padding:7px;vertical-align:middle;}
-  #egmat_complete_table th{background:#e8f7f0;color:#083d24;font-weight:800;position:sticky;top:0;z-index:2;}
-  #egmat_complete_table input,#egmat_complete_table select{width:100%;border:1px solid var(--bd);border-radius:6px;padding:5px;font-size:12px;background:#fff;}
-  #pvCompleteRoot .pv18-scroll,#pvCompleteRoot .pv17-scroll{width:100%;max-width:100%;overflow:auto !important;max-height:calc(100vh - var(--eg-topbar-h) - 230px);}
-
-  .eg-scroll-controls{position:fixed;right:18px;bottom:74px;z-index:9000;display:flex;flex-direction:column;gap:8px;pointer-events:auto;}
-  .eg-scroll-btn{width:38px;height:38px;border-radius:999px;border:1px solid rgba(13,110,63,.22);background:#0d6e3f;color:#fff;box-shadow:0 6px 22px rgba(0,0,0,.18);font-size:18px;font-weight:900;line-height:1;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:.15s;font-family:var(--font);}
-  .eg-scroll-btn:hover{background:#083d24;transform:translateY(-1px)}
-  .eg-scroll-btn:active{transform:translateY(0)}
-  @media(max-width:768px){.egmat-form-grid{grid-template-columns:1fr}.egmat-mat-select{min-width:180px}.egmat-complete-split{display:block}.egmat-list-card{margin-bottom:12px !important;max-height:none}.egmat-list-body{max-height:52vh}.eg-scroll-controls{right:12px;bottom:82px}.eg-scroll-btn{width:36px;height:36px}}
+  #pvCompleteRoot .pv18-actions,#pvCompleteRoot .pv19-actions{display:flex;gap:5px;align-items:center;justify-content:flex-start;flex-wrap:wrap;}
+  #pvCompleteRoot .pv19-actions .btn{margin:1px 0;}
+  .pv19-mat-select{min-width:210px;}
 </style>
-<script id="egreen-v27-material-module">
+<script id="pv19-sidebar-complete-selects-js">
 (function(){
-  var PHAT_SINH='Phát sinh', CHUAN_BI='Chuẩn bị';
-  function esc(s){return (typeof pvEsc==='function')?pvEsc(s):String(s==null?'':s).replace(/[&<>\"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[c]||c;});}
-  function js(s){return (typeof pvJs==='function')?pvJs(s):String(s==null?'':s).replace(/\\/g,'\\\\').replace(/'/g,"\\'");}
-  function norm(s){return (typeof pvNorm==='function')?pvNorm(s):String(s==null?'':s).normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/đ/g,'d').toLowerCase().trim();}
+  function esc(s){return (typeof pvEsc==='function')?pvEsc(s):String(s??'').replace(/[&<>\"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[c]||c;});}
+  function js(s){return (typeof pvJs==='function')?pvJs(s):String(s??'').replace(/\\/g,'\\\\').replace(/'/g,"\\'");}
+  function norm(s){return (typeof pvNorm==='function')?pvNorm(s):String(s??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();}
   function getObj(o,keys){
     if(!o)return '';
     if(typeof pvGetObj==='function')return pvGetObj(o,keys)||'';
-    for(var i=0;i<keys.length;i++){var k=keys[i];if(o[k]!==undefined&&o[k]!==null&&String(o[k]).trim())return String(o[k]).trim();}
+    for(const k of keys){if(o[k]!==undefined&&o[k]!==null&&String(o[k]).trim())return String(o[k]).trim();}
     return '';
   }
-  function uniq(list){var out=[],seen={};(list||[]).forEach(function(v){v=String(v||'').trim();if(!v)return;var k=norm(v);if(!seen[k]){seen[k]=1;out.push(v);}});return out;}
-  function isDone(r){return (typeof pv17IsCompleted==='function')?pv17IsCompleted(r):norm(r&&r.trangThai).indexOf('hoan thanh')>=0;}
-  function getList(){return ((_pvBDSCListCache&&_pvBDSCListCache.length?_pvBDSCListCache:(typeof pvBDSCReadListCache_==='function'?pvBDSCReadListCache_():[]))||[]);}
-  function getContent(){return document.querySelector('.content') || document.scrollingElement || document.documentElement;}
-  function scrollTop(){var c=getContent();try{c.scrollTo({top:0,behavior:'smooth'});}catch(e){c.scrollTop=0;} try{window.scrollTo({top:0,behavior:'smooth'});}catch(e){}}
-
-  function peopleList(){
-    var names=[];
-    try{((window.PV&&PV.data&&PV.data.ktv)||[]).forEach(function(x){names.push(typeof x==='string'?x:getObj(x,['Họ Và Tên','Họ và tên','Tên kỹ thuật','name','fullName']));});}catch(e){}
-    try{if(typeof KTV_LIST!=='undefined')KTV_LIST.forEach(function(n){names.push(n);});}catch(e){}
-    try{if(Array.isArray(window.USERS))USERS.forEach(function(u){names.push(u.name||u.fullName||u.username||'');});}catch(e){}
-    try{if(window.CU)names.push(CU.name||CU.fullName||CU.u||'');}catch(e){}
-    return uniq(names);
-  }
-  function peopleOptions(selected){
-    selected=String(selected||'').trim();
-    var list=peopleList();
-    if(selected&&!list.some(function(n){return norm(n)===norm(selected);}))list=[selected].concat(list);
-    return '<option value="">-- Chọn người nhập kho --</option>'+list.map(function(n){return '<option value="'+esc(n)+'" '+(norm(n)===norm(selected)?'selected':'')+'>'+esc(n)+'</option>';}).join('');
-  }
-  function matName(x){return (typeof pvTenVatTu==='function')?pvTenVatTu(x):getObj(x,['Tên Chi Tiết / Linh Kiện Thay Thế','Tên vật tư','tenVatTu','lk']);}
-  function matCum(x){return (typeof pvCum==='function')?pvCum(x):getObj(x,['Cụm Linh Kiện','Cụm linh kiện','cumLinhKien','cum']);}
-  function materialList(){
-    var arr=[];
-    try{if(window.PV&&PV.data&&Array.isArray(PV.data.vatTu))arr=arr.concat(PV.data.vatTu);}catch(e){}
-    try{if((!arr||!arr.length)&&typeof PARTS_MAP!=='undefined')Object.entries(PARTS_MAP).forEach(function(pair){(pair[1]||[]).forEach(function(p){arr.push({'Tên vật tư':p,'Cụm linh kiện':pair[0]});});});}catch(e){}
-    var out=[],seen={};
-    (arr||[]).forEach(function(x){var name=matName(x);if(!name)return;var k=norm(name);if(seen[k])return;seen[k]=1;out.push({tenVatTu:name,cumLinhKien:matCum(x),maVatTu:getObj(x,['Mã vật tư','Ma vat tu','maVatTu']),donViTinh:getObj(x,['ĐVT','Đơn vị tính','DVT','donViTinh'])});});
+  function uniq(list){
+    const out=[],seen={};
+    (list||[]).forEach(v=>{v=String(v||'').trim();if(!v)return;const k=norm(v);if(!seen[k]){seen[k]=1;out.push(v);}});
     return out;
   }
-  function usedMaterialSet(skipTr){
-    var used={};
-    document.querySelectorAll('#egmat_complete_table tbody tr,#pv18_complete_table tbody tr,#pv17_complete_table tbody tr').forEach(function(tr){
+  const PHAT_SINH='Ph\u00e1t sinh';
+  const CHUAN_BI='Chu\u1ea9n b\u1ecb';
+
+  window.pv19PeopleList=function(){
+    const names=[];
+    try{((window.PV&&PV.data&&PV.data.ktv)||[]).forEach(x=>names.push(typeof x==='string'?x:getObj(x,['H\u1ecd V\u00e0 T\u00ean','H\u1ecd v\u00e0 t\u00ean','T\u00ean k\u1ef9 thu\u1eadt','name','fullName'])));}catch(e){}
+    try{if(typeof KTV_LIST!=='undefined')KTV_LIST.forEach(n=>names.push(n));}catch(e){}
+    try{if(Array.isArray(window.USERS))USERS.forEach(u=>names.push(u.name||u.fullName||u.username||''));}catch(e){}
+    try{if(window.CU)names.push(CU.name||CU.fullName||CU.u||'');}catch(e){}
+    return uniq(names);
+  };
+  window.pv19PeopleOptionsHTML=function(selected){
+    selected=String(selected||'').trim();
+    let list=pv19PeopleList();
+    if(selected&&!list.some(n=>norm(n)===norm(selected)))list=[selected].concat(list);
+    return `<option value="">-- Ch\u1ecdn ng\u01b0\u1eddi nh\u1eadp kho --</option>`+list.map(n=>`<option value="${esc(n)}" ${norm(n)===norm(selected)?'selected':''}>${esc(n)}</option>`).join('');
+  };
+
+  function matName(x){return (typeof pvTenVatTu==='function')?pvTenVatTu(x):getObj(x,['T\u00ean Chi Ti\u1ebft / Linh Ki\u1ec7n Thay Th\u1ebf','T\u00ean v\u1eadt t\u01b0','tenVatTu','lk']);}
+  function matCum(x){return (typeof pvCum==='function')?pvCum(x):getObj(x,['C\u1ee5m Linh Ki\u1ec7n','C\u1ee5m linh ki\u1ec7n','cumLinhKien','cum']);}
+  window.pv19MaterialList=function(){
+    let arr=[];
+    try{if(window.PV&&PV.data&&Array.isArray(PV.data.vatTu))arr=arr.concat(PV.data.vatTu);}catch(e){}
+    try{
+      if((!arr||!arr.length)&&typeof PARTS_MAP!=='undefined'){
+        Object.entries(PARTS_MAP).forEach(([cum,parts])=>(parts||[]).forEach(p=>arr.push({'T\u00ean v\u1eadt t\u01b0':p,'C\u1ee5m linh ki\u1ec7n':cum})));
+      }
+    }catch(e){}
+    const out=[],seen={};
+    (arr||[]).forEach(x=>{
+      const name=matName(x); if(!name)return;
+      const k=norm(name); if(seen[k])return; seen[k]=1;
+      out.push({tenVatTu:name,cumLinhKien:matCum(x),maVatTu:getObj(x,['M\u00e3 v\u1eadt t\u01b0','Ma vat tu','maVatTu']),donViTinh:getObj(x,['\u0110VT','\u0110\u01a1n v\u1ecb t\u00ednh','DVT','donViTinh'])});
+    });
+    return out;
+  };
+  window.pv19UsedMaterialSet=function(skipTr){
+    const used={};
+    document.querySelectorAll('#pv18_complete_table tbody tr,#pv17_complete_table tbody tr').forEach(tr=>{
       if(skipTr&&tr===skipTr)return;
-      var el=tr.querySelector('[data-k="tenVatTu"]');var v=el?String(el.value||'').trim():'';
+      const el=tr.querySelector('[data-k="tenVatTu"]');
+      const v=el?String(el.value||'').trim():'';
       if(v)used[norm(v)]=1;
     });
     return used;
-  }
-  function matOptions(selected,skipTr){
-    selected=String(selected||'').trim();var used=usedMaterialSet(skipTr);
-    var list=materialList().filter(function(m){return !used[norm(m.tenVatTu)]||norm(m.tenVatTu)===norm(selected);});
-    return '<option value="">-- Chọn vật tư phát sinh --</option>'+list.map(function(m){var label=[m.tenVatTu,m.cumLinhKien].filter(Boolean).join(' - ');return '<option value="'+esc(m.tenVatTu)+'" '+(norm(m.tenVatTu)===norm(selected)?'selected':'')+'>'+esc(label)+'</option>';}).join('');
-  }
-  window.egmatRefreshMaterialSelects=function(){document.querySelectorAll('select.egmat-mat-select').forEach(function(sel){var cur=sel.value;sel.innerHTML=matOptions(cur,sel.closest('tr'));sel.value=cur;});};
-  window.egmatOnMatSelect=function(sel){
-    var tr=sel.closest('tr');if(!tr)return;
-    var mat=materialList().find(function(m){return norm(m.tenVatTu)===norm(sel.value);});
-    function set(k,v){var el=tr.querySelector('[data-k="'+k+'"]');if(el)el.value=v||'';}
+  };
+  window.pv19MatOptionsHTML=function(selected,skipTr){
+    selected=String(selected||'').trim();
+    const used=pv19UsedMaterialSet(skipTr);
+    const list=pv19MaterialList().filter(m=>!used[norm(m.tenVatTu)]||norm(m.tenVatTu)===norm(selected));
+    return `<option value="">-- Ch\u1ecdn v\u1eadt t\u01b0 ph\u00e1t sinh --</option>`+list.map(m=>{
+      const label=[m.tenVatTu,m.cumLinhKien].filter(Boolean).join(' - ');
+      return `<option value="${esc(m.tenVatTu)}" ${norm(m.tenVatTu)===norm(selected)?'selected':''}>${esc(label)}</option>`;
+    }).join('');
+  };
+  window.pv19OnMatSelect=function(sel){
+    const tr=sel.closest('tr'); if(!tr)return;
+    const mat=pv19MaterialList().find(m=>norm(m.tenVatTu)===norm(sel.value));
+    const set=(k,v)=>{const el=tr.querySelector(`[data-k="${k}"]`); if(el)el.value=v||'';};
     if(mat){set('cumLinhKien',mat.cumLinhKien);set('maVatTu',mat.maVatTu);set('donViTinh',mat.donViTinh);set('nguonVatTu',PHAT_SINH);}
-    var loai=tr.querySelector('[data-k="loaiDong"]');if(loai)loai.value=PHAT_SINH;
-    egmatRefreshMaterialSelects();
+    const loai=tr.querySelector('[data-k="loaiDong"]'); if(loai)loai.value=PHAT_SINH;
+    pv19RefreshMaterialSelects();
   };
-  window.egmatOnLoaiDongChange=function(sel){
-    var tr=sel.closest('tr');if(!tr||norm(sel.value)!==norm(PHAT_SINH))return;
-    var holder=tr.children[1];if(!holder)return;
-    var old=holder.querySelector('[data-k="tenVatTu"]');
+  window.pv19RefreshMaterialSelects=function(){
+    document.querySelectorAll('select.pv19-mat-select').forEach(sel=>{
+      const cur=sel.value;
+      sel.innerHTML=pv19MatOptionsHTML(cur,sel.closest('tr'));
+      sel.value=cur;
+    });
+  };
+  window.pv19OnLoaiDongChange=function(sel){
+    const tr=sel.closest('tr'); if(!tr)return;
+    if(sel.value!==PHAT_SINH)return;
+    const holder=tr.children[1]; if(!holder)return;
+    const old=holder.querySelector('[data-k="tenVatTu"]');
     if(old&&old.tagName!=='SELECT'){
-      var val=old.value||'';
-      old.outerHTML='<select class="egmat-mat-select" data-k="tenVatTu" onchange="egmatOnMatSelect(this)">'+matOptions(val,tr)+'</select>';
-      var nsel=holder.querySelector('select.egmat-mat-select');if(nsel)nsel.value=val;
+      const val=old.value||'';
+      old.outerHTML=`<select class="pv19-mat-select" data-k="tenVatTu" onchange="pv19OnMatSelect(this)">${pv19MatOptionsHTML(val,tr)}</select>`;
+      const nsel=holder.querySelector('select.pv19-mat-select'); if(nsel)nsel.value=val;
     }
-    egmatRefreshMaterialSelects();
-  };
-
-  window.pv17ListRowsHTML=function(rows,mode){
-    if(!rows||!rows.length)return '<div class="cb"><i>'+(mode==='done'?'Chưa có phiếu đã hoàn thành.':'Không có phiếu xuất vật tư chờ cập nhật.')+'</i></div>';
-    return '<div class="tblwrap"><table class="tbl"><thead><tr><th style="width:135px">Mã phiếu</th><th style="width:130px">Ngày tạo</th><th style="width:135px">Mã máy</th><th style="width:210px">Tên trại</th><th style="width:145px">Đội trưởng</th><th style="width:150px">Mục đích</th><th style="width:105px">Trạng thái</th><th style="width:240px">Thao tác</th></tr></thead><tbody>'+rows.map(function(r){
-      var actions='<button class="btn bg-a sm" onclick="pvBDSCPreviewSaved(\''+js(r.maPhieu)+'\')">👁 Xem</button><button class="btn bg-g sm" onclick="pvBDSCExportPdf(\''+js(r.maPhieu)+'\')">PDF</button><button class="btn bg-p sm" onclick="pvBDSCExportWord(\''+js(r.maPhieu)+'\')">Word</button>'+(mode==='wait'?'<button class="btn bg-b sm" onclick="pv17OpenComplete(\''+js(r.maPhieu)+'\')">🔄 Cập nhật</button>':'');
-      return '<tr><td><b>'+esc(r.maPhieu)+'</b></td><td>'+esc(r.ngayTao)+'</td><td>'+esc(r.danhSachMaMay||r.maMay)+'</td><td>'+esc(r.danhSachTenTrai||r.tenTrai)+'</td><td>'+esc(r.doiTruong)+'</td><td>'+esc(r.mucDich)+'</td><td><span class="b '+(isDone(r)?'bg':'ba')+'">'+esc(r.trangThai||'Đã tạo')+'</span></td><td><div class="egmat-actions">'+actions+'</div></td></tr>';
-    }).join('')+'</tbody></table></div>';
-  };
-
-  window.pv17RenderCompletePage=function(){
-    var root=document.getElementById('pvCompleteRoot');if(!root)return;
-    var pg=document.getElementById('pg-hoanThanhPhieu');
-    if(pg){pg.classList.add('egmat-list-mode');pg.classList.remove('egmat-form-mode');}
-    document.querySelectorAll('.nitem').forEach(function(x){x.classList.remove('on');});
-    var ni=document.getElementById('ni-hoanThanhPhieu');if(ni)ni.classList.add('on');
-    var list=getList(), wait=list.filter(function(r){return !isDone(r);}), done=list.filter(isDone);
-    root.innerHTML='<div class="egmat-complete-split"><div class="card egmat-list-card"><div class="cb egmat-complete-head"><b>Danh sách phiếu xuất vật tư chờ cập nhật ('+wait.length+')</b><button class="btn bg-g sm" onclick="pvBDSCRefreshHistory_(true).then(function(){pv17RenderCompletePage();})">↻ Làm mới</button></div><div class="egmat-list-body">'+pv17ListRowsHTML(wait,'wait')+'</div></div><div class="card egmat-list-card"><div class="cb"><b>Danh sách phiếu đã hoàn thành ('+done.length+')</b></div><div class="egmat-list-body">'+pv17ListRowsHTML(done,'done')+'</div></div></div>';
-    updateBadge();
+    pv19RefreshMaterialSelects();
   };
 
   window.pv17CompleteRowHTML=function(x,i){
-    x=x||{};var sx=x.soLuongXuatKho||x.soLuongCan||'';
-    var loai=String(x.loaiDong||(!String(x.tenVatTu||'').trim()?PHAT_SINH:CHUAN_BI));
-    var isPhatSinh=norm(loai)===norm(PHAT_SINH)||norm(x.nguonVatTu||'')===norm(PHAT_SINH)||!String(x.tenVatTu||'').trim();
-    var matCtl=isPhatSinh?'<select class="egmat-mat-select" data-k="tenVatTu" onchange="egmatOnMatSelect(this)">'+matOptions(x.tenVatTu||'',null)+'</select>':'<input value="'+esc(x.tenVatTu||'')+'" data-k="tenVatTu">';
-    return '<tr><td style="text-align:center">'+(i+1)+'</td><td>'+matCtl+'<input type="hidden" data-k="nguonVatTu" value="'+esc(x.nguonVatTu||'')+'"><input type="hidden" data-k="cumLinhKien" value="'+esc(x.cumLinhKien||'')+'"><input type="hidden" data-k="maVatTu" value="'+esc(x.maVatTu||'')+'"><input type="hidden" data-k="donViTinh" value="'+esc(x.donViTinh||'')+'"></td><td><input type="number" min="0" value="'+esc(String(sx))+'" data-k="soLuongXuatKho"></td><td><input type="number" min="0" value="'+esc(String(x.soLuongSuDung||''))+'" data-k="soLuongSuDung"></td><td><input type="number" min="0" value="'+esc(String(x.soLuongNhapKho||''))+'" data-k="soLuongNhapKho"></td><td><select data-k="tinhTrangNhapKho">'+['','Mới','Cũ','Tốt','Hỏng'].map(function(s){return '<option '+(s===(x.tinhTrangNhapKho||'')?'selected':'')+'>'+s+'</option>';}).join('')+'</select></td><td><input value="'+esc(x.ghiChu||'')+'" data-k="ghiChu"></td><td><select data-k="loaiDong" onchange="egmatOnLoaiDongChange(this)"><option '+(norm(loai)===norm(CHUAN_BI)?'selected':'')+'>'+CHUAN_BI+'</option><option '+(norm(loai)===norm(PHAT_SINH)?'selected':'')+'>'+PHAT_SINH+'</option></select></td></tr>';
+    x=x||{};
+    const sx=x.soLuongXuatKho||x.soLuongCan||'';
+    const loai=String(x.loaiDong||(!String(x.tenVatTu||'').trim()?PHAT_SINH:CHUAN_BI));
+    const isPhatSinh=norm(loai)===norm(PHAT_SINH)||norm(x.nguonVatTu||'')===norm(PHAT_SINH)||!String(x.tenVatTu||'').trim();
+    const matCtl=isPhatSinh?`<select class="pv19-mat-select" data-k="tenVatTu" onchange="pv19OnMatSelect(this)">${pv19MatOptionsHTML(x.tenVatTu||'',null)}</select>`:`<input value="${esc(x.tenVatTu||'')}" data-k="tenVatTu">`;
+    return `<tr><td style="text-align:center">${i+1}</td><td>${matCtl}<input type="hidden" data-k="nguonVatTu" value="${esc(x.nguonVatTu||'')}"><input type="hidden" data-k="cumLinhKien" value="${esc(x.cumLinhKien||'')}"><input type="hidden" data-k="maVatTu" value="${esc(x.maVatTu||'')}"><input type="hidden" data-k="donViTinh" value="${esc(x.donViTinh||'')}"></td><td><input type="number" min="0" value="${esc(String(sx))}" data-k="soLuongXuatKho"></td><td><input type="number" min="0" value="${esc(String(x.soLuongSuDung||''))}" data-k="soLuongSuDung"></td><td><input type="number" min="0" value="${esc(String(x.soLuongNhapKho||''))}" data-k="soLuongNhapKho"></td><td><select data-k="tinhTrangNhapKho">${['','M\u1edbi','C\u0169','T\u1ed1t','H\u1ecfng'].map(s=>`<option ${s===(x.tinhTrangNhapKho||'')?'selected':''}>${s}</option>`).join('')}</select></td><td><input value="${esc(x.ghiChu||'')}" data-k="ghiChu"></td><td><select data-k="loaiDong" onchange="pv19OnLoaiDongChange(this)"><option ${norm(loai)===norm(CHUAN_BI)?'selected':''}>${CHUAN_BI}</option><option ${norm(loai)===norm(PHAT_SINH)?'selected':''}>${PHAT_SINH}</option></select></td></tr>`;
   };
-  window.pv17AddCompleteRow=function(){var tb=document.querySelector('#egmat_complete_table tbody,#pv18_complete_table tbody,#pv17_complete_table tbody');if(!tb)return;tb.insertAdjacentHTML('beforeend',pv17CompleteRowHTML({loaiDong:PHAT_SINH,nguonVatTu:PHAT_SINH},tb.children.length));egmatRefreshMaterialSelects();};
-  window.pv17CollectCompleteItems=function(){return Array.from(document.querySelectorAll('#egmat_complete_table tbody tr,#pv18_complete_table tbody tr,#pv17_complete_table tbody tr')).map(function(tr,i){var obj={stt:i+1};tr.querySelectorAll('[data-k]').forEach(function(el){obj[el.dataset.k]=el.value;});obj.soLuongCan=obj.soLuongXuatKho;return obj;}).filter(function(x){return String(x.tenVatTu||'').trim();});};
+  window.pv17AddCompleteRow=function(){
+    const tb=document.querySelector('#pv18_complete_table tbody')||document.querySelector('#pv17_complete_table tbody');
+    if(!tb)return;
+    tb.insertAdjacentHTML('beforeend',pv17CompleteRowHTML({loaiDong:PHAT_SINH,nguonVatTu:PHAT_SINH},tb.children.length));
+    pv19RefreshMaterialSelects();
+  };
+  window.pv17CollectCompleteItems=function(){
+    return Array.from(document.querySelectorAll('#pv18_complete_table tbody tr,#pv17_complete_table tbody tr')).map((tr,i)=>{
+      const obj={stt:i+1};
+      tr.querySelectorAll('[data-k]').forEach(el=>obj[el.dataset.k]=el.value);
+      obj.soLuongCan=obj.soLuongXuatKho;
+      return obj;
+    }).filter(x=>String(x.tenVatTu||'').trim());
+  };
+
+  function rowDone(r){return (typeof pv17IsCompleted==='function')?pv17IsCompleted(r):norm(r.trangThai||'').indexOf('hoan thanh')>=0;}
+  window.pv17ListRowsHTML=function(rows,mode){
+    if(!rows||!rows.length){return `<div class="cb"><i>${mode==='done'?'Ch\u01b0a c\u00f3 phi\u1ebfu \u0111\u00e3 ho\u00e0n th\u00e0nh.':'Kh\u00f4ng c\u00f3 phi\u1ebfu xu\u1ea5t c\u1ea7n c\u1eadp nh\u1eadt.'}</i></div>`;}
+    return `<div class="tblwrap"><table class="tbl"><thead><tr><th style="width:130px">M\u00e3 phi\u1ebfu</th><th style="width:130px">Ng\u00e0y t\u1ea1o</th><th style="width:150px">M\u00e3 m\u00e1y</th><th>T\u00ean tr\u1ea1i</th><th style="width:150px">\u0110\u1ed9i tr\u01b0\u1edfng</th><th style="width:150px">M\u1ee5c \u0111\u00edch</th><th style="width:110px">Tr\u1ea1ng th\u00e1i</th><th style="width:230px">Thao t\u00e1c</th></tr></thead><tbody>${rows.map(r=>`<tr><td><b>${esc(r.maPhieu)}</b></td><td>${esc(r.ngayTao)}</td><td>${esc(r.danhSachMaMay||r.maMay)}</td><td>${esc(r.danhSachTenTrai||r.tenTrai)}</td><td>${esc(r.doiTruong)}</td><td>${esc(r.mucDich)}</td><td><span class="b ${rowDone(r)?'bg':'ba'}">${esc(r.trangThai||'\u0110\u00e3 t\u1ea1o')}</span></td><td><div class="pv19-actions"><button class="btn bg-a sm" onclick="pvBDSCPreviewSaved('${js(r.maPhieu)}')">\ud83d\udc41 Xem</button><button class="btn bg-g sm" onclick="pvBDSCExportPdf('${js(r.maPhieu)}')">PDF</button><button class="btn bg-p sm" onclick="pvBDSCExportWord('${js(r.maPhieu)}')">Word</button>${mode==='wait'?`<button class="btn bg-b sm" onclick="pv17OpenComplete('${js(r.maPhieu)}')">\ud83d\udd04 C\u1eadp nh\u1eadt</button>`:''}</div></td></tr>`).join('')}</tbody></table></div>`;
+  };
+  window.pv17RenderCompletePage=function(){
+    const root=document.getElementById('pvCompleteRoot'); if(!root)return;
+    const pg=document.getElementById('pg-hoanThanhPhieu');
+    if(pg){pg.style.maxWidth='none';pg.style.width='100%';pg.style.margin='0';pg.style.padding='16px 20px';}
+    document.querySelectorAll('.nitem').forEach(x=>x.classList.remove('on'));
+    document.getElementById('ni-hoanThanhPhieu')?.classList.add('on');
+    const list=(_pvBDSCListCache&&_pvBDSCListCache.length?_pvBDSCListCache:(typeof pvBDSCReadListCache_==='function'?pvBDSCReadListCache_():[]))||[];
+    const wait=list.filter(r=>!rowDone(r));
+    const done=list.filter(r=>rowDone(r));
+    root.innerHTML=`<div class="card"><div class="cb" style="display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap"><b>Danh s\u00e1ch phi\u1ebfu xu\u1ea5t v\u1eadt t\u01b0 ch\u1edd c\u1eadp nh\u1eadt (${wait.length})</b><button class="btn bg-g sm" onclick="pvBDSCRefreshHistory_(true).then(()=>pv17RenderCompletePage())">\u21bb L\u00e0m m\u1edbi</button></div>${pv17ListRowsHTML(wait,'wait')}</div><div class="card" style="margin-top:14px"><div class="cb"><b>Danh s\u00e1ch phi\u1ebfu \u0111\u00e3 ho\u00e0n th\u00e0nh (${done.length})</b></div>${pv17ListRowsHTML(done,'done')}</div>`;
+    pv19UpdateSidebarBadge();
+  };
   window.pv17RenderCompleteForm=function(root,phieu,items){
-    var pg=document.getElementById('pg-hoanThanhPhieu');
-    if(pg){pg.classList.add('egmat-form-mode');pg.classList.remove('egmat-list-mode');}
-    var dt=new Date();dt.setMinutes(dt.getMinutes()-dt.getTimezoneOffset());
-    var selectedNguoi=(phieu&&phieu.nguoiNhapKho)||(window.CU&&(CU.name||CU.fullName))||'';
-    root.innerHTML='<div class="card"><div class="cb egmat-complete-head"><div><b>Cập nhật hoàn thành phiếu: '+esc(phieu.maPhieu)+'</b><div class="pv17-small">'+esc(phieu.danhSachMaMay||phieu.maMay)+' · '+esc(phieu.danhSachTenTrai||phieu.tenTrai)+'</div></div><button class="btn sm" onclick="pv17RenderCompletePage()">← Quay lại</button></div><div class="egmat-form-grid"><div class="iw"><div class="il">Ngày giờ nhập kho *</div><input class="inp" type="datetime-local" id="pv17_ngayNhap" value="'+dt.toISOString().slice(0,16)+'"></div><div class="iw"><div class="il">Người nhập kho *</div><select class="inp" id="pv17_nguoiNhap">'+peopleOptions(selectedNguoi)+'</select></div></div><div class="pv18-scroll" style="margin-top:12px"><table id="egmat_complete_table"><thead><tr><th style="width:44px">STT</th><th style="width:300px">Hạng mục vật tư</th><th style="width:90px">SL xuất kho</th><th style="width:90px">SL sử dụng</th><th style="width:90px">SL nhập kho</th><th style="width:130px">Tình trạng nhập</th><th style="width:170px">Ghi chú</th><th style="width:105px">Loại dòng</th></tr></thead><tbody>'+((items||[]).map(function(x,i){return pv17CompleteRowHTML(x,i);}).join(''))+'</tbody></table></div><div class="egmat-form-actions"><button class="btn bg-a sm" onclick="pv17AddCompleteRow()">➕ Thêm vật tư phát sinh</button><button class="btn bg-g" onclick="pv17SubmitComplete(\''+js(phieu.maPhieu)+'\')">✅ Lưu hoàn thiện</button></div><div class="ih" style="margin-top:8px">Khi lưu hoàn thiện, hệ thống xóa link/file PDF - Word xuất kho cũ. Lần bấm PDF/Word sau sẽ tạo bản hoàn thành mới.</div></div>';
-    setTimeout(egmatRefreshMaterialSelects,0);
-    setTimeout(scrollTop,0);
-  };
-  window.pv16RenderCompletePage=window.pv17RenderCompletePage;
-  window.pv16SubmitComplete=window.pv17SubmitComplete;
-
-  function updateBadge(){try{var list=getList();var wait=list.filter(function(r){return !isDone(r);}).length;var el=document.getElementById('nb-phieu-complete');if(el)el.textContent=wait;}catch(e){}}
-  function applyNavItems(){var old=document.getElementById('ni-danhSachPhieu');if(old)old.style.display='none';var cur=document.getElementById('ni-hoanThanhPhieu');if(cur)cur.style.display='flex';updateBadge();}
-  function enableEnterLogin(){try{['lu','lp'].forEach(function(id){var el=document.getElementById(id);if(!el||el.__egmatEnter)return;el.__egmatEnter=true;el.addEventListener('keydown',function(ev){if((ev.key==='Enter'||ev.keyCode===13)&&!ev.isComposing){ev.preventDefault();if(typeof login==='function')login();}});});}catch(e){}}
-
-  function installScrollButtons(){
-    if(document.getElementById('egScrollControls'))return;
-    var box=document.createElement('div');
-    box.id='egScrollControls';box.className='eg-scroll-controls';
-    box.innerHTML='<button type="button" class="eg-scroll-btn" title="Cuộn lên" onclick="egScrollStep(-1)">▲</button><button type="button" class="eg-scroll-btn" title="Cuộn xuống" onclick="egScrollStep(1)">▼</button>';
-    document.body.appendChild(box);
-  }
-  function scrollable(el){return !!(el&&el.scrollHeight>el.clientHeight+4);}
-  function currentScrollTarget(){
-    var hover=document.querySelector('.egmat-list-body:hover,.pv18-scroll:hover,.pv17-scroll:hover,.tblwrap:hover');
-    if(scrollable(hover))return hover;
-    var active=document.activeElement&&document.activeElement.closest&&document.activeElement.closest('.egmat-list-body,.pv18-scroll,.pv17-scroll,.tblwrap,.content');
-    if(scrollable(active))return active;
-    var c=getContent();if(scrollable(c))return c;
-    return document.scrollingElement||document.documentElement;
-  }
-  window.egScrollStep=function(dir){
-    var t=currentScrollTarget();
-    var h=t.clientHeight||window.innerHeight||600;
-    var delta=(dir>0?1:-1)*Math.max(260,Math.round(h*0.78));
-    try{t.scrollBy({top:delta,behavior:'smooth'});}catch(e){t.scrollTop+=delta;}
+    const dt=new Date();dt.setMinutes(dt.getMinutes()-dt.getTimezoneOffset());
+    const selectedNguoi=phieu.nguoiNhapKho||(window.CU&&(CU.name||CU.fullName))||'';
+    root.innerHTML=`<div class="card"><div class="cb pv18-form-head"><div><b>C\u1eadp nh\u1eadt ho\u00e0n th\u00e0nh phi\u1ebfu: ${esc(phieu.maPhieu)}</b><div class="pv17-small">${esc(phieu.danhSachMaMay||phieu.maMay)} \u00b7 ${esc(phieu.danhSachTenTrai||phieu.tenTrai)}</div></div><button class="btn sm" onclick="pv17RenderCompletePage()">\u2190 Quay l\u1ea1i</button></div><div class="pv18-form-grid"><div class="iw"><div class="il">Ng\u00e0y gi\u1edd nh\u1eadp kho *</div><input class="inp" type="datetime-local" id="pv17_ngayNhap" value="${dt.toISOString().slice(0,16)}"></div><div class="iw"><div class="il">Ng\u01b0\u1eddi nh\u1eadp kho *</div><select class="inp" id="pv17_nguoiNhap">${pv19PeopleOptionsHTML(selectedNguoi)}</select></div></div><div class="pv18-scroll" style="margin-top:12px"><table id="pv18_complete_table"><thead><tr><th style="width:44px">STT</th><th style="width:280px">H\u1ea1ng m\u1ee5c v\u1eadt t\u01b0</th><th style="width:90px">SL xu\u1ea5t kho</th><th style="width:90px">SL s\u1eed d\u1ee5ng</th><th style="width:90px">SL nh\u1eadp kho</th><th style="width:130px">T\u00ecnh tr\u1ea1ng nh\u1eadp</th><th style="width:170px">Ghi ch\u00fa</th><th style="width:105px">Lo\u1ea1i d\u00f2ng</th></tr></thead><tbody>${(items||[]).map((x,i)=>pv17CompleteRowHTML(x,i)).join('')}</tbody></table></div><div class="pv18-form-actions"><button class="btn bg-a sm" onclick="pv17AddCompleteRow()">\u2795 Th\u00eam v\u1eadt t\u01b0 ph\u00e1t sinh</button><button class="btn bg-g" onclick="pv17SubmitComplete('${js(phieu.maPhieu)}')">\u2705 L\u01b0u ho\u00e0n thi\u1ec7n</button></div><div class="ih" style="margin-top:8px">Khi l\u01b0u ho\u00e0n thi\u1ec7n, h\u1ec7 th\u1ed1ng x\u00f3a link/file PDF - Word xu\u1ea5t kho c\u0169. L\u1ea7n b\u1ea5m PDF/Word sau s\u1ebd t\u1ea1o b\u1ea3n ho\u00e0n th\u00e0nh m\u1edbi.</div></div>`;
+    setTimeout(pv19RefreshMaterialSelects,0);
   };
 
-  var oldBadge=window.pvBDSCUpdateBadge;
-  window.pvBDSCUpdateBadge=function(count){if(typeof oldBadge==='function')oldBadge(count);updateBadge();applyNavItems();};
-  var oldNav=window.nav;
+  function applySidebar(){
+    const old=document.getElementById('ni-danhSachPhieu'); if(old)old.style.display='none';
+    const cur=document.getElementById('ni-hoanThanhPhieu'); if(cur){cur.style.display='flex';cur.querySelector('span')&&(cur.querySelector('span').id='nb-phieu-complete');}
+    pv19UpdateSidebarBadge();
+  }
+  window.pv19UpdateSidebarBadge=function(){
+    try{
+      const list=(_pvBDSCListCache&&_pvBDSCListCache.length?_pvBDSCListCache:(typeof pvBDSCReadListCache_==='function'?pvBDSCReadListCache_():[]))||[];
+      const wait=list.filter(r=>!rowDone(r)).length;
+      const el=document.getElementById('nb-phieu-complete'); if(el)el.textContent=wait;
+    }catch(e){}
+  };
+  const oldBadge=window.pvBDSCUpdateBadge;
+  window.pvBDSCUpdateBadge=function(count){
+    if(typeof oldBadge==='function')oldBadge(count);
+    const el=document.getElementById('nb-phieu-complete');
+    if(el&&typeof count==='number'&&!(_pvBDSCListCache&&_pvBDSCListCache.length))el.textContent=count;
+    pv19UpdateSidebarBadge();
+    applySidebar();
+  };
+  const oldNav=window.nav;
   window.nav=function(p){
     if(p==='danhSachPhieu')p='hoanThanhPhieu';
     if(p==='hoanThanhPhieu'){
       if(window.innerWidth<=768&&typeof closeSidebar==='function')closeSidebar();
-      document.querySelectorAll('.page').forEach(function(x){x.classList.remove('on');});
-      document.querySelectorAll('.nitem').forEach(function(x){x.classList.remove('on');});
-      var pg=document.getElementById('pg-hoanThanhPhieu');if(pg){pg.classList.add('on');pg.classList.add('egmat-list-mode');pg.classList.remove('egmat-form-mode');}
-      var ni=document.getElementById('ni-hoanThanhPhieu');if(ni)ni.classList.add('on');
+      document.querySelectorAll('.page').forEach(x=>x.classList.remove('on'));
+      document.querySelectorAll('.nitem').forEach(x=>x.classList.remove('on'));
+      document.getElementById('pg-hoanThanhPhieu')?.classList.add('on');
+      document.getElementById('ni-hoanThanhPhieu')?.classList.add('on');
       window.curPage='hoanThanhPhieu';
       if(typeof pvBDSCStartPolling_==='function')pvBDSCStartPolling_();
-      pv17RenderCompletePage();scrollTop();return;
+      pv17RenderCompletePage();
+      return;
     }
-    var ret=typeof oldNav==='function'?oldNav.apply(this,arguments):undefined;
-    if(p==='taoPhieu'){
-      var pgT=document.getElementById('pg-taoPhieu');if(pgT){pgT.classList.remove('egmat-list-mode','egmat-form-mode');}
-      setTimeout(scrollTop,0);
+    if(typeof oldNav==='function')return oldNav(p);
+  };
+  window.pv16RenderCompletePage=window.pv17RenderCompletePage;
+  window.pv16SubmitComplete=window.pv17SubmitComplete;
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',applySidebar);else applySidebar();
+  setTimeout(applySidebar,300);
+  setTimeout(applySidebar,900);
+})();
+</script>
+
+<!-- V20 hotfix: align main layout, keep sidebar fixed without overlaying content -->
+<style id="pv20-layout-aligned-style">
+  @media (min-width:769px){
+    html,body{height:100% !important;overflow:hidden !important;}
+    #app{height:100vh !important;min-height:0 !important;display:flex;flex-direction:column;overflow:hidden !important;}
+    .topbar{height:54px !important;min-height:54px !important;flex:0 0 54px !important;position:sticky !important;top:0 !important;z-index:200 !important;}
+    .layout{
+      display:flex !important;
+      flex:1 1 auto !important;
+      min-height:0 !important;
+      height:calc(100vh - 54px) !important;
+      overflow:hidden !important;
+      width:100% !important;
     }
+    .sidebar{
+      position:relative !important;
+      top:auto !important;
+      left:auto !important;
+      right:auto !important;
+      bottom:auto !important;
+      width:206px !important;
+      min-width:206px !important;
+      max-width:206px !important;
+      height:100% !important;
+      flex:0 0 206px !important;
+      z-index:2 !important;
+      overflow-y:auto !important;
+      transform:none !important;
+      box-shadow:none !important;
+    }
+    .content{
+      margin-left:0 !important;
+      width:auto !important;
+      max-width:none !important;
+      flex:1 1 auto !important;
+      min-width:0 !important;
+      height:100% !important;
+      overflow-y:auto !important;
+      overflow-x:hidden !important;
+      background:var(--bg) !important;
+    }
+    .page{
+      box-sizing:border-box !important;
+      margin-left:auto !important;
+      margin-right:auto !important;
+    }
+    #pg-taoPhieu,
+    #pg-danhSachPhieu,
+    #pg-hoanThanhPhieu{
+      max-width:none !important;
+      width:100% !important;
+      margin:0 !important;
+      padding:16px 20px !important;
+    }
+    #pvFormRoot,
+    #pvHistoryRoot,
+    #pvCompleteRoot,
+    #pvb_formWrap{
+      width:100% !important;
+      max-width:none !important;
+      margin:0 !important;
+    }
+    #pvCompleteRoot .card,
+    #pvFormRoot .card,
+    #pvHistoryRoot .card,
+    #pvb_formWrap .fsec{
+      width:100% !important;
+      max-width:none !important;
+      margin-left:0 !important;
+      margin-right:0 !important;
+    }
+  }
+  @media (max-width:768px){
+    html,body{overflow:auto !important;}
+    .layout{display:flex !important;overflow:visible !important;}
+    .content{margin-left:0 !important;width:100% !important;max-width:100% !important;overflow-y:auto !important;}
+  }
+</style>
+<script id="pv20-layout-aligned-js">
+(function(){
+  function resetMainScroll(){
+    try{ window.scrollTo(0,0); }catch(e){}
+    try{ const c=document.querySelector('.content'); if(c)c.scrollTop=0; }catch(e){}
+  }
+  function alignLayout(){
+    try{
+      const content=document.querySelector('.content');
+      const sidebar=document.getElementById('mainSidebar')||document.querySelector('.sidebar');
+      if(window.innerWidth>768){
+        if(content){
+          content.style.marginLeft='0';
+          content.style.width='';
+          content.style.maxWidth='';
+        }
+        if(sidebar){
+          sidebar.classList.remove('open');
+          sidebar.style.transform='none';
+        }
+        const ov=document.getElementById('mobOverlay');
+        if(ov)ov.classList.remove('show');
+      }
+    }catch(e){}
+  }
+  const oldNav=window.nav;
+  window.nav=function(p){
+    const ret=oldNav.apply(this,arguments);
+    setTimeout(function(){alignLayout();resetMainScroll();},0);
+    setTimeout(function(){alignLayout();},150);
     return ret;
   };
-  function boot(){applyNavItems();enableEnterLogin();installScrollButtons();setTimeout(applyNavItems,300);setTimeout(applyNavItems,1000);}
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);else boot();
-  window.addEventListener('load',boot);setInterval(function(){enableEnterLogin();if(window.CU)applyNavItems();},2500);
+  window.addEventListener('resize',alignLayout);
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',alignLayout);else alignLayout();
+  setTimeout(alignLayout,300);
+  setTimeout(alignLayout,1000);
 })();
 </script>
 
-
-<!-- V28: global scroll controls + material type selector from column "Các loại" -->
-<style id="egreen-v28-global-arrows-types">
-  .eg-scroll-controls{position:fixed;right:18px;bottom:74px;z-index:9000;display:flex;flex-direction:column;gap:8px;pointer-events:auto;}
-  .eg-scroll-btn{width:38px;height:38px;border-radius:999px;border:1px solid rgba(13,110,63,.22);background:#0d6e3f;color:#fff;box-shadow:0 6px 22px rgba(0,0,0,.18);font-size:18px;font-weight:900;line-height:1;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:.15s;font-family:var(--font);}
-  .eg-scroll-btn:hover{background:#083d24;transform:translateY(-1px)}
-  .eg-scroll-btn:active{transform:translateY(0)}
-  .eg28-type-select,.eg28-selected-type{border:1.5px solid var(--bd);border-radius:7px;padding:4px 7px;font-size:11px;background:#fff;color:var(--s);font-family:var(--font);min-width:150px;}
-  .eg28-type-select:focus,.eg28-selected-type:focus{border-color:var(--g);box-shadow:0 0 0 2px rgba(13,110,63,.1);outline:none;}
-  .eg28-type-wrap{display:flex;align-items:center;gap:5px;flex-wrap:wrap;}
-  .eg28-type-label{font-size:10px;color:var(--mu);font-weight:700;}
-  .eg28-no-type{font-size:11px;color:var(--mu);font-style:italic;}
-  #egmat_complete_table .eg28-type-select{width:100%;min-width:150px;}
-  @media(max-width:768px){.eg-scroll-controls{right:12px;bottom:82px}.eg-scroll-btn{width:36px;height:36px}.eg28-selected-type{min-width:125px}}
+<!-- V21 hotfix: unlock page scroll for material pages + Enter to login -->
+<style id="pv21-scroll-enter-fix-style">
+  @media (min-width:769px){
+    html,
+    body{
+      height:auto !important;
+      min-height:100% !important;
+      overflow-y:auto !important;
+      overflow-x:hidden !important;
+    }
+    body{
+      position:static !important;
+    }
+    #app{
+      height:auto !important;
+      min-height:100vh !important;
+      overflow:visible !important;
+    }
+    .topbar{
+      position:sticky !important;
+      top:0 !important;
+      height:54px !important;
+      min-height:54px !important;
+      z-index:220 !important;
+    }
+    .layout{
+      display:block !important;
+      width:100% !important;
+      height:auto !important;
+      min-height:calc(100vh - 54px) !important;
+      overflow:visible !important;
+    }
+    .sidebar{
+      position:fixed !important;
+      top:54px !important;
+      left:0 !important;
+      bottom:0 !important;
+      width:206px !important;
+      min-width:206px !important;
+      max-width:206px !important;
+      height:calc(100vh - 54px) !important;
+      flex:none !important;
+      overflow-y:auto !important;
+      overflow-x:hidden !important;
+      z-index:180 !important;
+      transform:none !important;
+      box-shadow:none !important;
+    }
+    .content{
+      display:block !important;
+      margin-left:206px !important;
+      width:calc(100% - 206px) !important;
+      max-width:calc(100% - 206px) !important;
+      min-width:0 !important;
+      height:auto !important;
+      min-height:calc(100vh - 54px) !important;
+      overflow:visible !important;
+      background:var(--bg) !important;
+      box-sizing:border-box !important;
+    }
+    #pg-taoPhieu,
+    #pg-danhSachPhieu,
+    #pg-hoanThanhPhieu{
+      max-width:none !important;
+      width:100% !important;
+      margin:0 !important;
+      padding:16px 20px 90px !important;
+      box-sizing:border-box !important;
+    }
+    #pvFormRoot,
+    #pvHistoryRoot,
+    #pvCompleteRoot,
+    #pvb_formWrap{
+      width:100% !important;
+      max-width:none !important;
+      margin:0 !important;
+      box-sizing:border-box !important;
+    }
+    #pvb_formWrap .fsec,
+    #pvFormRoot .card,
+    #pvHistoryRoot .card,
+    #pvCompleteRoot .card{
+      width:100% !important;
+      max-width:none !important;
+      margin-left:0 !important;
+      margin-right:0 !important;
+      box-sizing:border-box !important;
+    }
+    #pvCompleteRoot .tblwrap,
+    #pvCompleteRoot .pv18-scroll,
+    #pvCompleteRoot .pv17-scroll,
+    #pvFormRoot .tblwrap,
+    #pvHistoryRoot .tblwrap{
+      max-width:100% !important;
+      overflow-x:auto !important;
+      overflow-y:visible !important;
+    }
+  }
+  @media (max-width:768px){
+    html,
+    body{
+      height:auto !important;
+      min-height:100% !important;
+      overflow-y:auto !important;
+      overflow-x:hidden !important;
+    }
+    #app,
+    .layout,
+    .content{
+      height:auto !important;
+      min-height:100vh !important;
+      overflow:visible !important;
+    }
+    .content{
+      margin-left:0 !important;
+      width:100% !important;
+      max-width:100% !important;
+    }
+    #pg-taoPhieu,
+    #pg-danhSachPhieu,
+    #pg-hoanThanhPhieu{
+      padding-bottom:90px !important;
+    }
+  }
 </style>
-<script id="egreen-v28-global-arrows-types">
+<script id="pv21-scroll-enter-fix-js">
 (function(){
-  var PHAT_SINH='Phát sinh', CHUAN_BI='Chuẩn bị';
-  var TYPE_FALLBACK={
-    'bugi':['BKR6E','DCPR8E','Mar10A-J 4706','BP6ES'],
-    'o bi truc danh lua':['Vòng bi SKF 6007 - 2Z'],
-    'o bi cu phat':['Vòng bi E 30206J','Vòng bi 6312C3','Vòng bi 6317','Vòng bi 6215ZZCM','Vòng bi 6310-2Z'],
-    'day dai bom nuoc':['RECMF - 8560','A-7473','A-5639','12PK1625','A64','8610','C60 - RECMF 9600','A54','5PK1110','5PK1050'],
-    'bau loc gio / cum loc gio':['LỌC GIÓ 6D105(AS1024)','A-6465A (Nitco)/ A-6117-S','Lọc gió A6117S','Lọc gió Donaldson P532473','P831197'],
-    'loc nhot so 1':['C-5602','T-5121','LF9009','Lọc nhớt Sakura O-18051','WF2072','Lọc nhớt Sakura O-1808','Lọc nhớt Sakura O-1809','Lọc nhớt Sakura O-1804','Lọc nhớt Sakura O-1806'],
-    'loc nhot so 2':['C-5602','T-5121','LF9009','Lọc nhớt Sakura O-18051','WF2072','Lọc nhớt Sakura O-1808','Lọc nhớt Sakura O-1809','Lọc nhớt Sakura O-1804','Lọc nhớt Sakura O-1806']
-  };
-  function esc(s){return (typeof pvEsc==='function')?pvEsc(s):String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]||c;});}
-  function js(s){return (typeof pvJs==='function')?pvJs(s):String(s==null?'':s).replace(/\\/g,'\\\\').replace(/'/g,"\\'");}
-  function norm(s){return (typeof pvNorm==='function')?pvNorm(s):String(s==null?'':s).normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/đ/g,'d').replace(/Đ/g,'D').toLowerCase().replace(/\s+/g,' ').trim();}
-  function getObj(o,keys){
-    if(!o)return '';
-    if(typeof pvGetObj==='function'){try{return pvGetObj(o,keys)||'';}catch(e){}}
-    for(var i=0;i<keys.length;i++){var k=keys[i];if(o[k]!==undefined&&o[k]!==null&&String(o[k]).trim())return String(o[k]).trim();}
-    return '';
+  function keepLayoutScrollable(){
+    try{
+      var content=document.querySelector('.content');
+      var sidebar=document.getElementById('mainSidebar')||document.querySelector('.sidebar');
+      if(window.innerWidth>768){
+        if(content){
+          content.style.setProperty('margin-left','206px','important');
+          content.style.setProperty('width','calc(100% - 206px)','important');
+          content.style.setProperty('max-width','calc(100% - 206px)','important');
+          content.style.setProperty('height','auto','important');
+          content.style.setProperty('overflow','visible','important');
+        }
+        if(sidebar){
+          sidebar.classList.remove('open');
+          sidebar.style.setProperty('position','fixed','important');
+          sidebar.style.setProperty('top','54px','important');
+          sidebar.style.setProperty('left','0','important');
+          sidebar.style.setProperty('bottom','0','important');
+          sidebar.style.setProperty('height','calc(100vh - 54px)','important');
+          sidebar.style.setProperty('transform','none','important');
+        }
+        var ov=document.getElementById('mobOverlay');
+        if(ov)ov.classList.remove('show');
+      }else if(content){
+        content.style.setProperty('margin-left','0','important');
+        content.style.setProperty('width','100%','important');
+        content.style.setProperty('max-width','100%','important');
+      }
+      document.documentElement.style.setProperty('overflow-y','auto','important');
+      document.body.style.setProperty('overflow-y','auto','important');
+      document.body.style.setProperty('overflow-x','hidden','important');
+    }catch(e){}
   }
-  function matName(x){try{return (typeof pvTenVatTu==='function')?pvTenVatTu(x):getObj(x,['Tên Chi Tiết / Linh Kiện Thay Thế','Tên vật tư','tenVatTu','lk']);}catch(e){return getObj(x,['Tên Chi Tiết / Linh Kiện Thay Thế','Tên vật tư','tenVatTu','lk']);}}
-  function matCum(x){try{return (typeof pvCum==='function')?pvCum(x):getObj(x,['Cụm Linh Kiện','Cụm linh kiện','cumLinhKien','cum']);}catch(e){return getObj(x,['Cụm Linh Kiện','Cụm linh kiện','cumLinhKien','cum']);}}
-  function parseTypes(raw){
-    raw=String(raw||'').replace(/\r/g,'\n');
-    if(!raw.trim())return [];
-    var parts=raw.split(/\n|;|\|/).map(function(x){return x.trim();}).filter(Boolean);
-    var out=[],seen={};
-    parts.forEach(function(x){var k=norm(x);if(!seen[k]){seen[k]=1;out.push(x);}});
-    return out;
-  }
-  function materialList(){
-    var arr=[];
-    try{if(window.PV&&PV.data&&Array.isArray(PV.data.vatTu))arr=arr.concat(PV.data.vatTu);}catch(e){}
-    try{if((!arr||!arr.length)&&typeof PARTS_MAP!=='undefined')Object.entries(PARTS_MAP).forEach(function(pair){(pair[1]||[]).forEach(function(p){arr.push({'Tên vật tư':p,'Cụm linh kiện':pair[0]});});});}catch(e){}
-    var out=[],seen={};
-    (arr||[]).forEach(function(x){var name=matName(x);if(!name)return;var k=norm(name);if(seen[k])return;seen[k]=1;out.push({raw:x,tenVatTu:name,cumLinhKien:matCum(x),maVatTu:getObj(x,['Mã vật tư','Mã Vật Tư','Ma vat tu','maVatTu']),donViTinh:getObj(x,['ĐVT','Đơn Vị Tính','Đơn vị tính','DVT','donViTinh']),cacLoai:getObj(x,['Các loại','Cac loai','Loại','Loai','loaiVatTu','loai'])});});
-    return out;
-  }
-  function typeListFor(name){
-    name=String(name||'').trim();if(!name)return [];
-    var n=norm(name);
-    var mat=materialList().find(function(m){return norm(m.tenVatTu)===n;});
-    var dyn=mat?parseTypes(mat.cacLoai):[];
-    if(dyn.length)return dyn;
-    return TYPE_FALLBACK[n]||[];
-  }
-  function firstValidType(name,val){
-    var list=typeListFor(name), v=String(val||'').trim();
-    if(!v)return '';
-    return list.some(function(x){return norm(x)===norm(v);})?v:'';
-  }
-  function typeOptions(name,selected){
-    var list=typeListFor(name), sel=firstValidType(name,selected);
-    return '<option value="">-- Chọn loại --</option>'+list.map(function(t){return '<option value="'+esc(t)+'" '+(norm(t)===norm(sel)?'selected':'')+'>'+esc(t)+'</option>';}).join('');
-  }
-  function selectedTypeControl(x){
-    var list=typeListFor(x&&x.tenVatTu), id=x&&x.id, val=x&&x.loaiVatTu;
-    if(!list.length)return '';
-    return '<div class="eg28-type-wrap"><span class="eg28-type-label">Loại</span><select class="eg28-selected-type" onchange="eg28SetSelectedType(\''+js(id)+'\',this.value)">'+typeOptions(x.tenVatTu,val)+'</select></div>';
-  }
-  window.eg28SetSelectedType=function(id,val){
-    try{var it=(PV.data.selected||[]).find(function(x){return String(x.id)===String(id);});if(it)it.loaiVatTu=val||'';}catch(e){}
-  };
-  window.eg28TypeCellHTML=function(name,selected){
-    var list=typeListFor(name);
-    if(!list.length)return '<span class="eg28-no-type">-</span><input type="hidden" data-k="loaiVatTu" value="">';
-    return '<select class="eg28-type-select" data-k="loaiVatTu">'+typeOptions(name,selected)+'</select>';
-  };
-  window.eg28UpdateRowType=function(el){
-    var tr=el&&el.closest?el.closest('tr'):null;if(!tr)return;
-    var nameEl=tr.querySelector('[data-k="tenVatTu"]');var name=nameEl?nameEl.value:'';
-    var cell=tr.querySelector('.eg28-type-cell');if(cell)cell.innerHTML=eg28TypeCellHTML(name,'');
-  };
-  window.eg28OnMatSelect=function(sel){
-    var tr=sel.closest('tr');if(!tr)return;
-    var mat=materialList().find(function(m){return norm(m.tenVatTu)===norm(sel.value);});
-    function set(k,v){var el=tr.querySelector('[data-k="'+k+'"]');if(el)el.value=v||'';}
-    if(mat){set('cumLinhKien',mat.cumLinhKien);set('maVatTu',mat.maVatTu);set('donViTinh',mat.donViTinh);set('nguonVatTu',PHAT_SINH);}else{set('cumLinhKien','');set('maVatTu','');set('donViTinh','');}
-    var loai=tr.querySelector('[data-k="loaiDong"]');if(loai)loai.value=PHAT_SINH;
-    eg28UpdateRowType(sel);
-    if(typeof eg28RefreshMaterialSelects==='function')eg28RefreshMaterialSelects();
-  };
-  window.egmatOnMatSelect=window.eg28OnMatSelect;
-  var oldLoaiDong=window.egmatOnLoaiDongChange;
-  window.egmatOnLoaiDongChange=function(sel){
-    if(typeof oldLoaiDong==='function')oldLoaiDong(sel);
-    var tr=sel&&sel.closest?sel.closest('tr'):null;if(!tr)return;
-    if(norm(sel.value)===norm(PHAT_SINH)){
-      var nameEl=tr.querySelector('[data-k="tenVatTu"]');
-      if(nameEl&&nameEl.tagName!=='SELECT')nameEl.setAttribute('oninput','eg28UpdateRowType(this)');
-      eg28UpdateRowType(nameEl||sel);
-    }
-  };
-  window.eg28RefreshMaterialSelects=function(){
-    try{document.querySelectorAll('select.egmat-mat-select').forEach(function(sel){var cur=sel.value;if(typeof matOptions==='function'){try{sel.innerHTML=matOptions(cur,sel.closest('tr'));sel.value=cur;}catch(e){}} eg28UpdateRowType(sel);});}catch(e){}
-  };
-  window.egmatRefreshMaterialSelects=window.eg28RefreshMaterialSelects;
 
-  window.pvBDSCSelectMaterial=function(id,checked){
-    if(!checked)return;
-    var x=(PV.data.vatTu||[]).find(function(v){return pvMatId(v)===id;});if(!x)return;
-    var qEl=document.getElementById('pvb_qty_'+pvCss(id));var sEl=document.getElementById('pvb_st_'+pvCss(id));
-    var qty=qEl?parseFloat(qEl.value)||1:1;var st=sEl?sEl.value:'Mới';var ten=matName(x);
-    if(!(PV.data.selected||[]).find(function(i){return i.id===id;}))PV.data.selected.push({id:id,tenVatTu:ten,cumLinhKien:matCum(x),maVatTu:getObj(x,['Mã vật tư','Mã Vật Tư','Ma vat tu','maVatTu'])||'',donViTinh:getObj(x,['ĐVT','Đơn vị tính','Đơn Vị Tính','DVT'])||'',soLuongCan:qty,tinhTrangXuatKho:st,nguonVatTu:'Chọn thêm',fixed:false,included:true,loaiDong:CHUAN_BI,loaiVatTu:''});
-    pvBDSCRenderVatTuSearch();pvBDSCRenderSelected();
-  };
-  window.pvBDSCRenderSelected=function(){
-    var box=document.getElementById('pvb_selectedItems');if(!box)return;
-    if(!PV.data.selected||!PV.data.selected.length){box.innerHTML='<i style="font-size:12px;color:var(--mu)">Chưa chọn vật tư.</i>';return;}
-    box.innerHTML=PV.data.selected.map(function(x){var checked=x.included!==false;return '<div class="'+(checked?'':'pv17-dim')+'" style="display:flex;align-items:center;gap:8px;padding:7px 10px;border:1px solid var(--bd);border-radius:8px;margin-bottom:5px;background:#fff;flex-wrap:wrap"><input type="checkbox" '+(checked?'checked':'')+' onchange="pv17ToggleInclude(\''+js(x.id)+'\',this.checked)" title="Tích để đưa vào phiếu" style="width:16px;height:16px;accent-color:var(--g);cursor:pointer"><div style="flex:1;min-width:150px;font-size:12px"><b>'+esc(x.tenVatTu)+'</b><br><span style="color:var(--mu)">'+esc(x.cumLinhKien)+' · '+esc(x.nguonVatTu)+'</span></div>'+selectedTypeControl(x)+'<input type="number" min="0" value="'+esc(String(x.soLuongCan||''))+'" style="width:60px;border:1.5px solid var(--bd);border-radius:6px;padding:3px 6px;font-size:11px;text-align:center" onchange="pvBDSCUpdQty(\''+js(x.id)+'\',this.value)"><select style="border:1.5px solid var(--bd);border-radius:6px;padding:3px 5px;font-size:11px" onchange="pvBDSCUpdSt(\''+js(x.id)+'\',this.value)">'+['Mới','Cũ','Tốt','K.xđ'].map(function(s){return '<option '+(s===x.tinhTrangXuatKho?'selected':'')+'>'+s+'</option>';}).join('')+'</select><span style="font-size:10px;color:var(--mu)">'+(x.fixed?'Cố định':'Chọn thêm')+'</span>'+(x.fixed?'':'<button class="btn bg-r sm" onclick="pvBDSCRemoveMat(\''+js(x.id)+'\')">Bỏ</button>')+'</div>';}).join('');
-  };
-  window.pvBDSCPayload=function(){
-    var md=(document.querySelector('input[name="pvb_mucDich"]:checked')||{}).value||'Bảo dưỡng sửa chữa';
-    var ms=(typeof pv17MachineSummary==='function')?pv17MachineSummary():(typeof pv16MachineSummary==='function'?pv16MachineSummary():{list:[],maMay:'',tenTrai:'',donVi:'',khuVuc:'',tinhTP:'',danhSachMaMay:'',danhSachTenTrai:''});
-    var items=(PV.data.selected||[]).filter(function(x){return x.included!==false;}).map(function(x,i){return {stt:i+1,nguonVatTu:x.nguonVatTu,cumLinhKien:x.cumLinhKien,tenVatTu:x.tenVatTu,loaiVatTu:x.loaiVatTu||'',maVatTu:x.maVatTu,donViTinh:x.donViTinh,soLuongCan:x.soLuongCan,tinhTrangXuatKho:x.tinhTrangXuatKho,loaiDong:x.loaiDong||CHUAN_BI,included:true};});
-    return {doiTruong:pvBDSCGetVal('pvb_doiTruong'),thanhVien:_pvbTVSelected.slice(),maMay:ms.maMay,tenTrai:ms.tenTrai,donVi:ms.donVi,khuVuc:ms.khuVuc,tinhTP:ms.tinhTP,machines:ms.list,danhSachMaMay:ms.danhSachMaMay,danhSachTenTrai:ms.danhSachTenTrai,ngayGioXuatKho:pvBDSCFmtDT(pvBDSCGetVal('pvb_ngayGioXuatKho')),nguoiXuatKho:pvBDSCGetVal('pvb_nguoiXuatKho'),ngayGioNhapKho:pvBDSCFmtDT(pvBDSCGetVal('pvb_ngayGioNhapKho')),nguoiNhapKho:pvBDSCGetVal('pvb_nguoiNhapKho'),mucDich:md,cuThe:md==='Bảo dưỡng sửa chữa'?((PV.hienTuongSel||[]).join('; ')||'-'):(pvBDSCGetVal('pvb_cuTheNhapTay')||'-'),ghiChu:'',items:items};
-  };
+  function enableEnterLogin(){
+    try{
+      ['lu','lp'].forEach(function(id){
+        var el=document.getElementById(id);
+        if(!el || el.dataset.enterLoginBound==='1')return;
+        el.dataset.enterLoginBound='1';
+        el.addEventListener('keydown',function(ev){
+          if((ev.key==='Enter' || ev.keyCode===13) && !ev.isComposing){
+            ev.preventDefault();
+            if(typeof login==='function')login();
+          }
+        });
+      });
+    }catch(e){}
+  }
 
-  window.pv17CompleteRowHTML=function(x,i){
-    x=x||{};var sx=x.soLuongXuatKho||x.soLuongCan||'';
-    var loai=String(x.loaiDong||(!String(x.tenVatTu||'').trim()?PHAT_SINH:CHUAN_BI));
-    var isPhatSinh=norm(loai)===norm(PHAT_SINH)||norm(x.nguonVatTu||'')===norm(PHAT_SINH)||!String(x.tenVatTu||'').trim();
-    var matCtl=isPhatSinh?'<select class="egmat-mat-select" data-k="tenVatTu" onchange="eg28OnMatSelect(this)">'+(typeof matOptions==='function'?matOptions(x.tenVatTu||'',null):'<option value="'+esc(x.tenVatTu||'')+'">'+esc(x.tenVatTu||'')+'</option>')+'</select>':'<input value="'+esc(x.tenVatTu||'')+'" data-k="tenVatTu" oninput="eg28UpdateRowType(this)">';
-    return '<tr><td style="text-align:center">'+(i+1)+'</td><td>'+matCtl+'<input type="hidden" data-k="nguonVatTu" value="'+esc(x.nguonVatTu||'')+'"><input type="hidden" data-k="cumLinhKien" value="'+esc(x.cumLinhKien||'')+'"><input type="hidden" data-k="maVatTu" value="'+esc(x.maVatTu||'')+'"><input type="hidden" data-k="donViTinh" value="'+esc(x.donViTinh||'')+'"></td><td class="eg28-type-cell">'+eg28TypeCellHTML(x.tenVatTu||'',x.loaiVatTu||'')+'</td><td><input type="number" min="0" value="'+esc(String(sx))+'" data-k="soLuongXuatKho"></td><td><input type="number" min="0" value="'+esc(String(x.soLuongSuDung||''))+'" data-k="soLuongSuDung"></td><td><input type="number" min="0" value="'+esc(String(x.soLuongNhapKho||''))+'" data-k="soLuongNhapKho"></td><td><select data-k="tinhTrangNhapKho">'+['','Mới','Cũ','Tốt','Hỏng'].map(function(s){return '<option '+(s===(x.tinhTrangNhapKho||'')?'selected':'')+'>'+s+'</option>';}).join('')+'</select></td><td><input value="'+esc(x.ghiChu||'')+'" data-k="ghiChu"></td><td><select data-k="loaiDong" onchange="egmatOnLoaiDongChange(this)"><option '+(norm(loai)===norm(CHUAN_BI)?'selected':'')+'>'+CHUAN_BI+'</option><option '+(norm(loai)===norm(PHAT_SINH)?'selected':'')+'>'+PHAT_SINH+'</option></select></td></tr>';
-  };
-  window.pv17CollectCompleteItems=function(){return Array.from(document.querySelectorAll('#egmat_complete_table tbody tr,#pv18_complete_table tbody tr,#pv17_complete_table tbody tr')).map(function(tr,i){var obj={stt:i+1};tr.querySelectorAll('[data-k]').forEach(function(el){obj[el.dataset.k]=el.value;});obj.soLuongCan=obj.soLuongXuatKho;return obj;}).filter(function(x){return String(x.tenVatTu||'').trim();});};
-  window.pv17RenderCompleteForm=function(root,phieu,items){
-    var pg=document.getElementById('pg-hoanThanhPhieu');if(pg){pg.classList.add('egmat-form-mode');pg.classList.remove('egmat-list-mode');}
-    var dt=new Date();dt.setMinutes(dt.getMinutes()-dt.getTimezoneOffset());
-    var selectedNguoi=(phieu&&phieu.nguoiNhapKho)||(window.CU&&(CU.name||CU.fullName))||'';
-    var peopleOpts=(typeof peopleOptions==='function')?peopleOptions(selectedNguoi):'<option value="'+esc(selectedNguoi)+'">'+esc(selectedNguoi)+'</option>';
-    root.innerHTML='<div class="card"><div class="cb egmat-complete-head"><div><b>Cập nhật hoàn thành phiếu: '+esc(phieu.maPhieu)+'</b><div class="pv17-small">'+esc(phieu.danhSachMaMay||phieu.maMay)+' · '+esc(phieu.danhSachTenTrai||phieu.tenTrai)+'</div></div><button class="btn sm" onclick="pv17RenderCompletePage()">← Quay lại</button></div><div class="egmat-form-grid"><div class="iw"><div class="il">Ngày giờ nhập kho *</div><input class="inp" type="datetime-local" id="pv17_ngayNhap" value="'+dt.toISOString().slice(0,16)+'"></div><div class="iw"><div class="il">Người nhập kho *</div><select class="inp" id="pv17_nguoiNhap">'+peopleOpts+'</select></div></div><div class="pv18-scroll" style="margin-top:12px"><table id="egmat_complete_table"><thead><tr><th style="width:44px">STT</th><th style="width:285px">Hạng mục vật tư</th><th style="width:170px">Loại vật tư</th><th style="width:90px">SL xuất kho</th><th style="width:90px">SL sử dụng</th><th style="width:90px">SL nhập kho</th><th style="width:130px">Tình trạng nhập</th><th style="width:170px">Ghi chú</th><th style="width:105px">Loại dòng</th></tr></thead><tbody>'+((items||[]).map(function(x,i){return pv17CompleteRowHTML(x,i);}).join(''))+'</tbody></table></div><div class="egmat-form-actions"><button class="btn bg-a sm" onclick="pv17AddCompleteRow()">➕ Thêm vật tư phát sinh</button><button class="btn bg-g" onclick="pv17SubmitComplete(\''+js(phieu.maPhieu)+'\')">✅ Lưu hoàn thiện</button></div><div class="ih" style="margin-top:8px">Vật tư có danh sách "Các loại" sẽ hiện thêm ô chọn loại tương ứng.</div></div>';
-    setTimeout(eg28RefreshMaterialSelects,0);
-    var c=document.querySelector('.content');if(c){try{c.scrollTo({top:0,behavior:'smooth'});}catch(e){c.scrollTop=0;}}
-  };
-  window.pv16RenderCompleteForm=window.pv17RenderCompleteForm;
+  var oldNav=window.nav;
+  if(typeof oldNav==='function' && !oldNav.__pv21Wrapped){
+    var wrapped=function(){
+      var ret=oldNav.apply(this,arguments);
+      setTimeout(keepLayoutScrollable,0);
+      setTimeout(keepLayoutScrollable,150);
+      setTimeout(keepLayoutScrollable,600);
+      return ret;
+    };
+    wrapped.__pv21Wrapped=true;
+    window.nav=wrapped;
+  }
 
-  function scrollable(el){return !!(el&&el.scrollHeight>el.clientHeight+4);}
-  function appVisible(){var app=document.getElementById('app');if(!app)return true;var cs=getComputedStyle(app);return cs.display!=='none'&&cs.visibility!=='hidden';}
-  function ensureScrollButtons(){
-    var box=document.getElementById('egScrollControls');
-    if(!box){box=document.createElement('div');box.id='egScrollControls';box.className='eg-scroll-controls';box.innerHTML='<button type="button" class="eg-scroll-btn" title="Cuộn lên" onclick="egScrollStep(-1)">▲</button><button type="button" class="eg-scroll-btn" title="Cuộn xuống" onclick="egScrollStep(1)">▼</button>';document.body.appendChild(box);}
-    box.style.display=appVisible()?'flex':'none';
-  }
-  function findScrollableFrom(el){
-    var cur=el;
-    while(cur&&cur!==document.body&&cur!==document.documentElement){
-      var cs=getComputedStyle(cur);
-      if((cs.overflowY==='auto'||cs.overflowY==='scroll')&&scrollable(cur))return cur;
-      cur=cur.parentElement;
-    }
-    return null;
-  }
-  function currentScrollTarget(){
-    var hover=document.querySelector(':hover');
-    var chain=[];while(hover){chain.push(hover);hover=hover.parentElement;}
-    for(var i=0;i<chain.length;i++){var s=findScrollableFrom(chain[i]);if(s)return s;}
-    var active=document.activeElement;var a=findScrollableFrom(active);if(a)return a;
-    var page=document.querySelector('.page.on');var p=findScrollableFrom(page);if(p)return p;
-    var content=document.querySelector('.content');if(scrollable(content))return content;
-    return document.scrollingElement||document.documentElement;
-  }
-  window.egScrollStep=function(dir){
-    ensureScrollButtons();
-    var t=currentScrollTarget();var h=t.clientHeight||window.innerHeight||600;
-    var delta=(dir>0?1:-1)*Math.max(260,Math.round(h*0.78));
-    try{t.scrollBy({top:delta,behavior:'smooth'});}catch(e){t.scrollTop+=delta;}
-  };
-  function boot(){ensureScrollButtons();try{if(typeof pvBDSCRenderSelected==='function')pvBDSCRenderSelected();}catch(e){}}
+  window.pv21KeepLayoutScrollable=keepLayoutScrollable;
+  function boot(){enableEnterLogin();keepLayoutScrollable();}
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);else boot();
-  window.addEventListener('load',boot);setInterval(ensureScrollButtons,1200);
+  window.addEventListener('resize',keepLayoutScrollable);
+  setTimeout(boot,300);
+  setTimeout(boot,1000);
+  setInterval(function(){
+    enableEnterLogin();
+    if(window.CU)keepLayoutScrollable();
+  },2500);
 })();
 </script>
 
-</body></html>
+<!-- V24 stable layout restore: natural flex layout + fixed topbar + sticky sidebar -->
+<style id="pv24-stable-layout-restore">
+  :root{--pv24-topbar-h:54px;--pv24-mobile-topbar-h:50px;--pv24-sidebar-w:206px;}
+
+  @media (min-width:769px){
+    html,body{
+      height:auto !important;
+      min-height:100% !important;
+      overflow-y:auto !important;
+      overflow-x:hidden !important;
+      scroll-behavior:auto !important;
+    }
+    body{position:static !important;background:var(--bg) !important;}
+
+    #app{
+      display:flex;
+      flex-direction:column !important;
+      min-height:100vh !important;
+      height:auto !important;
+      padding-top:var(--pv24-topbar-h) !important;
+      overflow:visible !important;
+      box-sizing:border-box !important;
+    }
+
+    .topbar{
+      position:fixed !important;
+      top:0 !important;
+      left:0 !important;
+      right:0 !important;
+      width:100% !important;
+      height:var(--pv24-topbar-h) !important;
+      min-height:var(--pv24-topbar-h) !important;
+      z-index:3000 !important;
+      transform:none !important;
+    }
+
+    .layout{
+      display:flex !important;
+      flex:1 1 auto !important;
+      position:relative !important;
+      top:auto !important;
+      left:auto !important;
+      right:auto !important;
+      bottom:auto !important;
+      width:100% !important;
+      min-height:calc(100vh - var(--pv24-topbar-h)) !important;
+      height:auto !important;
+      margin:0 !important;
+      padding:0 !important;
+      overflow:visible !important;
+      align-items:flex-start !important;
+      box-sizing:border-box !important;
+    }
+
+    .sidebar{
+      position:sticky !important;
+      top:var(--pv24-topbar-h) !important;
+      left:auto !important;
+      bottom:auto !important;
+      width:var(--pv24-sidebar-w) !important;
+      min-width:var(--pv24-sidebar-w) !important;
+      max-width:var(--pv24-sidebar-w) !important;
+      height:calc(100vh - var(--pv24-topbar-h)) !important;
+      flex:0 0 var(--pv24-sidebar-w) !important;
+      overflow-y:auto !important;
+      overflow-x:hidden !important;
+      transform:none !important;
+      z-index:1000 !important;
+      box-shadow:none !important;
+      box-sizing:border-box !important;
+    }
+
+    .content{
+      position:relative !important;
+      top:auto !important;
+      left:auto !important;
+      right:auto !important;
+      bottom:auto !important;
+      display:block !important;
+      flex:1 1 auto !important;
+      min-width:0 !important;
+      width:auto !important;
+      max-width:none !important;
+      height:auto !important;
+      min-height:calc(100vh - var(--pv24-topbar-h)) !important;
+      margin:0 !important;
+      padding:0 !important;
+      overflow:visible !important;
+      background:var(--bg) !important;
+      box-sizing:border-box !important;
+    }
+
+    .page{
+      box-sizing:border-box !important;
+    }
+    .page:not(.on){display:none !important;}
+    .page.on{display:block !important;}
+
+    #pg-taoPhieu,
+    #pg-danhSachPhieu,
+    #pg-hoanThanhPhieu{
+      width:100% !important;
+      max-width:none !important;
+      min-height:auto !important;
+      margin:0 !important;
+      padding:16px 20px 110px 20px !important;
+      overflow:visible !important;
+      box-sizing:border-box !important;
+    }
+
+    #pg-taoPhieu > .ph,
+    #pg-danhSachPhieu > .ph,
+    #pg-hoanThanhPhieu > .ph{
+      margin:0 0 14px 0 !important;
+      padding:0 !important;
+      text-align:left !important;
+      display:block !important;
+    }
+
+    #pvFormRoot,
+    #pvHistoryRoot,
+    #pvCompleteRoot,
+    #pvb_formWrap{
+      width:100% !important;
+      max-width:none !important;
+      margin:0 !important;
+      padding:0 !important;
+      box-sizing:border-box !important;
+    }
+
+    #pvb_formWrap .fsec,
+    #pvFormRoot .card,
+    #pvHistoryRoot .card,
+    #pvCompleteRoot .card{
+      width:100% !important;
+      max-width:none !important;
+      margin-left:0 !important;
+      margin-right:0 !important;
+      box-sizing:border-box !important;
+      overflow:visible !important;
+    }
+
+    #pvFormRoot .tblwrap,
+    #pvHistoryRoot .tblwrap,
+    #pvCompleteRoot .tblwrap,
+    #pvCompleteRoot .pv17-scroll,
+    #pvCompleteRoot .pv18-scroll,
+    #pvCompleteRoot .pv19-scroll{
+      width:100% !important;
+      max-width:100% !important;
+      overflow-x:auto !important;
+      overflow-y:visible !important;
+      box-sizing:border-box !important;
+    }
+
+    .pv-actions,
+    .pv18-form-actions,
+    .pv19-actions{
+      position:sticky !important;
+      bottom:0 !important;
+      z-index:900 !important;
+    }
+  }
+
+  @media (max-width:768px){
+    html,body{
+      height:auto !important;
+      min-height:100% !important;
+      overflow-y:auto !important;
+      overflow-x:hidden !important;
+    }
+    #app{
+      padding-top:var(--pv24-mobile-topbar-h) !important;
+      min-height:100vh !important;
+      height:auto !important;
+      overflow:visible !important;
+    }
+    .topbar{
+      position:fixed !important;
+      top:0 !important;
+      left:0 !important;
+      right:0 !important;
+      width:100% !important;
+      height:var(--pv24-mobile-topbar-h) !important;
+      min-height:var(--pv24-mobile-topbar-h) !important;
+      z-index:3000 !important;
+    }
+    .layout,.content{
+      height:auto !important;
+      min-height:calc(100vh - var(--pv24-mobile-topbar-h)) !important;
+      overflow:visible !important;
+    }
+    .content{
+      width:100% !important;
+      max-width:100% !important;
+      margin-left:0 !important;
+    }
+    .sidebar{
+      top:var(--pv24-mobile-topbar-h) !important;
+      height:calc(100vh - var(--pv24-mobile-topbar-h)) !important;
+      z-index:2500 !important;
+    }
+    #pg-taoPhieu,
+    #pg-danhSachPhieu,
+    #pg-hoanThanhPhieu{
+      width:100% !important;
+      max-width:none !important;
+      margin:0 !important;
+      padding:14px 10px 100px 10px !important;
+      box-sizing:border-box !important;
+    }
+  }
+</style>
+<script id="pv24-stable-layout-restore-js">
+(function(){
+  var DESKTOP_TOP=54, MOBILE_TOP=50;
+  function isDesk(){return window.innerWidth>768;}
+  function setImp(el,p,v){if(el)el.style.setProperty(p,v,'important');}
+
+  function resetScroll(){
+    try{history.scrollRestoration='manual';}catch(e){}
+    try{window.scrollTo(0,0);}catch(e){}
+    try{document.documentElement.scrollTop=0;document.body.scrollTop=0;}catch(e){}
+    try{var c=document.querySelector('.content'); if(c){c.scrollTop=0;c.scrollLeft=0;}}catch(e){}
+  }
+
+  function applyLayout(){
+    try{
+      var desk=isDesk(), h=desk?DESKTOP_TOP:MOBILE_TOP;
+      var topbar=document.querySelector('.topbar');
+      var layout=document.querySelector('.layout');
+      var sidebar=document.getElementById('mainSidebar')||document.querySelector('.sidebar');
+      var content=document.querySelector('.content');
+      var app=document.getElementById('app');
+
+      document.documentElement.style.setProperty('--pv24-topbar-h',DESKTOP_TOP+'px');
+      document.documentElement.style.setProperty('--pv24-mobile-topbar-h',MOBILE_TOP+'px');
+
+      if(desk){
+        setImp(document.documentElement,'overflow-y','auto');
+        setImp(document.body,'overflow-y','auto');
+        setImp(document.body,'overflow-x','hidden');
+        setImp(document.body,'position','static');
+      }
+      if(app){
+        setImp(app,'padding-top',h+'px');
+        setImp(app,'height','auto');
+        setImp(app,'min-height','100vh');
+        setImp(app,'overflow','visible');
+      }
+      if(topbar){
+        setImp(topbar,'position','fixed');
+        setImp(topbar,'top','0');
+        setImp(topbar,'left','0');
+        setImp(topbar,'right','0');
+        setImp(topbar,'width','100%');
+        setImp(topbar,'height',h+'px');
+        setImp(topbar,'min-height',h+'px');
+        setImp(topbar,'z-index','3000');
+      }
+      if(layout){
+        setImp(layout,'display','flex');
+        setImp(layout,'position','relative');
+        setImp(layout,'top','auto');
+        setImp(layout,'left','auto');
+        setImp(layout,'right','auto');
+        setImp(layout,'bottom','auto');
+        setImp(layout,'height','auto');
+        setImp(layout,'min-height','calc(100vh - '+h+'px)');
+        setImp(layout,'margin','0');
+        setImp(layout,'overflow','visible');
+      }
+      if(sidebar){
+        if(desk){
+          sidebar.classList.remove('open');
+          setImp(sidebar,'position','sticky');
+          setImp(sidebar,'top',h+'px');
+          setImp(sidebar,'left','auto');
+          setImp(sidebar,'bottom','auto');
+          setImp(sidebar,'width','206px');
+          setImp(sidebar,'min-width','206px');
+          setImp(sidebar,'max-width','206px');
+          setImp(sidebar,'flex','0 0 206px');
+          setImp(sidebar,'height','calc(100vh - '+h+'px)');
+          setImp(sidebar,'overflow-y','auto');
+          setImp(sidebar,'transform','none');
+          var ov=document.getElementById('mobOverlay'); if(ov)ov.classList.remove('show');
+        }else{
+          setImp(sidebar,'top',h+'px');
+          setImp(sidebar,'height','calc(100vh - '+h+'px)');
+        }
+      }
+      if(content){
+        setImp(content,'position','relative');
+        setImp(content,'top','auto');
+        setImp(content,'left','auto');
+        setImp(content,'right','auto');
+        setImp(content,'bottom','auto');
+        setImp(content,'flex','1 1 auto');
+        setImp(content,'min-width','0');
+        setImp(content,'width',desk?'auto':'100%');
+        setImp(content,'max-width','none');
+        setImp(content,'height','auto');
+        setImp(content,'min-height','calc(100vh - '+h+'px)');
+        setImp(content,'margin','0');
+        setImp(content,'overflow','visible');
+      }
+      ['pg-taoPhieu','pg-danhSachPhieu','pg-hoanThanhPhieu'].forEach(function(id){
+        var pg=document.getElementById(id); if(!pg)return;
+        setImp(pg,'width','100%');
+        setImp(pg,'max-width','none');
+        setImp(pg,'margin','0');
+        setImp(pg,'padding',desk?'16px 20px 110px 20px':'14px 10px 100px 10px');
+        setImp(pg,'overflow','visible');
+      });
+    }catch(e){}
+  }
+
+  function enableEnterLogin(){
+    try{
+      ['lu','lp'].forEach(function(id){
+        var el=document.getElementById(id);
+        if(!el || el.__pv24EnterLogin)return;
+        el.__pv24EnterLogin=true;
+        el.addEventListener('keydown',function(ev){
+          if((ev.key==='Enter'||ev.keyCode===13) && !ev.isComposing){
+            ev.preventDefault();
+            if(typeof login==='function')login();
+          }
+        });
+      });
+    }catch(e){}
+  }
+
+  function afterNav(p){
+    applyLayout();
+    if(p==='taoPhieu'||p==='danhSachPhieu'||p==='hoanThanhPhieu') resetScroll();
+    setTimeout(function(){applyLayout(); if(p==='taoPhieu'||p==='danhSachPhieu'||p==='hoanThanhPhieu') resetScroll();},50);
+    setTimeout(applyLayout,300);
+  }
+
+  var oldNav=window.nav;
+  if(typeof oldNav==='function' && !oldNav.__pv24Wrapped){
+    var wrapped=function(p){
+      var ret=oldNav.apply(this,arguments);
+      afterNav(p);
+      return ret;
+    };
+    wrapped.__pv24Wrapped=true;
+    window.nav=wrapped;
+  }
+
+  function boot(){enableEnterLogin();applyLayout();setTimeout(applyLayout,250);setTimeout(applyLayout,1000);}
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);else boot();
+  window.addEventListener('load',boot);
+  window.addEventListener('resize',applyLayout);
+  setInterval(function(){enableEnterLogin(); if(window.CU)applyLayout();},2000);
+})();
+</script>
