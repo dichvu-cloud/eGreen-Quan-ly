@@ -8022,438 +8022,133 @@ nav=function(p){
 })();
 </script>
 
-<!-- V20 hotfix: align main layout, keep sidebar fixed without overlaying content -->
-<style id="pv20-layout-aligned-style">
-  @media (min-width:769px){
-    html,body{height:100% !important;overflow:hidden !important;}
-    #app{height:100vh !important;min-height:0 !important;display:flex;flex-direction:column;overflow:hidden !important;}
-    .topbar{height:54px !important;min-height:54px !important;flex:0 0 54px !important;position:sticky !important;top:0 !important;z-index:200 !important;}
-    .layout{
-      display:flex !important;
-      flex:1 1 auto !important;
-      min-height:0 !important;
-      height:calc(100vh - 54px) !important;
-      overflow:hidden !important;
-      width:100% !important;
-    }
-    .sidebar{
-      position:relative !important;
-      top:auto !important;
-      left:auto !important;
-      right:auto !important;
-      bottom:auto !important;
-      width:206px !important;
-      min-width:206px !important;
-      max-width:206px !important;
-      height:100% !important;
-      flex:0 0 206px !important;
-      z-index:2 !important;
-      overflow-y:auto !important;
-      transform:none !important;
-      box-shadow:none !important;
-    }
-    .content{
-      margin-left:0 !important;
-      width:auto !important;
-      max-width:none !important;
-      flex:1 1 auto !important;
-      min-width:0 !important;
-      height:100% !important;
-      overflow-y:auto !important;
-      overflow-x:hidden !important;
-      background:var(--bg) !important;
-    }
-    .page{
-      box-sizing:border-box !important;
-      margin-left:auto !important;
-      margin-right:auto !important;
-    }
-    #pg-taoPhieu,
-    #pg-danhSachPhieu,
-    #pg-hoanThanhPhieu{
-      max-width:none !important;
-      width:100% !important;
-      margin:0 !important;
-      padding:16px 20px !important;
-    }
-    #pvFormRoot,
-    #pvHistoryRoot,
-    #pvCompleteRoot,
-    #pvb_formWrap{
-      width:100% !important;
-      max-width:none !important;
-      margin:0 !important;
-    }
-    #pvCompleteRoot .card,
-    #pvFormRoot .card,
-    #pvHistoryRoot .card,
-    #pvb_formWrap .fsec{
-      width:100% !important;
-      max-width:none !important;
-      margin-left:0 !important;
-      margin-right:0 !important;
-    }
-  }
-  @media (max-width:768px){
-    html,body{overflow:auto !important;}
-    .layout{display:flex !important;overflow:visible !important;}
-    .content{margin-left:0 !important;width:100% !important;max-width:100% !important;overflow-y:auto !important;}
-  }
-</style>
-<script id="pv20-layout-aligned-js">
-(function(){
-  function resetMainScroll(){
-    try{ window.scrollTo(0,0); }catch(e){}
-    try{ const c=document.querySelector('.content'); if(c)c.scrollTop=0; }catch(e){}
-  }
-  function alignLayout(){
-    try{
-      const content=document.querySelector('.content');
-      const sidebar=document.getElementById('mainSidebar')||document.querySelector('.sidebar');
-      if(window.innerWidth>768){
-        if(content){
-          content.style.marginLeft='0';
-          content.style.width='';
-          content.style.maxWidth='';
-        }
-        if(sidebar){
-          sidebar.classList.remove('open');
-          sidebar.style.transform='none';
-        }
-        const ov=document.getElementById('mobOverlay');
-        if(ov)ov.classList.remove('show');
-      }
-    }catch(e){}
-  }
-  const oldNav=window.nav;
-  window.nav=function(p){
-    const ret=oldNav.apply(this,arguments);
-    setTimeout(function(){alignLayout();resetMainScroll();},0);
-    setTimeout(function(){alignLayout();},150);
-    return ret;
-  };
-  window.addEventListener('resize',alignLayout);
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',alignLayout);else alignLayout();
-  setTimeout(alignLayout,300);
-  setTimeout(alignLayout,1000);
-})();
-</script>
 
-<!-- V21 hotfix: unlock page scroll for material pages + Enter to login -->
-<style id="pv21-scroll-enter-fix-style">
-  @media (min-width:769px){
-    html,
-    body{
-      height:auto !important;
-      min-height:100% !important;
-      overflow-y:auto !important;
-      overflow-x:hidden !important;
-    }
-    body{
-      position:static !important;
-    }
-    #app{
-      height:auto !important;
-      min-height:100vh !important;
-      overflow:visible !important;
-    }
-    .topbar{
-      position:sticky !important;
-      top:0 !important;
-      height:54px !important;
-      min-height:54px !important;
-      z-index:220 !important;
-    }
-    .layout{
-      display:block !important;
-      width:100% !important;
-      height:auto !important;
-      min-height:calc(100vh - 54px) !important;
-      overflow:visible !important;
-    }
-    .sidebar{
-      position:fixed !important;
-      top:54px !important;
-      left:0 !important;
-      bottom:0 !important;
-      width:206px !important;
-      min-width:206px !important;
-      max-width:206px !important;
-      height:calc(100vh - 54px) !important;
-      flex:none !important;
-      overflow-y:auto !important;
-      overflow-x:hidden !important;
-      z-index:180 !important;
-      transform:none !important;
-      box-shadow:none !important;
-    }
-    .content{
-      display:block !important;
-      margin-left:206px !important;
-      width:calc(100% - 206px) !important;
-      max-width:calc(100% - 206px) !important;
-      min-width:0 !important;
-      height:auto !important;
-      min-height:calc(100vh - 54px) !important;
-      overflow:visible !important;
-      background:var(--bg) !important;
-      box-sizing:border-box !important;
-    }
-    #pg-taoPhieu,
-    #pg-danhSachPhieu,
-    #pg-hoanThanhPhieu{
-      max-width:none !important;
-      width:100% !important;
-      margin:0 !important;
-      padding:16px 20px 90px !important;
-      box-sizing:border-box !important;
-    }
-    #pvFormRoot,
-    #pvHistoryRoot,
-    #pvCompleteRoot,
-    #pvb_formWrap{
-      width:100% !important;
-      max-width:none !important;
-      margin:0 !important;
-      box-sizing:border-box !important;
-    }
-    #pvb_formWrap .fsec,
-    #pvFormRoot .card,
-    #pvHistoryRoot .card,
-    #pvCompleteRoot .card{
-      width:100% !important;
-      max-width:none !important;
-      margin-left:0 !important;
-      margin-right:0 !important;
-      box-sizing:border-box !important;
-    }
-    #pvCompleteRoot .tblwrap,
-    #pvCompleteRoot .pv18-scroll,
-    #pvCompleteRoot .pv17-scroll,
-    #pvFormRoot .tblwrap,
-    #pvHistoryRoot .tblwrap{
-      max-width:100% !important;
-      overflow-x:auto !important;
-      overflow-y:visible !important;
-    }
-  }
-  @media (max-width:768px){
-    html,
-    body{
-      height:auto !important;
-      min-height:100% !important;
-      overflow-y:auto !important;
-      overflow-x:hidden !important;
-    }
-    #app,
-    .layout,
-    .content{
-      height:auto !important;
-      min-height:100vh !important;
-      overflow:visible !important;
-    }
-    .content{
-      margin-left:0 !important;
-      width:100% !important;
-      max-width:100% !important;
-    }
-    #pg-taoPhieu,
-    #pg-danhSachPhieu,
-    #pg-hoanThanhPhieu{
-      padding-bottom:90px !important;
-    }
-  }
-</style>
-<script id="pv21-scroll-enter-fix-js">
-(function(){
-  function keepLayoutScrollable(){
-    try{
-      var content=document.querySelector('.content');
-      var sidebar=document.getElementById('mainSidebar')||document.querySelector('.sidebar');
-      if(window.innerWidth>768){
-        if(content){
-          content.style.setProperty('margin-left','206px','important');
-          content.style.setProperty('width','calc(100% - 206px)','important');
-          content.style.setProperty('max-width','calc(100% - 206px)','important');
-          content.style.setProperty('height','auto','important');
-          content.style.setProperty('overflow','visible','important');
-        }
-        if(sidebar){
-          sidebar.classList.remove('open');
-          sidebar.style.setProperty('position','fixed','important');
-          sidebar.style.setProperty('top','54px','important');
-          sidebar.style.setProperty('left','0','important');
-          sidebar.style.setProperty('bottom','0','important');
-          sidebar.style.setProperty('height','calc(100vh - 54px)','important');
-          sidebar.style.setProperty('transform','none','important');
-        }
-        var ov=document.getElementById('mobOverlay');
-        if(ov)ov.classList.remove('show');
-      }else if(content){
-        content.style.setProperty('margin-left','0','important');
-        content.style.setProperty('width','100%','important');
-        content.style.setProperty('max-width','100%','important');
-      }
-      document.documentElement.style.setProperty('overflow-y','auto','important');
-      document.body.style.setProperty('overflow-y','auto','important');
-      document.body.style.setProperty('overflow-x','hidden','important');
-    }catch(e){}
-  }
-
-  function enableEnterLogin(){
-    try{
-      ['lu','lp'].forEach(function(id){
-        var el=document.getElementById(id);
-        if(!el || el.dataset.enterLoginBound==='1')return;
-        el.dataset.enterLoginBound='1';
-        el.addEventListener('keydown',function(ev){
-          if((ev.key==='Enter' || ev.keyCode===13) && !ev.isComposing){
-            ev.preventDefault();
-            if(typeof login==='function')login();
-          }
-        });
-      });
-    }catch(e){}
-  }
-
-  var oldNav=window.nav;
-  if(typeof oldNav==='function' && !oldNav.__pv21Wrapped){
-    var wrapped=function(){
-      var ret=oldNav.apply(this,arguments);
-      setTimeout(keepLayoutScrollable,0);
-      setTimeout(keepLayoutScrollable,150);
-      setTimeout(keepLayoutScrollable,600);
-      return ret;
-    };
-    wrapped.__pv21Wrapped=true;
-    window.nav=wrapped;
-  }
-
-  window.pv21KeepLayoutScrollable=keepLayoutScrollable;
-  function boot(){enableEnterLogin();keepLayoutScrollable();}
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);else boot();
-  window.addEventListener('resize',keepLayoutScrollable);
-  setTimeout(boot,300);
-  setTimeout(boot,1000);
-  setInterval(function(){
-    enableEnterLogin();
-    if(window.CU)keepLayoutScrollable();
-  },2500);
-})();
-</script>
-
-<!-- V22 hotfix: fixed topbar on all pages + align material pages layout -->
-<style id="pv22-fixed-topbar-material-layout-style">
+<!-- V23 final layout fix: fixed topbar + fixed sidebar + clean scroll container for material pages -->
+<style id="pv23-final-layout-style">
   :root{
-    --pv22-topbar-h:54px;
-    --pv22-sidebar-w:206px;
+    --pv23-topbar-h:54px;
+    --pv23-mobile-topbar-h:50px;
+    --pv23-sidebar-w:206px;
   }
 
   @media (min-width:769px){
-    html,
-    body{
-      height:auto !important;
+    html,body{
+      width:100% !important;
+      height:100% !important;
       min-height:100% !important;
-      overflow-y:auto !important;
-      overflow-x:hidden !important;
-      scroll-padding-top:var(--pv22-topbar-h) !important;
+      overflow:hidden !important;
+      margin:0 !important;
+      padding:0 !important;
     }
-
+    body{position:static !important;background:var(--bg) !important;}
     #app{
-      display:block !important;
-      height:auto !important;
+      width:100% !important;
+      height:100vh !important;
       min-height:100vh !important;
-      overflow:visible !important;
-      padding-top:0 !important;
+      overflow:hidden !important;
       background:var(--bg) !important;
     }
-
     .topbar{
       position:fixed !important;
       top:0 !important;
       left:0 !important;
       right:0 !important;
       width:100% !important;
-      height:var(--pv22-topbar-h) !important;
-      min-height:var(--pv22-topbar-h) !important;
-      max-height:var(--pv22-topbar-h) !important;
-      z-index:5000 !important;
+      height:var(--pv23-topbar-h) !important;
+      min-height:var(--pv23-topbar-h) !important;
+      max-height:var(--pv23-topbar-h) !important;
+      z-index:6000 !important;
       box-sizing:border-box !important;
       transform:none !important;
     }
-
     .layout{
+      position:fixed !important;
+      top:var(--pv23-topbar-h) !important;
+      left:0 !important;
+      right:0 !important;
+      bottom:0 !important;
       display:block !important;
       width:100% !important;
       height:auto !important;
-      min-height:calc(100vh - var(--pv22-topbar-h)) !important;
-      margin-top:var(--pv22-topbar-h) !important;
-      padding-top:0 !important;
-      overflow:visible !important;
+      min-height:0 !important;
+      margin:0 !important;
+      padding:0 !important;
+      overflow:hidden !important;
       box-sizing:border-box !important;
+      background:var(--bg) !important;
     }
-
     .sidebar{
       position:fixed !important;
-      top:var(--pv22-topbar-h) !important;
+      top:var(--pv23-topbar-h) !important;
       left:0 !important;
       bottom:0 !important;
-      width:var(--pv22-sidebar-w) !important;
-      min-width:var(--pv22-sidebar-w) !important;
-      max-width:var(--pv22-sidebar-w) !important;
-      height:calc(100vh - var(--pv22-topbar-h)) !important;
+      width:var(--pv23-sidebar-w) !important;
+      min-width:var(--pv23-sidebar-w) !important;
+      max-width:var(--pv23-sidebar-w) !important;
+      height:calc(100vh - var(--pv23-topbar-h)) !important;
       flex:none !important;
-      z-index:4500 !important;
       overflow-y:auto !important;
       overflow-x:hidden !important;
       transform:none !important;
+      z-index:5500 !important;
       box-shadow:none !important;
       background:#fff !important;
+      box-sizing:border-box !important;
     }
-
     .content{
+      position:fixed !important;
+      top:var(--pv23-topbar-h) !important;
+      left:var(--pv23-sidebar-w) !important;
+      right:0 !important;
+      bottom:0 !important;
       display:block !important;
-      margin-left:var(--pv22-sidebar-w) !important;
-      width:calc(100% - var(--pv22-sidebar-w)) !important;
-      max-width:calc(100% - var(--pv22-sidebar-w)) !important;
+      margin:0 !important;
+      padding:0 !important;
+      width:auto !important;
+      max-width:none !important;
       min-width:0 !important;
-      min-height:calc(100vh - var(--pv22-topbar-h)) !important;
       height:auto !important;
-      overflow:visible !important;
+      min-height:0 !important;
+      overflow-y:auto !important;
       overflow-x:hidden !important;
       background:var(--bg) !important;
       box-sizing:border-box !important;
     }
-
     .page{
       box-sizing:border-box !important;
     }
+    .page:not(.on){display:none !important;}
+    .page.on{display:block !important;}
 
     #pg-taoPhieu,
     #pg-danhSachPhieu,
     #pg-hoanThanhPhieu{
       width:100% !important;
       max-width:none !important;
+      min-height:auto !important;
       margin:0 !important;
-      padding:18px 24px 120px 24px !important;
-      box-sizing:border-box !important;
+      padding:16px 20px 110px 20px !important;
       overflow:visible !important;
+      box-sizing:border-box !important;
     }
-
     #pg-taoPhieu > .ph,
     #pg-danhSachPhieu > .ph,
     #pg-hoanThanhPhieu > .ph{
-      margin:0 0 16px 0 !important;
+      margin:0 0 14px 0 !important;
       padding:0 !important;
       text-align:left !important;
     }
-
     #pg-taoPhieu > .ph h1,
     #pg-danhSachPhieu > .ph h1,
     #pg-hoanThanhPhieu > .ph h1{
+      margin:0 !important;
       line-height:1.25 !important;
     }
-
+    #pg-taoPhieu > .ph p,
+    #pg-danhSachPhieu > .ph p,
+    #pg-hoanThanhPhieu > .ph p{
+      margin:3px 0 0 0 !important;
+    }
     #pvFormRoot,
     #pvHistoryRoot,
     #pvCompleteRoot,
@@ -8464,7 +8159,6 @@ nav=function(p){
       padding:0 !important;
       box-sizing:border-box !important;
     }
-
     #pvb_formWrap .fsec,
     #pvFormRoot .card,
     #pvHistoryRoot .card,
@@ -8476,7 +8170,6 @@ nav=function(p){
       box-sizing:border-box !important;
       overflow:visible !important;
     }
-
     #pvCompleteRoot .tblwrap,
     #pvCompleteRoot .pv18-scroll,
     #pvCompleteRoot .pv17-scroll,
@@ -8488,27 +8181,20 @@ nav=function(p){
       overflow-y:visible !important;
       box-sizing:border-box !important;
     }
-
-    .pv-actions{
-      z-index:4300 !important;
+    .pv-actions,
+    .pv18-form-actions{
+      position:sticky !important;
+      bottom:0 !important;
+      z-index:5600 !important;
     }
   }
 
   @media (max-width:768px){
-    :root{--pv22-topbar-h:50px;--pv22-sidebar-w:240px;}
-    html,
-    body{
-      height:auto !important;
+    html,body{
+      width:100% !important;
       min-height:100% !important;
       overflow-y:auto !important;
       overflow-x:hidden !important;
-      scroll-padding-top:var(--pv22-topbar-h) !important;
-    }
-    #app{
-      display:block !important;
-      min-height:100vh !important;
-      overflow:visible !important;
-      background:var(--bg) !important;
     }
     .topbar{
       position:fixed !important;
@@ -8516,26 +8202,25 @@ nav=function(p){
       left:0 !important;
       right:0 !important;
       width:100% !important;
-      height:var(--pv22-topbar-h) !important;
-      min-height:var(--pv22-topbar-h) !important;
-      z-index:5000 !important;
+      height:var(--pv23-mobile-topbar-h) !important;
+      min-height:var(--pv23-mobile-topbar-h) !important;
+      z-index:6000 !important;
     }
     .layout{
-      margin-top:var(--pv22-topbar-h) !important;
-      min-height:calc(100vh - var(--pv22-topbar-h)) !important;
+      margin-top:var(--pv23-mobile-topbar-h) !important;
       overflow:visible !important;
     }
     .sidebar{
-      top:var(--pv22-topbar-h) !important;
-      height:calc(100vh - var(--pv22-topbar-h)) !important;
-      z-index:4500 !important;
+      top:var(--pv23-mobile-topbar-h) !important;
+      height:calc(100vh - var(--pv23-mobile-topbar-h)) !important;
+      z-index:5500 !important;
     }
     .content{
       margin-left:0 !important;
       width:100% !important;
       max-width:100% !important;
       height:auto !important;
-      min-height:calc(100vh - var(--pv22-topbar-h)) !important;
+      min-height:calc(100vh - var(--pv23-mobile-topbar-h)) !important;
       overflow:visible !important;
       box-sizing:border-box !important;
     }
@@ -8550,162 +8235,192 @@ nav=function(p){
     }
   }
 </style>
-<script id="pv22-fixed-topbar-material-layout-js">
+<script id="pv23-final-layout-js">
 (function(){
-  var SIDEBAR_W = 206;
   var TOPBAR_H = 54;
+  var MOBILE_TOPBAR_H = 50;
+  var SIDEBAR_W = 206;
 
-  function isDesktop(){ return window.innerWidth > 768; }
+  function desktop(){ return window.innerWidth > 768; }
+  function setImp(el, prop, val){ if(el) el.style.setProperty(prop, val, 'important'); }
 
-  function setImportant(el, prop, val){
-    if(el) el.style.setProperty(prop, val, 'important');
+  function clearWindowScroll(){
+    try{ window.scrollTo({top:0,left:0,behavior:'auto'}); }catch(e){ try{window.scrollTo(0,0);}catch(_e){} }
+    try{ document.documentElement.scrollTop = 0; }catch(e){}
+    try{ document.body.scrollTop = 0; }catch(e){}
   }
 
-  function applyPv22Layout(){
+  function resetContentScroll(){
+    clearWindowScroll();
     try{
-      var desktop = isDesktop();
-      var topbar = document.querySelector('.topbar');
-      var layout = document.querySelector('.layout');
-      var sidebar = document.getElementById('mainSidebar') || document.querySelector('.sidebar');
-      var content = document.querySelector('.content');
-      var app = document.getElementById('app');
-      var h = desktop ? TOPBAR_H : 50;
-      var w = desktop ? SIDEBAR_W : 240;
+      var c=document.querySelector('.content');
+      if(c){ c.scrollTop=0; c.scrollLeft=0; }
+    }catch(e){}
+  }
 
-      document.documentElement.style.setProperty('--pv22-topbar-h', h + 'px');
-      document.documentElement.style.setProperty('--pv22-sidebar-w', w + 'px');
-      document.documentElement.style.setProperty('overflow-y','auto','important');
-      document.documentElement.style.setProperty('overflow-x','hidden','important');
-      document.body.style.setProperty('overflow-y','auto','important');
-      document.body.style.setProperty('overflow-x','hidden','important');
-      document.body.style.setProperty('height','auto','important');
+  function applyFinalLayout(){
+    try{
+      var isDesk = desktop();
+      var h = isDesk ? TOPBAR_H : MOBILE_TOPBAR_H;
+      var topbar=document.querySelector('.topbar');
+      var layout=document.querySelector('.layout');
+      var sidebar=document.getElementById('mainSidebar') || document.querySelector('.sidebar');
+      var content=document.querySelector('.content');
 
-      if(app){
-        setImportant(app,'display','block');
-        setImportant(app,'height','auto');
-        setImportant(app,'min-height','100vh');
-        setImportant(app,'overflow','visible');
+      document.documentElement.style.setProperty('--pv23-topbar-h', TOPBAR_H+'px');
+      document.documentElement.style.setProperty('--pv23-mobile-topbar-h', MOBILE_TOPBAR_H+'px');
+      document.documentElement.style.setProperty('--pv23-sidebar-w', SIDEBAR_W+'px');
+
+      if(isDesk){
+        setImp(document.documentElement,'height','100%');
+        setImp(document.documentElement,'overflow','hidden');
+        setImp(document.body,'height','100%');
+        setImp(document.body,'overflow','hidden');
+      }else{
+        setImp(document.documentElement,'height','auto');
+        setImp(document.documentElement,'overflow-y','auto');
+        setImp(document.body,'height','auto');
+        setImp(document.body,'overflow-y','auto');
+        setImp(document.body,'overflow-x','hidden');
       }
 
       if(topbar){
-        setImportant(topbar,'position','fixed');
-        setImportant(topbar,'top','0');
-        setImportant(topbar,'left','0');
-        setImportant(topbar,'right','0');
-        setImportant(topbar,'width','100%');
-        setImportant(topbar,'height',h + 'px');
-        setImportant(topbar,'min-height',h + 'px');
-        setImportant(topbar,'z-index','5000');
-        setImportant(topbar,'transform','none');
+        setImp(topbar,'position','fixed');
+        setImp(topbar,'top','0');
+        setImp(topbar,'left','0');
+        setImp(topbar,'right','0');
+        setImp(topbar,'width','100%');
+        setImp(topbar,'height',h+'px');
+        setImp(topbar,'min-height',h+'px');
+        setImp(topbar,'z-index','6000');
+        setImp(topbar,'transform','none');
       }
 
       if(layout){
-        setImportant(layout,'display','block');
-        setImportant(layout,'width','100%');
-        setImportant(layout,'height','auto');
-        setImportant(layout,'min-height','calc(100vh - ' + h + 'px)');
-        setImportant(layout,'margin-top',h + 'px');
-        setImportant(layout,'padding-top','0');
-        setImportant(layout,'overflow','visible');
+        if(isDesk){
+          setImp(layout,'position','fixed');
+          setImp(layout,'top',h+'px');
+          setImp(layout,'left','0');
+          setImp(layout,'right','0');
+          setImp(layout,'bottom','0');
+          setImp(layout,'display','block');
+          setImp(layout,'height','auto');
+          setImp(layout,'min-height','0');
+          setImp(layout,'margin','0');
+          setImp(layout,'padding','0');
+          setImp(layout,'overflow','hidden');
+        }else{
+          setImp(layout,'position','static');
+          setImp(layout,'display','flex');
+          setImp(layout,'margin-top',h+'px');
+          setImp(layout,'height','auto');
+          setImp(layout,'overflow','visible');
+        }
       }
 
       if(sidebar){
-        if(desktop){
+        if(isDesk){
           sidebar.classList.remove('open');
-          setImportant(sidebar,'position','fixed');
-          setImportant(sidebar,'top',h + 'px');
-          setImportant(sidebar,'left','0');
-          setImportant(sidebar,'bottom','0');
-          setImportant(sidebar,'width',w + 'px');
-          setImportant(sidebar,'min-width',w + 'px');
-          setImportant(sidebar,'max-width',w + 'px');
-          setImportant(sidebar,'height','calc(100vh - ' + h + 'px)');
-          setImportant(sidebar,'transform','none');
-          setImportant(sidebar,'overflow-y','auto');
-          setImportant(sidebar,'z-index','4500');
-          var ov=document.getElementById('mobOverlay');
-          if(ov) ov.classList.remove('show');
+          setImp(sidebar,'position','fixed');
+          setImp(sidebar,'top',h+'px');
+          setImp(sidebar,'left','0');
+          setImp(sidebar,'bottom','0');
+          setImp(sidebar,'width',SIDEBAR_W+'px');
+          setImp(sidebar,'min-width',SIDEBAR_W+'px');
+          setImp(sidebar,'max-width',SIDEBAR_W+'px');
+          setImp(sidebar,'height','calc(100vh - '+h+'px)');
+          setImp(sidebar,'overflow-y','auto');
+          setImp(sidebar,'overflow-x','hidden');
+          setImp(sidebar,'transform','none');
+          setImp(sidebar,'z-index','5500');
+          var ov=document.getElementById('mobOverlay'); if(ov)ov.classList.remove('show');
         }else{
-          setImportant(sidebar,'top',h + 'px');
-          setImportant(sidebar,'height','calc(100vh - ' + h + 'px)');
-          setImportant(sidebar,'z-index','4500');
+          setImp(sidebar,'top',h+'px');
+          setImp(sidebar,'height','calc(100vh - '+h+'px)');
+          setImp(sidebar,'z-index','5500');
         }
       }
 
       if(content){
-        if(desktop){
-          setImportant(content,'display','block');
-          setImportant(content,'margin-left',w + 'px');
-          setImportant(content,'width','calc(100% - ' + w + 'px)');
-          setImportant(content,'max-width','calc(100% - ' + w + 'px)');
-          setImportant(content,'min-height','calc(100vh - ' + h + 'px)');
-          setImportant(content,'height','auto');
-          setImportant(content,'overflow','visible');
-          setImportant(content,'overflow-x','hidden');
+        if(isDesk){
+          setImp(content,'position','fixed');
+          setImp(content,'top',h+'px');
+          setImp(content,'left',SIDEBAR_W+'px');
+          setImp(content,'right','0');
+          setImp(content,'bottom','0');
+          setImp(content,'display','block');
+          setImp(content,'margin','0');
+          setImp(content,'padding','0');
+          setImp(content,'width','auto');
+          setImp(content,'max-width','none');
+          setImp(content,'height','auto');
+          setImp(content,'min-height','0');
+          setImp(content,'overflow-y','auto');
+          setImp(content,'overflow-x','hidden');
         }else{
-          setImportant(content,'margin-left','0');
-          setImportant(content,'width','100%');
-          setImportant(content,'max-width','100%');
-          setImportant(content,'min-height','calc(100vh - ' + h + 'px)');
-          setImportant(content,'height','auto');
-          setImportant(content,'overflow','visible');
+          setImp(content,'position','static');
+          setImp(content,'margin-left','0');
+          setImp(content,'width','100%');
+          setImp(content,'max-width','100%');
+          setImp(content,'height','auto');
+          setImp(content,'overflow','visible');
         }
       }
 
       ['pg-taoPhieu','pg-danhSachPhieu','pg-hoanThanhPhieu'].forEach(function(id){
         var pg=document.getElementById(id);
-        if(!pg) return;
-        setImportant(pg,'width','100%');
-        setImportant(pg,'max-width','none');
-        setImportant(pg,'margin','0');
-        setImportant(pg,'box-sizing','border-box');
-        setImportant(pg,'overflow','visible');
-        setImportant(pg,'padding',desktop ? '18px 24px 120px 24px' : '14px 10px 110px 10px');
+        if(!pg)return;
+        setImp(pg,'width','100%');
+        setImp(pg,'max-width','none');
+        setImp(pg,'min-height','auto');
+        setImp(pg,'margin','0');
+        setImp(pg,'box-sizing','border-box');
+        setImp(pg,'overflow','visible');
+        setImp(pg,'padding',isDesk?'16px 20px 110px 20px':'14px 10px 110px 10px');
       });
     }catch(e){}
   }
 
-  function resetMainScroll(){
-    try{ window.scrollTo(0,0); }catch(e){}
+  function afterRoute(p){
+    applyFinalLayout();
+    if(p==='taoPhieu'||p==='hoanThanhPhieu'||p==='danhSachPhieu') resetContentScroll();
+    setTimeout(function(){applyFinalLayout(); if(p==='taoPhieu'||p==='hoanThanhPhieu'||p==='danhSachPhieu') resetContentScroll();},30);
+    setTimeout(function(){applyFinalLayout();},180);
+    setTimeout(function(){applyFinalLayout();},600);
+  }
+
+  function enableEnterLogin(){
     try{
-      var c=document.querySelector('.content');
-      if(c) c.scrollTop=0;
+      ['lu','lp'].forEach(function(id){
+        var el=document.getElementById(id);
+        if(!el || el.__pv23EnterLogin)return;
+        el.__pv23EnterLogin=true;
+        el.addEventListener('keydown',function(ev){
+          if(ev.key==='Enter'){
+            ev.preventDefault();
+            if(typeof login==='function')login();
+          }
+        });
+      });
     }catch(e){}
   }
 
-  function afterRoute(){
-    applyPv22Layout();
-    setTimeout(applyPv22Layout,60);
-    setTimeout(applyPv22Layout,250);
-  }
-
-  var oldNav = window.nav;
-  if(typeof oldNav === 'function' && !oldNav.__pv22Wrapped){
-    var wrapped = function(p){
-      var ret = oldNav.apply(this, arguments);
-      afterRoute();
-      if(p === 'taoPhieu' || p === 'hoanThanhPhieu' || p === 'danhSachPhieu'){
-        setTimeout(resetMainScroll,20);
-      }
+  var oldNav=window.nav;
+  if(typeof oldNav==='function' && !oldNav.__pv23FinalWrapped){
+    var wrapped=function(p){
+      var ret=oldNav.apply(this,arguments);
+      afterRoute(p);
       return ret;
     };
-    wrapped.__pv22Wrapped = true;
-    window.nav = wrapped;
+    wrapped.__pv23FinalWrapped=true;
+    window.nav=wrapped;
   }
 
-  window.pv22ApplyFixedTopbarLayout = applyPv22Layout;
-
-  function boot(){
-    applyPv22Layout();
-    setTimeout(applyPv22Layout,100);
-    setTimeout(applyPv22Layout,500);
-    setTimeout(applyPv22Layout,1200);
-  }
-
-  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
-  else boot();
-  window.addEventListener('resize', applyPv22Layout);
-  window.addEventListener('load', boot);
-  setInterval(function(){ if(window.CU) applyPv22Layout(); }, 2000);
+  window.pv23ApplyFinalLayout=applyFinalLayout;
+  function boot(){ enableEnterLogin(); applyFinalLayout(); setTimeout(applyFinalLayout,120); setTimeout(applyFinalLayout,600); }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);else boot();
+  window.addEventListener('resize',function(){applyFinalLayout();});
+  window.addEventListener('load',boot);
+  setInterval(function(){enableEnterLogin(); if(window.CU)applyFinalLayout();},500);
 })();
 </script>
