@@ -272,7 +272,7 @@
     .pv16-machine-card{border:1px solid var(--bd);border-radius:12px;background:#fff;padding:10px;margin:8px 0;box-shadow:0 1px 3px rgba(0,0,0,.03)}
     .pv16-machine-head{display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:12px;font-weight:800;color:var(--g)}
     .pv16-grid{display:grid;grid-template-columns:1.2fr .8fr .8fr;gap:10px}.pv16-grid .full{grid-column:1/-1}
-    .pv16-table{width:100%;border-collapse:collapse;background:#fff;font-size:12px}.pv16-table th,.pv16-table td{border:1px solid var(--bd);padding:7px;vertical-align:middle}.pv16-table th{background:#e8f7f0;color:#083d24;font-weight:800}.pv16-table input,.pv16-table select{width:100%;border:1px solid var(--bd);border-radius:6px;padding:5px;font-size:12px}.pv16-locked-field{background:#f8fafc!important;color:#475569!important;cursor:not-allowed}.pv16-small{font-size:11px;color:var(--mu)}
+    .pv16-table{width:100%;border-collapse:collapse;background:#fff;font-size:12px}.pv16-table th,.pv16-table td{border:1px solid var(--bd);padding:7px;vertical-align:middle}.pv16-table th{background:#e8f7f0;color:#083d24;font-weight:800}.pv16-table input,.pv16-table select{width:100%;border:1px solid var(--bd);border-radius:6px;padding:5px;font-size:12px}.pv16-small{font-size:11px;color:var(--mu)}
     @media(max-width:800px){.pv16-grid{grid-template-columns:1fr}.pv16-table{min-width:900px}.pv16-scroll{overflow:auto}}
   `;
   document.head.appendChild(st);
@@ -344,9 +344,9 @@ const pv16OldRenderHistory=typeof pvBDSCRenderHistory==='function'?pvBDSCRenderH
 pvBDSCRenderHistory=function(){const root=document.getElementById('pvHistoryRoot');if(!root)return;document.querySelectorAll('.nitem').forEach(x=>x.classList.remove('on'));document.getElementById('ni-danhSachPhieu')?.classList.add('on');pv16RenderListTable(root,pv16FilterExportList(_pvBDSCListCache||pvBDSCReadListCache_()||[]),'history');pvBDSCRefreshHistory_(true);}
 function pv16RenderCompletePage(){const root=document.getElementById('pvCompleteRoot');if(!root)return;document.querySelectorAll('.nitem').forEach(x=>x.classList.remove('on'));document.getElementById('ni-hoanThanhPhieu')?.classList.add('on');const list=(_pvBDSCListCache&&_pvBDSCListCache.length?_pvBDSCListCache:pvBDSCReadListCache_())||[];pv16RenderListTable(root,(list||[]).filter(r=>!pv16IsCompleted(r)),'complete');pvBDSCRefreshHistory_(true).then(l=>{if(curPage==='hoanThanhPhieu')pv16RenderListTable(root,(l||[]).filter(r=>!pv16IsCompleted(r)),'complete')});}
 async function pv16OpenComplete(id){const root=document.getElementById('pvCompleteRoot');if(!root)return;root.innerHTML='<div class="card">Đang mở phiếu...</div>';try{const d=await pvApi('getPhieuDetail',{maPhieu:id});pv16RenderCompleteForm(root,d.phieu,d.items||[])}catch(e){root.innerHTML='<div class="card pv-error">'+pvEsc(e.message)+'</div>';}}
-function pv16RenderCompleteForm(root,phieu,items){const dt=new Date();dt.setMinutes(dt.getMinutes()-dt.getTimezoneOffset());root.innerHTML=`<div class="card"><div class="cb" style="display:flex;justify-content:space-between;gap:8px"><div><b>Hoàn thành phiếu: ${pvEsc(phieu.maPhieu)}</b><div class="pv16-small">${pvEsc(phieu.danhSachMaMay||phieu.maMay)} · ${pvEsc(phieu.danhSachTenTrai||phieu.tenTrai)}</div></div><button class="btn sm" onclick="pv16RenderCompletePage()">← Quay lại</button></div><div class="fgrid fg2"><div class="iw"><div class="il">Ngày giờ nhập kho *</div><input class="inp" type="datetime-local" id="pv16_ngayNhap" value="${dt.toISOString().slice(0,16)}"></div><div class="iw"><div class="il">Người nhập kho *</div><input class="inp" id="pv16_nguoiNhap" value="${pvEsc(phieu.nguoiNhapKho||'')}" placeholder="Gõ tên người nhập kho..."></div></div><div class="pv16-scroll" style="margin-top:12px"><table class="pv16-table" id="pv16_complete_table"><thead><tr><th style="width:42px">STT</th><th>Hạng mục vật tư</th><th style="width:90px">SL xuất kho</th><th style="width:90px">SL sử dụng</th><th style="width:90px">SL nhập kho</th><th style="width:120px">Tình trạng nhập</th><th style="width:160px">Ghi chú</th><th style="width:95px">Loại vật tư</th></tr></thead><tbody>${(items||[]).map((x,i)=>pv16CompleteRowHTML(x,i)).join('')}</tbody></table></div><div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn bg-a sm" onclick="pv16AddCompleteRow()">➕ Thêm vật tư phát sinh</button><button class="btn bg-g" onclick="pv16SubmitComplete('${pvJs(phieu.maPhieu)}')">✅ Lưu hoàn thành</button></div></div>`;}
-function pv16CompleteRowHTML(x,i){const sx=x.soLuongXuatKho||x.soLuongCan||'';const locked=!(x&&x._new===true);const lockTitle='Đã chọn khi tạo phiếu nên không được chỉnh sửa';const lockInput=locked?` readonly class="pv16-locked-field" title="${lockTitle}"`:'';const lockSelect=locked?` disabled class="pv16-locked-field" title="${lockTitle}"`:'';return `<tr><td style="text-align:center">${i+1}</td><td><input value="${pvEsc(x.tenVatTu||'')}" data-k="tenVatTu"${lockInput}><input type="hidden" data-k="nguonVatTu" value="${pvEsc(x.nguonVatTu||'')}"><input type="hidden" data-k="cumLinhKien" value="${pvEsc(x.cumLinhKien||'')}"><input type="hidden" data-k="maVatTu" value="${pvEsc(x.maVatTu||'')}"><input type="hidden" data-k="donViTinh" value="${pvEsc(x.donViTinh||'')}"></td><td><input type="number" min="0" value="${pvEsc(String(sx))}" data-k="soLuongXuatKho"${lockInput}></td><td><input type="number" min="0" value="${pvEsc(String(x.soLuongSuDung||''))}" data-k="soLuongSuDung"></td><td><input type="number" min="0" value="${pvEsc(String(x.soLuongNhapKho||''))}" data-k="soLuongNhapKho"></td><td><select data-k="tinhTrangNhapKho">${['','Mới','Cũ','Tốt','Hỏng'].map(s=>`<option ${s===(x.tinhTrangNhapKho||'')?'selected':''}>${s}</option>`).join('')}</select></td><td><input value="${pvEsc(x.ghiChu||'')}" data-k="ghiChu"></td><td><select data-k="loaiDong"${lockSelect}><option ${String(x.loaiDong||'Chuẩn bị')==='Chuẩn bị'?'selected':''}>Chuẩn bị</option><option ${String(x.loaiDong||'')==='Phát sinh'?'selected':''}>Phát sinh</option></select></td></tr>`;}
-function pv16AddCompleteRow(){const tb=document.querySelector('#pv16_complete_table tbody');if(!tb)return;const i=tb.children.length;tb.insertAdjacentHTML('beforeend',pv16CompleteRowHTML({loaiDong:'Phát sinh',_new:true},i));}
+function pv16RenderCompleteForm(root,phieu,items){const dt=new Date();dt.setMinutes(dt.getMinutes()-dt.getTimezoneOffset());root.innerHTML=`<div class="card"><div class="cb" style="display:flex;justify-content:space-between;gap:8px"><div><b>Hoàn thành phiếu: ${pvEsc(phieu.maPhieu)}</b><div class="pv16-small">${pvEsc(phieu.danhSachMaMay||phieu.maMay)} · ${pvEsc(phieu.danhSachTenTrai||phieu.tenTrai)}</div></div><button class="btn sm" onclick="pv16RenderCompletePage()">← Quay lại</button></div><div class="fgrid fg2"><div class="iw"><div class="il">Ngày giờ nhập kho *</div><input class="inp" type="datetime-local" id="pv16_ngayNhap" value="${dt.toISOString().slice(0,16)}"></div><div class="iw"><div class="il">Người nhập kho *</div><input class="inp" id="pv16_nguoiNhap" value="${pvEsc(phieu.nguoiNhapKho||'')}" placeholder="Gõ tên người nhập kho..."></div></div><div class="pv16-scroll" style="margin-top:12px"><table class="pv16-table" id="pv16_complete_table"><thead><tr><th style="width:42px">STT</th><th>Hạng mục vật tư</th><th style="width:90px">SL xuất kho</th><th style="width:90px">SL sử dụng</th><th style="width:90px">SL nhập kho</th><th style="width:120px">Tình trạng nhập</th><th style="width:160px">Ghi chú</th><th style="width:80px">Loại</th></tr></thead><tbody>${(items||[]).map((x,i)=>pv16CompleteRowHTML(x,i)).join('')}</tbody></table></div><div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn bg-a sm" onclick="pv16AddCompleteRow()">➕ Thêm vật tư phát sinh</button><button class="btn bg-g" onclick="pv16SubmitComplete('${pvJs(phieu.maPhieu)}')">✅ Lưu hoàn thành</button></div></div>`;}
+function pv16CompleteRowHTML(x,i){const sx=x.soLuongXuatKho||x.soLuongCan||'';return `<tr><td style="text-align:center">${i+1}</td><td><input value="${pvEsc(x.tenVatTu||'')}" data-k="tenVatTu"><input type="hidden" data-k="nguonVatTu" value="${pvEsc(x.nguonVatTu||'')}"><input type="hidden" data-k="cumLinhKien" value="${pvEsc(x.cumLinhKien||'')}"><input type="hidden" data-k="maVatTu" value="${pvEsc(x.maVatTu||'')}"><input type="hidden" data-k="donViTinh" value="${pvEsc(x.donViTinh||'')}"></td><td><input type="number" min="0" value="${pvEsc(String(sx))}" data-k="soLuongXuatKho"></td><td><input type="number" min="0" value="${pvEsc(String(x.soLuongSuDung||''))}" data-k="soLuongSuDung"></td><td><input type="number" min="0" value="${pvEsc(String(x.soLuongNhapKho||''))}" data-k="soLuongNhapKho"></td><td><select data-k="tinhTrangNhapKho">${['','Mới','Cũ','Tốt','Hỏng'].map(s=>`<option ${s===(x.tinhTrangNhapKho||'')?'selected':''}>${s}</option>`).join('')}</select></td><td><input value="${pvEsc(x.ghiChu||'')}" data-k="ghiChu"></td><td><select data-k="loaiDong"><option ${String(x.loaiDong||'Chuẩn bị')==='Chuẩn bị'?'selected':''}>Chuẩn bị</option><option ${String(x.loaiDong||'')==='Phát sinh'?'selected':''}>Phát sinh</option></select></td></tr>`;}
+function pv16AddCompleteRow(){const tb=document.querySelector('#pv16_complete_table tbody');if(!tb)return;const i=tb.children.length;tb.insertAdjacentHTML('beforeend',pv16CompleteRowHTML({loaiDong:'Phát sinh'},i));}
 function pv16CollectCompleteItems(){return Array.from(document.querySelectorAll('#pv16_complete_table tbody tr')).map((tr,i)=>{const obj={stt:i+1};tr.querySelectorAll('[data-k]').forEach(el=>obj[el.dataset.k]=el.value);obj.soLuongCan=obj.soLuongXuatKho;return obj;}).filter(x=>String(x.tenVatTu||'').trim());}
 async function pv16SubmitComplete(maPhieu){const ngay=pvBDSCFmtDT(document.getElementById('pv16_ngayNhap')?.value||'');const nguoi=(document.getElementById('pv16_nguoiNhap')?.value||'').trim();if(!ngay)return toast('Thiếu ngày giờ nhập kho','err');if(!nguoi)return toast('Thiếu người nhập kho','err');const items=pv16CollectCompleteItems();if(!items.length)return toast('Chưa có vật tư','err');try{await pvApi('completePhieu',{maPhieu,payload:{ngayGioNhapKho:ngay,nguoiNhapKho:nguoi,items}});toast('✅ Đã hoàn thành phiếu','ok');await pvBDSCRefreshHistory_(true);pv16RenderCompletePage();}catch(e){toast('❌ '+e.message,'err');}}
 
@@ -9730,6 +9730,190 @@ nav=function(p){
       obj.tenVatTuGoc=String(obj.tenVatTu||'').trim();
       obj.loaiVatTu=String(obj.loaiVatTu||'').trim();
       obj.tenVatTu=payloadName(obj.tenVatTuGoc,obj.loaiVatTu);
+      obj.soLuongCan=obj.soLuongXuatKho;
+      return obj;
+    }).filter(function(x){return String(x.tenVatTuGoc||x.tenVatTu||'').trim();});
+  };
+  window.pv16CollectCompleteItems=window.pv17CollectCompleteItems;
+})();
+</script>
+<!-- V31 hotfix: Hoàn thiện phiếu - khóa chỉnh sửa tên/loại/SL xuất kho của vật tư đã xuất -->
+<style id="pv31-complete-readonly-style">
+  #pv18_complete_table .pv31-material-display,
+  #pv17_complete_table .pv31-material-display,
+  #pv16_complete_table .pv31-material-display{
+    display:flex;
+    flex-direction:column;
+    gap:4px;
+    min-width:0;
+    line-height:1.35;
+  }
+  #pv18_complete_table .pv31-material-name,
+  #pv17_complete_table .pv31-material-name,
+  #pv16_complete_table .pv31-material-name{
+    font-weight:700;
+    color:var(--s2);
+    word-break:break-word;
+  }
+  #pv18_complete_table .pv31-material-meta,
+  #pv17_complete_table .pv31-material-meta,
+  #pv16_complete_table .pv31-material-meta{
+    display:flex;
+    align-items:center;
+    gap:5px;
+    flex-wrap:wrap;
+    font-size:10px;
+    color:var(--mu);
+  }
+  #pv18_complete_table .pv31-type-pill,
+  #pv17_complete_table .pv31-type-pill,
+  #pv16_complete_table .pv31-type-pill,
+  #pv18_complete_table .pv31-line-pill,
+  #pv17_complete_table .pv31-line-pill,
+  #pv16_complete_table .pv31-line-pill{
+    display:inline-flex;
+    align-items:center;
+    border-radius:999px;
+    padding:2px 7px;
+    font-size:10px;
+    font-weight:700;
+    white-space:nowrap;
+  }
+  #pv18_complete_table .pv31-type-pill,
+  #pv17_complete_table .pv31-type-pill,
+  #pv16_complete_table .pv31-type-pill{
+    background:#e8f7f0;
+    color:var(--g);
+    border:1px solid #a7f3d0;
+  }
+  #pv18_complete_table .pv31-line-pill,
+  #pv17_complete_table .pv31-line-pill,
+  #pv16_complete_table .pv31-line-pill{
+    background:#f8fafc;
+    color:var(--s3);
+    border:1px solid var(--bd);
+  }
+  #pv18_complete_table .pv31-qty-display,
+  #pv17_complete_table .pv31-qty-display,
+  #pv16_complete_table .pv31-qty-display{
+    min-height:32px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    border:1.5px solid var(--bd);
+    border-radius:8px;
+    background:#f8fafc;
+    color:var(--s2);
+    font-weight:800;
+    font-family:var(--mono);
+    padding:6px 8px;
+  }
+  #pv18_complete_table tr[data-pv31-readonly="1"] td:nth-child(2),
+  #pv17_complete_table tr[data-pv31-readonly="1"] td:nth-child(2),
+  #pv16_complete_table tr[data-pv31-readonly="1"] td:nth-child(2),
+  #pv18_complete_table tr[data-pv31-readonly="1"] td:nth-child(3),
+  #pv17_complete_table tr[data-pv31-readonly="1"] td:nth-child(3),
+  #pv16_complete_table tr[data-pv31-readonly="1"] td:nth-child(3),
+  #pv18_complete_table tr[data-pv31-readonly="1"] td:nth-child(8),
+  #pv17_complete_table tr[data-pv31-readonly="1"] td:nth-child(8),
+  #pv16_complete_table tr[data-pv31-readonly="1"] td:nth-child(8){
+    background:#fbfdff;
+  }
+</style>
+<script id="pv31-complete-readonly-js">
+(function(){
+  if(window.__pv31CompleteReadonly)return;
+  window.__pv31CompleteReadonly=true;
+
+  function esc(s){
+    if(typeof pvEsc==='function')return pvEsc(s);
+    return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});
+  }
+  function norm(s){
+    if(typeof pvNorm==='function')return pvNorm(s);
+    return String(s==null?'':s).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
+  }
+  function hidden(k,v){return '<input type="hidden" data-k="'+esc(k)+'" value="'+esc(v||'')+'">';}
+  function firstValue(obj,keys){
+    obj=obj||{};
+    for(var i=0;i<keys.length;i++){
+      var v=obj[keys[i]];
+      if(v!=null && String(v).trim())return String(v).trim();
+    }
+    return '';
+  }
+  function buildPayloadName(base,loai){
+    base=String(base||'').trim(); loai=String(loai||'').trim();
+    if(!base)return '';
+    if(!loai)return base;
+    var nb=norm(base), nl=norm(loai);
+    if(nb===nl || nb.endsWith(' - '+nl) || nb.endsWith(' / '+nl) || nb.endsWith(' '+nl))return base;
+    return base+' - '+loai;
+  }
+  function splitDisplay(x){
+    x=x||{};
+    var loai=firstValue(x,['loaiVatTu','Loại vật tư','Loai vat tu','loai','Loại']);
+    var name=String(x.tenVatTuGoc||x.tenVatTu||x['Tên vật tư']||'').trim();
+    if(loai && name){
+      var n=norm(name), l=norm(loai);
+      if(n.endsWith(' - '+l) || n.endsWith(' / '+l)){
+        name=name.replace(new RegExp('\\s*[-/]\\s*'+loai.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'\\s*$','i'),'').trim();
+      }
+    }
+    return {name:name,loai:loai};
+  }
+  function readonlyCompleteRowHTML(x,i){
+    x=x||{};
+    var d=splitDisplay(x);
+    var name=d.name||String(x.tenVatTu||'').trim();
+    var loai=d.loai||'';
+    var sx=String(x.soLuongXuatKho||x.soLuongCan||'').trim();
+    var loaiDong=String(x.loaiDong||'Chuẩn bị').trim()||'Chuẩn bị';
+    var cum=String(x.cumLinhKien||'').trim();
+    var ma=String(x.maVatTu||'').trim();
+    var dvt=String(x.donViTinh||'').trim();
+    var meta=[];
+    if(cum)meta.push('<span>'+esc(cum)+'</span>');
+    if(ma)meta.push('<span>Mã: '+esc(ma)+'</span>');
+    if(dvt)meta.push('<span>ĐVT: '+esc(dvt)+'</span>');
+    var material='<div class="pv31-material-display"><div class="pv31-material-name">'+esc(name||'-')+'</div>'+
+      '<div class="pv31-material-meta">'+(loai?'<span class="pv31-type-pill">Loại: '+esc(loai)+'</span>':'')+meta.join('')+'</div></div>'+
+      hidden('tenVatTu',name)+hidden('tenVatTuGoc',name)+hidden('loaiVatTu',loai)+hidden('nguonVatTu',x.nguonVatTu||'')+
+      hidden('cumLinhKien',cum)+hidden('maVatTu',ma)+hidden('donViTinh',dvt);
+    return '<tr data-pv31-readonly="1"><td style="text-align:center">'+(i+1)+'</td>'+
+      '<td>'+material+'</td>'+
+      '<td><div class="pv31-qty-display">'+esc(sx||'0')+'</div>'+hidden('soLuongXuatKho',sx)+'</td>'+
+      '<td><input type="number" min="0" value="'+esc(String(x.soLuongSuDung||''))+'" data-k="soLuongSuDung"></td>'+
+      '<td><input type="number" min="0" value="'+esc(String(x.soLuongNhapKho||''))+'" data-k="soLuongNhapKho"></td>'+
+      '<td><select data-k="tinhTrangNhapKho">'+['','Mới','Cũ','Tốt','Hỏng'].map(function(s){return '<option '+(s===(x.tinhTrangNhapKho||'')?'selected':'')+'>'+s+'</option>';}).join('')+'</select></td>'+
+      '<td><input value="'+esc(x.ghiChu||'')+'" data-k="ghiChu"></td>'+
+      '<td><span class="pv31-line-pill">'+esc(loaiDong)+'</span>'+hidden('loaiDong',loaiDong)+'</td></tr>';
+  }
+
+  var oldAdd17=window.pv17AddCompleteRow;
+  var oldAdd16=window.pv16AddCompleteRow;
+
+  window.pv17CompleteRowHTML=readonlyCompleteRowHTML;
+  window.pv16CompleteRowHTML=readonlyCompleteRowHTML;
+
+  window.pv17AddCompleteRow=function(){
+    if(typeof oldAdd17==='function')return oldAdd17.apply(this,arguments);
+    var tb=document.querySelector('#pv18_complete_table tbody,#pv17_complete_table tbody,#pv16_complete_table tbody');
+    if(!tb)return;
+    tb.insertAdjacentHTML('beforeend','<tr><td style="text-align:center">'+(tb.children.length+1)+'</td><td><input data-k="tenVatTu" placeholder="Tên vật tư phát sinh"><input type="hidden" data-k="nguonVatTu" value="Phát sinh"><input type="hidden" data-k="cumLinhKien" value=""><input type="hidden" data-k="maVatTu" value=""><input type="hidden" data-k="donViTinh" value=""><input data-k="loaiVatTu" placeholder="Loại nếu có" style="margin-top:5px"></td><td><input type="number" min="0" data-k="soLuongXuatKho"></td><td><input type="number" min="0" data-k="soLuongSuDung"></td><td><input type="number" min="0" data-k="soLuongNhapKho"></td><td><select data-k="tinhTrangNhapKho"><option></option><option>Mới</option><option>Cũ</option><option>Tốt</option><option>Hỏng</option></select></td><td><input data-k="ghiChu"></td><td><span class="pv31-line-pill">Phát sinh</span><input type="hidden" data-k="loaiDong" value="Phát sinh"></td></tr>');
+  };
+  window.pv16AddCompleteRow=function(){
+    if(typeof oldAdd16==='function' && oldAdd16!==oldAdd17)return oldAdd16.apply(this,arguments);
+    return window.pv17AddCompleteRow.apply(this,arguments);
+  };
+
+  window.pv17CollectCompleteItems=function(){
+    return Array.from(document.querySelectorAll('#pv18_complete_table tbody tr,#pv17_complete_table tbody tr,#pv16_complete_table tbody tr')).map(function(tr,i){
+      var obj={stt:i+1};
+      tr.querySelectorAll('[data-k]').forEach(function(el){obj[el.dataset.k]=el.value;});
+      obj.tenVatTuGoc=String(obj.tenVatTuGoc||obj.tenVatTu||'').trim();
+      obj.loaiVatTu=String(obj.loaiVatTu||'').trim();
+      obj.tenVatTu=buildPayloadName(obj.tenVatTuGoc||obj.tenVatTu,obj.loaiVatTu);
       obj.soLuongCan=obj.soLuongXuatKho;
       return obj;
     }).filter(function(x){return String(x.tenVatTuGoc||x.tenVatTu||'').trim();});
