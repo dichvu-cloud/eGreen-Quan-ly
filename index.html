@@ -169,8 +169,8 @@
       v15WriteJson(V15_PV_APP_CACHE_KEY, PV.data);
       if (curPage === 'taoPhieu' && document.getElementById('pvb_formWrap')) {
         if (typeof pvBDSCRenderVatTuSearch === 'function') pvBDSCRenderVatTuSearch();
-        if (selected.length === 0 && typeof pvBDSCAddFixed === 'function') {
-          pvBDSCAddFixed();
+        if (typeof pvBDSCAddFixed === 'function') {
+          pvBDSCAddFixed(); // Luôn add fixed sau mỗi sync để không bỏ sót
           if (typeof pvBDSCRenderSelected === 'function') pvBDSCRenderSelected();
         }
       }
@@ -1169,8 +1169,11 @@ tbody tr{border-bottom:1px solid #f1f5f9;transition:.1s}tbody tr:hover{backgroun
         <div class="prbtn" id="lc-sort-btn-warn" onclick="lcSetSort('warn',this)">&#x26A0;&#xFE0F; Cần chú ý trước</div>
         <div class="prbtn" id="lc-sort-btn-avg" onclick="lcSetSort('avg',this)">&#x23F1; TB giờ/lần thấp nhất</div>
         <div class="prbtn" id="lc-sort-btn-name" onclick="lcSetSort('name',this)">&#x1F524; Tên A→Z</div>
-        <div style="margin-left:auto;display:flex;gap:6px">
-          <button class="btn bg-b sm" onclick="pullSheet5().then(()=>renderLifecycle())">&#x1F504; Tải dữ liệu mới</button>
+        <div style="margin-left:auto;display:flex;gap:6px;align-items:center">
+          <span id="lc-hours-status" style="font-size:10px;color:var(--mu)"></span>
+          <button class="btn bg-b sm" onclick="pullSheet5().then(()=>renderLifecycle())">&#x1F504; Tải BC mới</button>
+          <button class="btn sm" style="background:#fffbeb;border-color:#fde68a;color:#d97706;font-size:10px"
+            onclick="fetchCurrentMachineHours(true).then(()=>renderLifecycle())" title="Cập nhật giờ đồng hồ máy từ bảng theo dõi vận hành">⏱ Cập nhật giờ máy</button>
           <button class="btn bg-g sm" onclick="lcExportXLSX()">&#x1F4E5; Xuất Excel</button>
         </div>
       </div>
@@ -4552,6 +4555,91 @@ function lcSetSort(s, el) {
 // Định mức TB = trung bình tất cả tuổi thọ thu thập được trên mọi máy
 // ═══════════════════════════════════════════════════════════════
 
+// ══════════════════════════════════════════════════════════════
+// GIỜ HIỆN TẠI MÁY — Fetch từ Google Sheet riêng
+// Sheet: 1WEp0EiSTTGmRxGZWz7zMgsyvyyQ5TNkevkr6ql5kxXs
+// Tab: "Theo dõi hoạt động bảo dưỡng"
+// Cột C = Mã máy, Cột H = Số giờ chạy hiện tại
+// ══════════════════════════════════════════════════════════════
+const LC_HOURS_SHEET_ID = '1WEp0EiSTTGmRxGZWz7zMgsyvyyQ5TNkevkr6ql5kxXs';
+const LC_HOURS_SHEET_TAB = 'Theo dõi hoạt động bảo dưỡng';
+
+// Cache: {maMay: gioHienTai (số giờ)}
+let _lcCurrentHoursCache = {};
+let _lcCurrentHoursLastFetch = 0;
+let _lcCurrentHoursFetching = false;
+
+async function fetchCurrentMachineHours(forceRefresh = false) {
+  const now = Date.now();
+  // Cache 5 phút
+  if (!forceRefresh && now - _lcCurrentHoursLastFetch < 5 * 60 * 1000 && Object.keys(_lcCurrentHoursCache).length > 0) {
+    return _lcCurrentHoursCache;
+  }
+  if (_lcCurrentHoursFetching) return _lcCurrentHoursCache;
+  _lcCurrentHoursFetching = true;
+  try {
+    const tabEncoded = encodeURIComponent(LC_HOURS_SHEET_TAB);
+    const url = `https://docs.google.com/spreadsheets/d/${LC_HOURS_SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${tabEncoded}`;
+    const resp = await fetch(url);
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const csv = await resp.text();
+    _lcCurrentHoursCache = parseCurrentHoursCSV(csv);
+    _lcCurrentHoursLastFetch = Date.now();
+    console.log('[LC] Giờ hiện tại máy:', Object.keys(_lcCurrentHoursCache).length, 'máy');
+  } catch(e) {
+    console.warn('[LC] Không fetch được giờ hiện tại:', e.message);
+  } finally {
+    _lcCurrentHoursFetching = false;
+  }
+  return _lcCurrentHoursCache;
+}
+
+function parseCurrentHoursCSV(csv) {
+  // Parse CSV đơn giản — Google Sheets gviz CSV
+  const lines = csv.split('\n').map(l => l.trim()).filter(Boolean);
+  const result = {};
+  // Tìm header row chứa "TÊN, MÃ" hoặc "Mã máy" ở cột C (index 2)
+  // Dữ liệu: hàng 4 = header (index 3), từ hàng 5 trở đi = data (index 4+)
+  // Nhưng gviz CSV không giữ số hàng, nên tìm hàng có "STT" hoặc số ở cột A
+  let dataStart = 0;
+  for (let i = 0; i < Math.min(lines.length, 10); i++) {
+    const cells = parseCSVLine(lines[i]);
+    const colA = String(cells[0] || '').trim().toLowerCase();
+    if (colA === 'stt' || colA === '1') { dataStart = colA === 'stt' ? i + 1 : i; break; }
+  }
+  for (let i = dataStart; i < lines.length; i++) {
+    const cells = parseCSVLine(lines[i]);
+    const maMay = String(cells[2] || '').trim(); // Cột C (index 2)
+    const gioRaw = String(cells[7] || '').trim(); // Cột H (index 7)
+    if (!maMay || !gioRaw) continue;
+    const gio = parseDurationToHours(gioRaw);
+    if (maMay && gio > 0) {
+      result[maMay] = gio;
+    }
+  }
+  return result;
+}
+
+function parseCSVLine(line) {
+  // Xử lý CSV có dấu ngoặc kép
+  const result = [];
+  let current = '';
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (ch === '"') {
+      if (inQuotes && line[i+1] === '"') { current += '"'; i++; }
+      else inQuotes = !inQuotes;
+    } else if (ch === ',' && !inQuotes) {
+      result.push(current); current = '';
+    } else {
+      current += ch;
+    }
+  }
+  result.push(current);
+  return result;
+}
+
 // Build the core data structure from REPORTS
 function buildLifecycleData() {
   const list = REPORTS.filter(r => r.status !== 'draft');
@@ -4592,11 +4680,26 @@ function buildLifecycleData() {
     return null;
   }
 
-  // Lấy giờ đồng hồ MỚI NHẤT của từng máy (proxy "giờ hiện tại")
+  // Lấy giờ đồng hồ HIỆN TẠI của từng máy:
+  // Ưu tiên: cache từ Google Sheet riêng (fetch bởi fetchCurrentMachineHours)
+  // Fallback: max giờ trong các BC đã lưu (nếu chưa fetch được)
   const latestGioByMachine = {};
   Object.entries(machineTimeline).forEach(([mm, arr]) => {
-    const maxG = Math.max(...arr.map(t => t.gio).filter(g => g > 0), 0);
-    latestGioByMachine[mm] = maxG;
+    const fromSheet = _lcCurrentHoursCache[mm] || 0;
+    const fromBC = Math.max(...arr.map(t => t.gio).filter(g => g > 0), 0);
+    latestGioByMachine[mm] = fromSheet > 0 ? fromSheet : fromBC;
+  });
+  // Thêm các máy có trong cache sheet nhưng chưa có BC nào
+  Object.entries(_lcCurrentHoursCache).forEach(([mm, gio]) => {
+    if (!latestGioByMachine[mm]) latestGioByMachine[mm] = gio;
+  });
+  // Flag reset: máy nào có latestGio < lastGio của BC gần nhất
+  const machineResetFlag = {};
+  Object.entries(machineTimeline).forEach(([mm, arr]) => {
+    const lastBC = arr.filter(t => t.gio > 0).pop();
+    if (lastBC && latestGioByMachine[mm] > 0 && latestGioByMachine[mm] < lastBC.gio) {
+      machineResetFlag[mm] = true;
+    }
   });
 
   // ── Bước 2: Thu thập sự kiện thay thế và tính tuổi thọ từng lần ──
@@ -4680,8 +4783,9 @@ function buildLifecycleData() {
 
     // Giờ đã dùng kể từ lần thay cuối = latestGio của máy đó - gio lần thay cuối
     const machLatest = latestGioByMachine[lastMaMay] || 0;
+    const isReset = machineResetFlag[lastMaMay] || false;
     let hoursUsed = null;
-    if (lastGio > 0 && machLatest >= lastGio) {
+    if (!isReset && lastGio > 0 && machLatest >= lastGio) {
       hoursUsed = Math.round(machLatest - lastGio);
     }
 
@@ -4691,7 +4795,10 @@ function buildLifecycleData() {
     // Warning level
     let warnLevel = 0;
     let warnMsg = '✅ Trong định mức';
-    if (pct !== null) {
+    if (isReset) {
+      warnLevel = 1;
+      warnMsg = '🔄 Đồng hồ đã reset';
+    } else if (pct !== null) {
       if (pct >= 100) { warnLevel = 2; warnMsg = '⛔ QUÁ HẠN — Cần thay ngay'; }
       else if (pct >= 80) { warnLevel = 1; warnMsg = '⚠️ Sắp đến hạn (>80%)'; }
     } else if (avgGio === null) {
@@ -4718,6 +4825,7 @@ function buildLifecycleData() {
       stdGio,
       cvPct,
       hoursUsed,
+      isReset,
       machLatest,
       pct,
       warnLevel,
@@ -4748,8 +4856,8 @@ function lcSelectFilter(type, val) {
   const inp=document.getElementById(type==='mm'?'lc-mm':'lc-vt');
   const list=document.getElementById(type==='mm'?'lc-mm-list':'lc-vt-list');
   if(inp) inp.value=val; if(list) list.style.display='none';
-  if(type==='mm'){const v=document.getElementById('lc-vt');if(v)v.value='';}
-  if(type==='vt'){const m=document.getElementById('lc-mm');if(m)m.value='';}
+  // 2 filter độc lập — không xóa nhau
+  // Có thể lọc đồng thời máy + vật tư
   renderLifecycle();
 }
 // Outlier detection: lifeHours deviating > 2sigma
@@ -4837,12 +4945,20 @@ function lcExportOutliersXLSX(){
   exportToXLSX(rows,'Bất thường',`${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}_BatThuong_VatTu.xlsx`);
 }
 function renderLifecycle() {
+  // Fetch giờ hiện tại máy từ Sheet riêng nếu chưa có
+  // Không block — render ngay với cache hiện tại, tự render lại khi fetch xong
+  if (Object.keys(_lcCurrentHoursCache).length === 0 && !_lcCurrentHoursFetching) {
+    fetchCurrentMachineHours().then(() => {
+      if (curPage === 'lifecycle') renderLifecycle();
+    }).catch(() => {});
+  }
   const data = buildLifecycleData();
   const lcMm = (document.getElementById('lc-mm') || {}).value || '';
   const lcVt = (document.getElementById('lc-vt') || {}).value || '';
   const normStr = s => String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\u0111/g,'d');
-  const isMachineMode = lcMm.length > 0;
-  const isPartMode = !isMachineMode && lcVt.length > 0;
+  const isMachineMode = lcMm.length > 0 && lcVt.length === 0;
+  const isPartMode = lcVt.length > 0 && lcMm.length === 0;
+  const isBothMode = lcMm.length > 0 && lcVt.length > 0;
 
   let filtered = data.filter(d => {
     if (lcVt && !normStr(d.name).includes(normStr(lcVt))) return false;
@@ -4862,7 +4978,7 @@ function renderLifecycle() {
   // ── KPI 2 hàng 3 cột ─────────────────────────────────────────
   const kpiEl = document.getElementById('lc-kpi');
   if (kpiEl) {
-    const scopeData = isMachineMode||isPartMode ? filtered : data;
+    const scopeData = isMachineMode||isPartMode||isBothMode ? filtered : data;
     const total=scopeData.length, withDef=scopeData.filter(d=>d.avgGio!==null).length;
     const critical=scopeData.filter(d=>d.warnLevel===2), warn=scopeData.filter(d=>d.warnLevel===1);
     const outlierCount=detectOutliers(scopeData).length;
@@ -4918,10 +5034,11 @@ function renderLifecycle() {
             <div style="font-size:10px;font-weight:600;color:${color};margin-top:2px">${label}</div>
           </div>`).join('')}
       </div>
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px">
         ${[
           {label:'⛔ Quá hạn — Thay ngay',val:critical.length,color:'#dc2626',bg:'#fef2f2',border:'#fca5a5',click:'onclick="_lcShowCritical()"'},
           {label:'⚠️ Sắp đến hạn thay',val:warn.length,color:'#d97706',bg:'#fffbeb',border:'#fde68a',click:'onclick="_lcShowWarn()"'},
+          {label:'🔄 Đồng hồ đã reset',val:data.filter(d=>d.isReset).length,color:'#0891b2',bg:'#ecfeff',border:'#a5f3fc',click:''},
           {label:'⚡ Điểm bất thường',val:outlierCount,color:'#7c3aed',bg:'#f5f3ff',border:'#c4b5fd',click:'onclick="showOutlierModal()"'},
         ].map(({label,val,color,bg,border,click})=>`
           <div style="background:${bg};border:1.5px solid ${border};border-radius:10px;padding:10px;text-align:center;cursor:pointer;transition:.15s"
@@ -4937,13 +5054,11 @@ function renderLifecycle() {
   const allPanel = document.getElementById('lc-charts-all');
   const mmPanel  = document.getElementById('lc-charts-machine');
   const ptPanel  = document.getElementById('lc-charts-part');
-  if (allPanel) allPanel.style.display = (!isMachineMode && !isPartMode) ? '' : 'none';
-  if (mmPanel)  mmPanel.style.display  = isMachineMode ? '' : 'none';
-  if (ptPanel)  ptPanel.style.display  = isPartMode    ? '' : 'none';
+  if (allPanel) allPanel.style.display = (!isMachineMode && !isPartMode && !isBothMode) ? '' : 'none';
+  if (mmPanel)  mmPanel.style.display  = (isMachineMode || isBothMode) ? '' : 'none';
+  if (ptPanel)  ptPanel.style.display  = isPartMode ? '' : 'none';
 
-  if (isMachineMode) {
-    // Find exact machine match from filtered data
-    const exactMm = filtered.length ? lcMm : lcMm;
+  if (isMachineMode || isBothMode) {
     renderMachineCharts(lcMm, filtered);
   } else if (isPartMode) {
     // Find exact part
@@ -4969,9 +5084,48 @@ function renderLifecycle() {
   // ── Count + table ─────────────────────────────────────────────
   const countEl = document.getElementById('lc-count');
   if (countEl) {
-    const ctx = isMachineMode ? ` · Máy: ${lcMm}` : isPartMode ? ` · Vật tư: ${lcVt}` : '';
+    const ctx = isBothMode ? ` · Máy: ${lcMm} · Vật tư: ${lcVt}` : isMachineMode ? ` · Máy: ${lcMm}` : isPartMode ? ` · Vật tư: ${lcVt}` : '';
     countEl.textContent = `${filtered.length}/${data.length} vật tư${ctx}`;
   }
+  // Banner filter
+  const bannerEl = document.getElementById('lc-filter-banner');
+  if (bannerEl) {
+    if (isBothMode) {
+      bannerEl.style.display = '';
+      bannerEl.innerHTML = `<span style="font-size:11px;color:#1e40af">📌 Máy: <strong>${lcMm}</strong> &nbsp;·&nbsp; Vật tư: <strong>${lcVt}</strong> &nbsp;
+        <button class="btn sm" style="font-size:9px;padding:1px 7px" onclick="document.getElementById('lc-mm').value='';renderLifecycle()">✕ Xoá lọc máy</button> &nbsp;
+        <button class="btn sm" style="font-size:9px;padding:1px 7px" onclick="document.getElementById('lc-vt').value='';renderLifecycle()">✕ Xoá lọc vật tư</button></span>`;
+    } else if (isMachineMode) {
+      bannerEl.style.display = '';
+      bannerEl.innerHTML = `<span style="font-size:11px;color:#1e40af">📌 Máy: <strong>${lcMm}</strong> &nbsp;
+        <button class="btn sm" style="font-size:9px;padding:1px 7px" onclick="document.getElementById('lc-mm').value='';renderLifecycle()">✕ Xoá lọc</button></span>`;
+    } else if (isPartMode) {
+      bannerEl.style.display = '';
+      bannerEl.innerHTML = `<span style="font-size:11px;color:#1e40af">📌 Vật tư: <strong>${lcVt}</strong> trên tất cả máy &nbsp;
+        <button class="btn sm" style="font-size:9px;padding:1px 7px" onclick="document.getElementById('lc-vt').value='';renderLifecycle()">✕ Xoá lọc</button></span>`;
+    } else {
+      bannerEl.style.display = 'none';
+    }
+  }
+
+  // Cập nhật indicator nguồn giờ hiện tại
+  const hoursStatus = document.getElementById('lc-hours-status');
+  if (hoursStatus) {
+    const nMachinesWithHours = Object.keys(_lcCurrentHoursCache).length;
+    if (nMachinesWithHours > 0) {
+      const lastFetch = _lcCurrentHoursLastFetch ? new Date(_lcCurrentHoursLastFetch) : null;
+      const timeStr = lastFetch ? `${lastFetch.getHours()}:${String(lastFetch.getMinutes()).padStart(2,'0')}` : '';
+      hoursStatus.innerHTML = `<span style="color:#16a34a">✅ Giờ máy: ${nMachinesWithHours} máy${timeStr?' · '+timeStr:''}</span>`;
+    } else if (_lcCurrentHoursFetching) {
+      hoursStatus.innerHTML = `<span style="color:#d97706">⏳ Đang tải giờ máy...</span>`;
+    } else {
+      hoursStatus.innerHTML = `<span style="color:#94a3b8">⚠️ Chưa có giờ hiện tại máy</span>`;
+    }
+  }
+  // Cập nhật KPI reset count
+  const resetCount = data.filter(d => d.isReset).length;
+  const resetKpi = document.getElementById('lc-kpi-reset');
+  if (resetKpi) resetKpi.textContent = resetCount;
   renderLifecycleTable(filtered);
   updateLifecycleBadge(data);
 }
@@ -4986,8 +5140,8 @@ function renderLifecycleTable(rows) {
     return;
   }
   tbody.innerHTML = rows.map((d, idx) => {
-    const barColor = d.warnLevel === 2 ? '#dc2626' : d.warnLevel === 1 ? '#d97706' : '#16a34a';
-    const badgeCls = d.warnLevel === 2 ? 'br' : d.warnLevel === 1 ? 'ba' : 'bg';
+    const barColor = d.warnLevel === 2 ? '#dc2626' : d.isReset ? '#0891b2' : d.warnLevel === 1 ? '#d97706' : '#16a34a';
+    const badgeCls = d.warnLevel === 2 ? 'br' : d.isReset ? 'bb' : d.warnLevel === 1 ? 'ba' : 'bg';
     const pctBar = d.pct !== null ? `
       <div style="font-size:10px;font-weight:700;color:${barColor};margin-bottom:2px">${d.pct}%</div>
       <div style="height:5px;background:#f1f5f9;border-radius:99px;overflow:hidden;width:70px">
@@ -5007,8 +5161,8 @@ function renderLifecycleTable(rows) {
       <td style="padding:7px 10px;text-align:center;font-family:var(--mono);font-size:12px;font-weight:700;color:${d.avgGio ? '#0d6e3f' : '#94a3b8'}">${d.avgGio !== null ? d.avgGio + 'h' : '—'}<div>${defLabel}</div></td>
       <td style="padding:7px 10px;text-align:center">${cvBadge}</td>
       <td style="padding:7px 10px;text-align:center;font-size:11px">${d.lastDate || '—'}<div style="font-size:9px;color:var(--mu)">${d.lastMaMay !== '__unknown__' ? d.lastMaMay : '—'}</div></td>
-      <td style="padding:7px 10px;text-align:center;font-size:11px;font-family:var(--mono)">${d.lastGio > 0 ? d.lastGio + 'h' : '—'}</td>
-      <td style="padding:7px 10px;text-align:center;font-size:11px;font-family:var(--mono)">${d.machLatest > 0 ? d.machLatest + 'h' : '—'}</td>
+      <td style="padding:7px 10px;text-align:center;font-size:11px;font-family:var(--mono)">${d.lastGio > 0 ? formatHoursToDuration(d.lastGio) : '—'}</td>
+      <td style="padding:7px 10px;text-align:center;font-size:11px;font-family:var(--mono)">${d.machLatest > 0 ? formatHoursToDuration(d.machLatest) : '—'}</td>
       <td style="padding:7px 10px;text-align:center;font-size:11px;font-family:var(--mono)">${d.hoursUsed !== null ? d.hoursUsed + 'h' : '—'}</td>
       <td style="padding:7px 10px;text-align:center">${pctBar}</td>
       <td style="padding:7px 10px"><span class="b ${badgeCls}" style="font-size:10px;white-space:nowrap">${d.warnMsg}</span></td>
@@ -6199,8 +6353,7 @@ async function syncReportGS(rep){
     p.pp||'',      // col18 PP Xử Lý
     ctxt(rep.cl),  // col19 Kết Luận
     rep.gc||'',    // col20 Ghi Chú
-    formatHoursToDuration(rep.soGioVanHanh)||'', // col21 Số Giờ Vận Hành (legacy alias)
-    formatHoursToDuration(rep.soGioVanHanh)||''  // col22 Số Giờ Đồng Hồ Máy
+    formatHoursToDuration(rep.soGioVanHanh)||''  // col21 Số Giờ ĐH Máy (cột V)
   ]);
   const d = await callGoogleAPI('write', {sheet:'5', rows});
   if(d&&d.ok){
@@ -6348,6 +6501,7 @@ async function pullSheet5(){
   if(C.pp===null)    C.pp    = C.ktv2!==null ? 18 : 17;
   if(C.cl===null)    C.cl    = C.ktv2!==null ? 19 : 18;
   if(C.gc===null)    C.gc    = C.ktv2!==null ? 20 : 19;
+  if(C.soGioVanHanh===null) C.soGioVanHanh = 21; // Col V = index 21
   console.log('[Sheet5] Detected columns:', C);
   checkSheet5Structure(C);
 
@@ -6594,6 +6748,13 @@ let _lastPollTime = 0;
 function startPolling(){
   if(_pollingStarted) return; // Tránh tạo nhiều interval khi login/logout
   _pollingStarted = true;
+
+  // Mỗi 10 phút: cập nhật giờ hiện tại máy từ Sheet riêng
+  setInterval(() => {
+    fetchCurrentMachineHours().then(() => {
+      if (curPage === 'lifecycle') renderLifecycle();
+    }).catch(() => {});
+  }, 10 * 60 * 1000);
 
   // Mỗi 30s: kéo TOÀN BỘ dữ liệu từ Sheet về (không push) — dùng Promise.all để chạy song song
   setInterval(async()=>{
@@ -7226,7 +7387,8 @@ function pvBDSCSyncInBackground_() {
       PV.data = Object.assign({}, PV.data || {}, d, { selected });
       PV.user = d.currentUser || PV.user;
       pvBDSCRefreshFastData_(false);
-      if (document.getElementById('pvb_formWrap') && selected.length === 0) {
+      if (document.getElementById('pvb_formWrap')) {
+        // Luôn add fixed sau sync kể cả khi selected có rồi (để không bỏ sót cố định mới load về)
         pvBDSCAddFixed();
         pvBDSCRenderVatTuSearch();
         pvBDSCRenderSelected();
@@ -10562,16 +10724,16 @@ nav=function(p){
 </style>
 <script id="v29-auth-state-guard-js">
 (function(){
+  // v29 exposeGlobal fixed: getter cũ dùng Function() tự gọi lại chính nó → stack overflow
+  // Fix: không dùng Object.defineProperty với getter đệ quy
+  // Chỉ đảm bảo window.X trỏ đúng biến global, không cần getter phức tạp
   function exposeGlobal(name){
     try{
-      Object.defineProperty(window, name, {
-        configurable:true,
-        get:function(){ return Function('return typeof '+name+'!=="undefined"?'+name+':undefined')(); },
-        set:function(v){ Function('v', name+'=v;')(v); }
-      });
-    }catch(e){
-      try{ window[name] = Function('return typeof '+name+'!=="undefined"?'+name+':undefined')(); }catch(_e){}
-    }
+      // Chỉ gán nếu chưa có hoặc là undefined
+      if(typeof window[name]==='undefined'){
+        try{ window[name]=undefined; }catch(_){}
+      }
+    }catch(e){}
   }
   ['CU','PV','USERS','curPage'].forEach(exposeGlobal);
 
