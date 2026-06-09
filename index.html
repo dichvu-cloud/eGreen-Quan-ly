@@ -864,9 +864,9 @@ tbody tr{border-bottom:1px solid #f1f5f9;transition:.1s}tbody tr:hover{backgroun
           <div class="iw"><div class="il">Tỉnh / Thành phố</div><input class="inp" id="rf-tinh" readonly placeholder="Tự động..."></div>
           <div class="iw"><div class="il">Trạng thái máy</div><input class="inp" id="rf-ts" readonly placeholder="Tự động..."></div>
           <div class="iw"><div class="il">⏱ Số giờ đồng hồ máy *</div>
-            <input class="inp" id="rf-soGioVanHanh" type="number" min="0" step="0.5" placeholder="VD: 12500 (giờ tổng từ khi lắp máy)"
-              oninput="onSoGioVanHanhInput(this)">
-            <div class="ih">Tổng số giờ máy đã chạy từ khi lắp đặt đến thời điểm BDSC này (đọc từ đồng hồ máy). Hệ thống dùng để tính tuổi thọ linh kiện = giờ lần này − giờ lần BDSC trước.</div>
+            <input class="inp" id="rf-soGioVanHanh" type="text" inputmode="numeric" placeholder="VD: 12500 hoặc 12500:30:00"
+              oninput="onSoGioVanHanhInput(this)" onblur="onSoGioVanHanhBlur(this)">
+            <div class="ih">Đọc từ đồng hồ vận hành trên máy — tổng giờ từ khi lắp đến thời điểm BDSC. Nhập số giờ (12500) hoặc định dạng HH:MM:SS (12500:30:00). Hệ thống tính tuổi thọ linh kiện = giờ lần này − giờ lần BDSC trước.</div>
           </div>
         </div>
       </div>
@@ -1934,6 +1934,49 @@ function hardReset(){
 }
 
 // ═══════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════
+// Giờ đồng hồ máy — Duration format HH:MM:SS (Google Sheets)
+//
+// Google Sheets "Thời lượng" lưu: HH:MM:SS (ví dụ: 2881:35:00)
+// Khi đọc về web qua getDisplayValues → string "2881:35:00"
+// Khi KTV nhập: có thể nhập 12500 (giờ đơn), hoặc 12500:30 (giờ:phút)
+//
+// parseDurationToHours(val) → số giờ thực (float)
+//   "2881:35:00" → 2881.583...
+//   "12500"      → 12500
+//   "12500:30"   → 12500.5
+//   2881.58      → 2881.58 (already number)
+//
+// formatHoursToDuration(h) → string "HHH:MM:SS" để ghi Sheet
+//   12500   → "12500:00:00"
+//   12500.5 → "12500:30:00"
+// ══════════════════════════════════════════════════════
+function parseDurationToHours(val) {
+  if (val === null || val === undefined || val === '') return 0;
+  // Already a number
+  if (typeof val === 'number') return val;
+  const s = String(val).trim();
+  if (!s) return 0;
+  // Format HH:MM:SS or HH:MM
+  const parts = s.split(':');
+  if (parts.length >= 2) {
+    const h = parseFloat(parts[0]) || 0;
+    const m = parseFloat(parts[1]) || 0;
+    const sec = parts[2] ? parseFloat(parts[2]) || 0 : 0;
+    return h + m / 60 + sec / 3600;
+  }
+  // Plain number string
+  return parseFloat(s) || 0;
+}
+
+function formatHoursToDuration(hours) {
+  if (!hours || isNaN(hours) || hours <= 0) return '';
+  const totalMinutes = Math.round(hours * 60);
+  const h = Math.floor(totalMinutes / 60);
+  const m = totalMinutes % 60;
+  return `${h}:${String(m).padStart(2, '0')}:00`;
+}
+
 // callGoogleAPI — Hàm DUY NHẤT gọi Apps Script
 // Dùng text/plain + redirect:follow để bypass CORS
 // ═══════════════════════════════════════════════════
@@ -2905,7 +2948,7 @@ function collectReport(){
     nkt:document.getElementById('rf-nkt')?.value||'',
     gkt:document.getElementById('rf-gkt')?.value||'',
     tg:document.getElementById('rf-tg')?.value||'',
-    soGioVanHanh:parseFloat(document.getElementById('rf-soGioVanHanh')?.value||'0')||0,
+    soGioVanHanh:parseDurationToHours(document.getElementById('rf-soGioVanHanh')?.value||'0'),
     phen,cl:curConclusion,gc:document.getElementById('rf-gc')?.value||'',
     status:'submitted',cat:new Date().toISOString()
   };
@@ -3082,7 +3125,7 @@ function viewRep(id){
           </div>
           ${r.soGioVanHanh>0?`<div>
             <div style="font-size:9px;color:#d97706;font-weight:700;margin-bottom:2px">⏱ Giờ đồng hồ máy</div>
-            <div style="font-size:12px;font-weight:700;color:#d97706">${r.soGioVanHanh}h</div>
+            <div style="font-size:12px;font-weight:700;color:#d97706">${r.soGioVanHanh > 0 ? formatHoursToDuration(r.soGioVanHanh) : '—'}</div>
           </div>`:''}
         </div>
       </div>
@@ -4522,7 +4565,7 @@ function buildLifecycleData() {
     if (!machineTimeline[mm]) machineTimeline[mm] = [];
     machineTimeline[mm].push({
       date: r.nd || r.cat || '',
-      gio: parseFloat(r.soGioVanHanh) || 0,
+      gio: parseDurationToHours(r.soGioVanHanh) || 0,
       repId: r.id,
       rep: r
     });
@@ -4560,7 +4603,7 @@ function buildLifecycleData() {
   const byPart = {};
 
   list.forEach(r => {
-    const curGio = parseFloat(r.soGioVanHanh) || 0;
+    const curGio = parseDurationToHours(r.soGioVanHanh) || 0;
     const maMay = r.maMay || '__unknown__';
     const prevGio = getPrevGio(maMay, r.id);
 
@@ -5255,9 +5298,19 @@ function lcExportXLSX() {
 
 function onSoGioVanHanhInput(inp) {
   if (!inp) return;
-  const v = parseFloat(inp.value);
+  const v = parseDurationToHours(inp.value);
   inp.style.borderColor = v > 0 ? 'var(--g)' : '';
   inp.style.background = v > 0 ? '#f0fdf4' : '';
+}
+function onSoGioVanHanhBlur(inp) {
+  if (!inp || !inp.value.trim()) return;
+  const v = parseDurationToHours(inp.value);
+  if (v > 0) {
+    // Hiển thị lại dưới dạng chuẩn HHH:MM:SS
+    inp.value = formatHoursToDuration(v);
+    inp.style.borderColor = 'var(--g)';
+    inp.style.background = '#f0fdf4';
+  }
 }
 
 // ═══ MACHINES ═══
@@ -6146,8 +6199,8 @@ async function syncReportGS(rep){
     p.pp||'',      // col18 PP Xử Lý
     ctxt(rep.cl),  // col19 Kết Luận
     rep.gc||'',    // col20 Ghi Chú
-    rep.soGioVanHanh||'', // col21 Số Giờ Vận Hành (legacy alias)
-    rep.soGioVanHanh||''  // col22 Số Giờ Đồng Hồ Máy
+    formatHoursToDuration(rep.soGioVanHanh)||'', // col21 Số Giờ Vận Hành (legacy alias)
+    formatHoursToDuration(rep.soGioVanHanh)||''  // col22 Số Giờ Đồng Hồ Máy
   ]);
   const d = await callGoogleAPI('write', {sheet:'5', rows});
   if(d&&d.ok){
@@ -6377,7 +6430,7 @@ async function pullSheet5(){
         note:C.noteExtra!==null?String(r[C.noteExtra]||'').trim():'',
         linkPdf:C.linkPdf!==null?String(r[C.linkPdf]||'').trim():'',
         linkWord:C.linkWord!==null?String(r[C.linkWord]||'').trim():'',
-        soGioVanHanh:C.soGioVanHanh!==null?parseFloat(String(r[C.soGioVanHanh]||'').trim())||0:0,
+        soGioVanHanh:C.soGioVanHanh!==null?parseDurationToHours(String(r[C.soGioVanHanh]||'').trim()):0,
         status:'submitted', cat:new Date().toISOString(),
         phen:[]
       };
