@@ -19491,3 +19491,261 @@ window.v43SubmitXuat=async function(mp){
 })();
 </script>
 
+
+<!-- V725 - BDSC mobile PDF/Word export + responsive material pages patch -->
+<style id="v725-bdsc-mobile-export-responsive">
+/* V725: đồng bộ khung trang vật tư với Nhập báo cáo mới / Nhật ký BDSC */
+#pg-taoPhieu,
+#pg-danhSachPhieu,
+#pg-xuatVatTu,
+#pg-hoanThanhPhieu{
+  width:100% !important;
+  max-width:none !important;
+  min-width:0 !important;
+  margin:0 !important;
+  padding:16px 20px 96px 20px !important;
+  box-sizing:border-box !important;
+  overflow-x:hidden !important;
+  position:relative !important;
+  left:0 !important;
+  right:auto !important;
+  transform:none !important;
+}
+#pg-taoPhieu.on,
+#pg-danhSachPhieu.on,
+#pg-xuatVatTu.on,
+#pg-hoanThanhPhieu.on{display:block !important;}
+#pvFormRoot,
+#pvHistoryRoot,
+#pvXuatRoot,
+#pvCompleteRoot,
+#pvb_formWrap{
+  width:100% !important;
+  max-width:none !important;
+  min-width:0 !important;
+  margin:0 !important;
+  box-sizing:border-box !important;
+}
+#pg-taoPhieu .card,
+#pg-danhSachPhieu .card,
+#pg-xuatVatTu .card,
+#pg-hoanThanhPhieu .card,
+#pg-taoPhieu .fsec,
+#pg-danhSachPhieu .fsec,
+#pg-xuatVatTu .fsec,
+#pg-hoanThanhPhieu .fsec{
+  width:100% !important;
+  max-width:100% !important;
+  min-width:0 !important;
+  box-sizing:border-box !important;
+}
+#pg-taoPhieu .tw,
+#pg-danhSachPhieu .tw,
+#pg-xuatVatTu .tw,
+#pg-hoanThanhPhieu .tw,
+#pg-taoPhieu .tblwrap,
+#pg-danhSachPhieu .tblwrap,
+#pg-xuatVatTu .tblwrap,
+#pg-hoanThanhPhieu .tblwrap,
+#pg-taoPhieu .pv-table-wrap,
+#pg-danhSachPhieu .pv-table-wrap,
+#pg-xuatVatTu .pv-table-wrap,
+#pg-hoanThanhPhieu .pv-table-wrap,
+#pg-taoPhieu .pv68-table-wrap,
+#pg-danhSachPhieu .pv68-table-wrap,
+#pg-xuatVatTu .pv68-table-wrap,
+#pg-hoanThanhPhieu .pv68-table-wrap,
+#pg-taoPhieu .pv69-wrap,
+#pg-danhSachPhieu .pv69-wrap,
+#pg-xuatVatTu .pv69-wrap,
+#pg-hoanThanhPhieu .pv69-wrap{
+  width:100% !important;
+  max-width:100% !important;
+  min-width:0 !important;
+  overflow-x:auto !important;
+  -webkit-overflow-scrolling:touch !important;
+  box-sizing:border-box !important;
+}
+/* KPI/card grid của các trang vật tư: giống module BDSC, không tạo khoảng trắng làm co nội dung */
+#pg-taoPhieu .v53-kpis,
+#pg-danhSachPhieu .v53-kpis,
+#pg-xuatVatTu .v53-kpis,
+#pg-hoanThanhPhieu .v53-kpis,
+#pg-taoPhieu .v59-kpis,
+#pg-danhSachPhieu .v59-kpis,
+#pg-xuatVatTu .v59-kpis,
+#pg-hoanThanhPhieu .v59-kpis,
+#pg-taoPhieu .v65-kpis,
+#pg-danhSachPhieu .v65-kpis,
+#pg-xuatVatTu .v65-kpis,
+#pg-hoanThanhPhieu .v65-kpis{
+  display:grid !important;
+  grid-template-columns:repeat(auto-fit,minmax(180px,1fr)) !important;
+  gap:10px !important;
+  width:100% !important;
+  max-width:100% !important;
+}
+@media(max-width:768px){
+  html,body,#app,.layout,.content{width:100% !important;max-width:100vw !important;overflow-x:hidden !important;}
+  .content{padding:0 !important;margin:0 !important;}
+  #pg-taoPhieu,
+  #pg-danhSachPhieu,
+  #pg-xuatVatTu,
+  #pg-hoanThanhPhieu{
+    width:100vw !important;
+    max-width:100vw !important;
+    margin-left:0 !important;
+    margin-right:0 !important;
+    padding:10px 8px 96px 8px !important;
+    overflow-x:hidden !important;
+  }
+  #pvFormRoot,
+  #pvHistoryRoot,
+  #pvXuatRoot,
+  #pvCompleteRoot,
+  #pvb_formWrap{width:100% !important;max-width:100% !important;}
+  #pg-taoPhieu .ph,
+  #pg-danhSachPhieu .ph,
+  #pg-xuatVatTu .ph,
+  #pg-hoanThanhPhieu .ph{margin:0 0 10px 0 !important;padding:0 !important;}
+  #pg-taoPhieu .card,
+  #pg-danhSachPhieu .card,
+  #pg-xuatVatTu .card,
+  #pg-hoanThanhPhieu .card{border-radius:14px !important;margin-bottom:10px !important;}
+  #pg-taoPhieu .cb,
+  #pg-danhSachPhieu .cb,
+  #pg-xuatVatTu .cb,
+  #pg-hoanThanhPhieu .cb{padding:11px 10px !important;}
+  #pg-taoPhieu .ch,
+  #pg-danhSachPhieu .ch,
+  #pg-xuatVatTu .ch,
+  #pg-hoanThanhPhieu .ch{padding:10px !important;}
+  #pg-taoPhieu .v53-kpis,
+  #pg-danhSachPhieu .v53-kpis,
+  #pg-xuatVatTu .v53-kpis,
+  #pg-hoanThanhPhieu .v53-kpis,
+  #pg-taoPhieu .v59-kpis,
+  #pg-danhSachPhieu .v59-kpis,
+  #pg-xuatVatTu .v59-kpis,
+  #pg-hoanThanhPhieu .v59-kpis,
+  #pg-taoPhieu .v65-kpis,
+  #pg-danhSachPhieu .v65-kpis,
+  #pg-xuatVatTu .v65-kpis,
+  #pg-hoanThanhPhieu .v65-kpis{
+    grid-template-columns:repeat(2,minmax(0,1fr)) !important;
+  }
+  #pg-taoPhieu table,
+  #pg-danhSachPhieu table,
+  #pg-xuatVatTu table,
+  #pg-hoanThanhPhieu table{max-width:none !important;}
+}
+</style>
+<script id="v725-bdsc-mobile-export-responsive-js">
+(function(){
+  function toast725(msg,type){
+    try{ if(typeof toast==='function') return toast(msg,type||'info'); }catch(e){}
+    try{ console.log(msg); }catch(e){}
+  }
+  function esc725(s){return String(s||'').replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+  function sanitize725(s){return String(s||'BDSC').replace(/[\\/:*?"<>|]/g,'').replace(/\s+/g,'_').slice(0,120);}
+  function isMobile725(){return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent||'') || window.innerWidth<=768;}
+
+  function buildBDSCHtml725(id){
+    return new Promise(function(resolve,reject){
+      if(typeof exportWord!=='function') return reject(new Error('Thiếu hàm exportWord để dựng phiếu.'));
+      var done=false;
+      var oldCb=window._bdscPreviewCallback;
+      window._bdscPreviewCallback=function(html,fname,rep){
+        done=true;
+        window._bdscPreviewCallback=oldCb||null;
+        resolve({html:html,fname:fname||sanitize725(id),rep:rep||{},reportId:id});
+      };
+      try{ exportWord(id,'preview'); }
+      catch(e){ window._bdscPreviewCallback=oldCb||null; reject(e); return; }
+      setTimeout(function(){
+        if(!done){
+          window._bdscPreviewCallback=oldCb||null;
+          reject(new Error('Không dựng được nội dung phiếu để xuất file.'));
+        }
+      },12000);
+    });
+  }
+
+  function wordDoc725(html){
+    var styleMatch=String(html||'').match(/<style[^>]*>([\s\S]*?)<\/style>/i);
+    var bodyMatch=String(html||'').match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+    var css=styleMatch?styleMatch[1]:'';
+    var body=bodyMatch?bodyMatch[1]:String(html||'').replace(/^[\s\S]*<body[^>]*>/i,'').replace(/<\/body>[\s\S]*$/i,'');
+    css=css.replace(/@media\s+print\s*\{[\s\S]*?\}\s*\}/g,'');
+    return '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="UTF-8"><meta name="ProgId" content="Word.Document"><meta name="Generator" content="Microsoft Word"><style>@page Section1{size:21cm 29.7cm;margin:3cm 1.5cm 2cm 3cm;mso-paper-source:0;}div.Section1{page:Section1;}'+css+' body{font-family:"Times New Roman",Times,serif;font-size:12pt;color:#000;} table{border-collapse:collapse;}</style></head><body><div class="Section1">'+body+'</div></body></html>';
+  }
+
+  async function saveOrFallback725(html,fname,type,reportId){
+    var safeName=sanitize725(fname||reportId||'BDSC');
+    if(typeof saveBDSCFileToDrive==='function' && window.GS_URL){
+      var useHtml=type==='word'?wordDoc725(html):String(html||'').replace('</style>','@page{size:A4 portrait;margin:3cm 1.5cm 2cm 3cm}@media print{*{-webkit-print-color-adjust:exact;print-color-adjust:exact}}</style>');
+      return await saveBDSCFileToDrive(useHtml,safeName,type,reportId);
+    }
+    if(type==='word'){
+      var blob=new Blob(['\ufeff'+wordDoc725(html)],{type:'application/msword'});
+      var a=document.createElement('a');
+      a.href=URL.createObjectURL(blob); a.download=safeName+'.doc'; document.body.appendChild(a); a.click();
+      setTimeout(function(){URL.revokeObjectURL(a.href);a.remove();},800);
+      return true;
+    }
+    var w=window.open('','_blank');
+    if(!w) throw new Error('Trình duyệt chặn cửa sổ xuất PDF. Hãy cho phép popup.');
+    w.document.open(); w.document.write(String(html||'').replace(/<title>[^<]*<\/title>/i,'<title>'+esc725(safeName)+'</title>')); w.document.close();
+    setTimeout(function(){try{w.focus();w.print();}catch(e){}},600);
+    return true;
+  }
+
+  // V725: không dùng iframe ẩn để print PDF nữa, vì iOS/Safari có thể in nhầm toàn bộ trang app.
+  window.exportRepPdf=async function(id){
+    try{
+      if(!id) return toast725('❌ Thiếu mã phiếu','err');
+      toast725('⏳ Đang tạo PDF từ đúng mẫu phiếu...','info');
+      var b=await buildBDSCHtml725(id);
+      await saveOrFallback725(b.html,b.fname,'pdf',id);
+    }catch(e){console.error('[V725 exportRepPdf]',e);toast725('❌ Không tạo được PDF: '+(e.message||e),'err');}
+  };
+  window.exportRepWord=async function(id){
+    try{
+      if(!id) return toast725('❌ Thiếu mã phiếu','err');
+      toast725('⏳ Đang tạo Word từ đúng mẫu phiếu...','info');
+      var b=await buildBDSCHtml725(id);
+      await saveOrFallback725(b.html,b.fname,'word',id);
+    }catch(e){console.error('[V725 exportRepWord]',e);toast725('❌ Không tạo được Word: '+(e.message||e),'err');}
+  };
+
+  function applyPageFrame725(){
+    try{
+      ['pg-taoPhieu','pg-danhSachPhieu','pg-xuatVatTu','pg-hoanThanhPhieu'].forEach(function(id){
+        var el=document.getElementById(id); if(!el)return;
+        el.style.setProperty('width',isMobile725()?'100vw':'100%','important');
+        el.style.setProperty('max-width',isMobile725()?'100vw':'none','important');
+        el.style.setProperty('margin','0','important');
+        el.style.setProperty('left','0','important');
+        el.style.setProperty('transform','none','important');
+        el.style.setProperty('box-sizing','border-box','important');
+        el.style.setProperty('padding',isMobile725()?'10px 8px 96px 8px':'16px 20px 96px 20px','important');
+      });
+      ['pvFormRoot','pvHistoryRoot','pvXuatRoot','pvCompleteRoot','pvb_formWrap'].forEach(function(id){
+        var el=document.getElementById(id); if(!el)return;
+        el.style.setProperty('width','100%','important');
+        el.style.setProperty('max-width','none','important');
+        el.style.setProperty('min-width','0','important');
+        el.style.setProperty('margin','0','important');
+      });
+    }catch(e){console.warn('[V725 page frame]',e);}
+  }
+  var oldNav725=window.nav;
+  if(typeof oldNav725==='function'){
+    window.nav=function(){var r=oldNav725.apply(this,arguments);setTimeout(applyPageFrame725,80);setTimeout(applyPageFrame725,500);return r;};
+  }
+  if(document.readyState==='complete') setTimeout(applyPageFrame725,300);
+  else window.addEventListener('load',function(){setTimeout(applyPageFrame725,300);});
+  window.addEventListener('resize',function(){setTimeout(applyPageFrame725,150);});
+  window.__v725ApplyPageFrame=applyPageFrame725;
+})();
+</script>
