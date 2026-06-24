@@ -22276,3 +22276,104 @@ console.log('[V76] Loaded — buttons fixed, cursor preserved via MutationObserv
 
 })();
 </script>
+
+
+<!-- ════════════════════════════════════════════════════════════════════
+     V76.1 PATCH — Final consolidation (audit cleanup)
+     Audit phát hiện 1 vài chỗ có thể tinh chỉnh để tránh race condition:
+     1. V75 setTimeout(renderRepList) chạy lúc boot — có thể trước khi V76
+        wrap. V76 MutationObserver bắt được nhưng chậm 1 tick. Bổ sung
+        post-process ngay lập tức sau setTimeout đó.
+     2. V75's guardRenderV75 lưu `base` tại wrap time → khi deferred render
+        firing, bypass V76 wrap. Đảm bảo deferred call vẫn qua window.X.
+     3. Thêm 1 lớp bảo vệ cuối cùng: mỗi 5s check & re-patch buttons nếu
+        có nút "Yêu cầu quyền" lọt qua.
+═════════════════════════════════════════════════════════════════════ -->
+<script id="v76-1-final-script">
+(function(){
+'use strict';
+
+// 1. Patch V75's guardRenderV75 deferred call để đi qua window function
+//    (đảm bảo V76 wrap được call thay vì bypass)
+function patchV75DeferredCall(){
+  try{
+    // V75 setIntervals đã apply guards. Mỗi guard có .__orig.
+    // Khi deferred check fires và goi base.apply(), nó goi base (V74-wrapped)
+    // không qua V76. Để fix, chúng ta ép user thấy đúng buttons qua MO.
+    // → Đã có setupRepListObserver. Đảm bảo nó được attach.
+    var tbody = document.getElementById('repBody');
+    if(tbody && !tbody.__v76Observed){
+      tbody.__v76Observed = true;
+      new MutationObserver(function(){
+        if(typeof window.patchRepListButtons76 === 'function'){
+          window.patchRepListButtons76();
+        }else{
+          // Inline fallback nếu function gone
+          patchButtonsInline();
+        }
+      }).observe(tbody, { childList: true });
+    }
+  }catch(e){console.warn('[v76.1 patchDeferred]', e);}
+}
+
+// 2. Inline button patcher — backup nếu V76's function bị mất
+function patchButtonsInline(){
+  try{
+    var tbody = document.getElementById('repBody');
+    if(!tbody || !window.REPORTS) return;
+    var rows = tbody.querySelectorAll('tr');
+    rows.forEach(function(tr){
+      var idEl = tr.querySelector('td:first-child .mm');
+      if(!idEl) return;
+      var id = idEl.textContent.trim();
+      var r = window.REPORTS.find(function(x){return x.id === id;});
+      if(!r) return;
+      var canEd = false;
+      try{
+        if(window.CU && window.CU.role === 'admin') canEd = true;
+        else if(window.CU && String(window.CU.name||'').toLowerCase() === String(r.ktvbc||'').toLowerCase()) canEd = true;
+      }catch(e){}
+      tr.querySelectorAll('button').forEach(function(btn){
+        var oc = btn.getAttribute('onclick') || '';
+        if(oc.indexOf("toast('Chỉnh sửa") >= 0 || oc.indexOf('reqPerm(') >= 0){
+          if(canEd){
+            btn.setAttribute('onclick', "editRep('" + id + "')");
+            btn.setAttribute('title', 'Sửa phiếu');
+            btn.classList.remove('bg-gr','disabled');
+            if(!btn.classList.contains('bg-b')) btn.classList.add('bg-b');
+            btn.innerHTML = '✏️';
+            btn.style.display = '';
+          } else {
+            btn.style.display = 'none';
+          }
+        }
+      });
+    });
+  }catch(e){console.warn('[v76.1 patchInline]', e);}
+}
+
+// 3. Initial application + safety net
+[100, 400, 1000, 2500, 5000].forEach(function(ms){
+  setTimeout(function(){
+    patchV75DeferredCall();
+    patchButtonsInline();
+  }, ms);
+});
+
+// 4. Background safety net — mỗi 8s check 1 lần (không quá tần suất)
+setInterval(function(){
+  try{
+    var tbody = document.getElementById('repBody');
+    if(!tbody) return;
+    // Chỉ chạy nếu phát hiện nút lỗi còn sót lại
+    var hasIssue = tbody.querySelector('button[onclick*="toast(\'Chỉnh sửa"], button[onclick^="reqPerm"]');
+    if(hasIssue){
+      patchButtonsInline();
+    }
+  }catch(e){}
+}, 8000);
+
+console.log('[V76.1] Final consolidation loaded — backup patcher active.');
+
+})();
+</script>
