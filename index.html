@@ -22377,3 +22377,305 @@ console.log('[V76.1] Final consolidation loaded — backup patcher active.');
 
 })();
 </script>
+
+
+<!-- ════════════════════════════════════════════════════════════════════
+     V77 PATCH — FORCE OVERRIDE & SYNC CURSOR PROTECTION
+     V76 chỉ post-process button onclick sau render → nếu V76 chạy chậm
+     hoặc bị bypass thì user vẫn click vào nút cũ → toast giả.
+     V76 cursor restore dùng requestAnimationFrame → cursor jump > 32ms
+     vẫn cảm nhận được.
+
+     V77 giải quyết tận gốc:
+     1. THAY THẾ HOÀN TOÀN renderRepList (hard override) → không còn
+        toast button bao giờ. Code mới dùng editRep trực tiếp.
+     2. Force render lại ngay sau khi override (3 lần để bắt mọi timing).
+     3. Cursor protection SYNC (không RAF) — restore ngay khi DOM mutate.
+     4. Capture state mỗi keystroke với value/selStart/selEnd.
+     5. Multiple restore strategies (id → itemId+dataK → placeholder
+        → first input in row).
+═════════════════════════════════════════════════════════════════════ -->
+<script id="v77-patch-script">
+(function(){
+'use strict';
+
+console.log('[V77] Initializing FORCE OVERRIDE...');
+
+function _esc77(s){return String(s==null?'':s).replace(/[&<>"']/g,function(m){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m];});}
+function _jsEsc77(s){return String(s==null?'':s).replace(/\\/g,'\\\\').replace(/'/g,"\\'");}
+
+/* ═══════════════════════════════════════════════════════════════
+   FIX 1: THAY THẾ HOÀN TOÀN renderRepList
+═══════════════════════════════════════════════════════════════ */
+function _renderRepList_V77(){
+  try{
+    var srch = document.getElementById('repSrch');
+    var q = (srch?(srch.value||''):'').toLowerCase();
+    var REPS = window.REPORTS || [];
+    var list = REPS.slice();
+    var repF = window.repFilter || 'all';
+
+    if(repF !== 'all'){
+      if(repF === 'draft') list = list.filter(function(r){return r.status==='draft';});
+      else list = list.filter(function(r){return r.cl===repF && r.status!=='draft';});
+    }
+    if(q) list = list.filter(function(r){
+      return (r.maMay||'').toLowerCase().indexOf(q)>=0 ||
+             (r.tt||'').toLowerCase().indexOf(q)>=0 ||
+             (r.ktv1||'').toLowerCase().indexOf(q)>=0 ||
+             (r.note||'').toLowerCase().indexOf(q)>=0;
+    });
+
+    var titleEl = document.getElementById('repTitle');
+    if(titleEl) titleEl.textContent = 'Nhật ký BDSC ('+list.length+'/'+REPS.length+')';
+
+    var body = document.getElementById('repBody');
+    if(!body) return;
+
+    var CU = window.CU || {};
+    var isAdmin = (CU.role === 'admin' || String(CU.role||'').toLowerCase() === 'admin');
+    var myName = String(CU.name||'').trim().toLowerCase();
+    var cbadgeFn = window.cbadge || function(c){return _esc77(c||'');};
+
+    function canEd(r){
+      if(isAdmin) return true;
+      var creator = String(r.ktvbc||'').trim().toLowerCase();
+      return !!(creator && myName && myName === creator);
+    }
+
+    var reversed = list.slice().reverse();
+    var rowsHTML = reversed.map(function(r){
+      var ce = canEd(r);
+      var rid = _jsEsc77(r.id||'');
+      return '<tr>'+
+        '<td><span class="mm">'+_esc77(r.id)+'</span></td>'+
+        '<td><span class="mm">'+_esc77(r.maMay)+'</span></td>'+
+        '<td style="font-size:11px;max-width:130px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis">'+_esc77(r.tt||'—')+'</td>'+
+        '<td><span class="b bmu">'+_esc77(r.dv||'—')+'</span></td>'+
+        '<td style="font-size:11px">'+_esc77(r.ktv1||'—')+'</td>'+
+        '<td style="font-size:11px;color:var(--mu)">'+_esc77(r.ktv2||'—')+'</td>'+
+        '<td style="font-size:11px;font-family:var(--mono)">'+_esc77(r.nd||'—')+'</td>'+
+        '<td style="font-size:11px">'+_esc77(r.tg||'—')+'</td>'+
+        '<td style="text-align:center"><span class="b bb">'+((r.phen||[]).length)+'</span></td>'+
+        '<td>'+cbadgeFn(r.cl)+'</td>'+
+        '<td style="font-size:10px;color:var(--mu)">'+_esc77(r.ktvbc||'—')+'</td>'+
+        '<td><div class="rep-actions">'+
+          '<button class="btn bg-gr sm" onclick="viewRep(\''+rid+'\')" title="Xem phiếu">👁</button>'+
+          (ce ? '<button class="btn bg-b sm" onclick="editRep(\''+rid+'\')" title="Sửa phiếu">✏️</button>' : '')+
+          '<button class="btn bg-a sm" onclick="exportRepPdf(\''+rid+'\')" title="Tải PDF về máy">📕 PDF</button>'+
+          '<button class="btn bg-p sm" onclick="exportRepWord(\''+rid+'\')" title="Tải Word về máy">📘 Word</button>'+
+          (ce ? '<button class="btn bg-r sm" onclick="delRep(\''+rid+'\')" title="Xóa phiếu">🗑</button>' : '')+
+        '</div></td>'+
+      '</tr>';
+    }).join('') || '<tr><td colspan="12" style="padding:30px;text-align:center;color:var(--mu)">Chưa có báo cáo</td></tr>';
+
+    body.innerHTML = rowsHTML;
+  }catch(e){
+    console.error('[V77 renderRepList]', e);
+  }
+}
+
+// HARD override — gán trực tiếp, không qua wrap nữa.
+// Đánh dấu __v77 để các code khác (V74, V75, V76) thấy và bỏ qua không wrap lại.
+function forceOverrideRenderRepList(){
+  try{
+    _renderRepList_V77.__v77 = true;
+    _renderRepList_V77.__v74 = true;       // chặn V74 wrap lại
+    _renderRepList_V77.__v75Guard = true;  // chặn V75 guard
+    _renderRepList_V77.__v76 = true;       // chặn V76 wrap
+    window.renderRepList = _renderRepList_V77;
+  }catch(e){console.warn('[v77 force override]', e);}
+}
+
+// Apply override nhiều lần để đè lên mọi wrap khác
+forceOverrideRenderRepList();
+[50, 150, 400, 1000, 2000, 4000, 8000, 15000].forEach(function(ms){
+  setTimeout(function(){
+    forceOverrideRenderRepList();
+    try{ _renderRepList_V77(); }catch(e){}
+  }, ms);
+});
+
+// Khi user chuyển page hoặc click filter chip, render lại
+var _oldSetRF = window.setRF;
+if(typeof _oldSetRF === 'function' && !_oldSetRF.__v77){
+  var wrapped = function(){
+    var r = _oldSetRF.apply(this, arguments);
+    setTimeout(_renderRepList_V77, 0);
+    return r;
+  };
+  wrapped.__v77 = true;
+  window.setRF = wrapped;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   FIX 2: SYNC Cursor Protection
+═══════════════════════════════════════════════════════════════ */
+var _v77LastFocus = null;
+var _v77RestoreInProgress = false;
+
+function _captureFocus77(e){
+  try{
+    if(_v77RestoreInProgress) return; // không capture trong lúc đang restore
+    var el = e ? e.target : document.activeElement;
+    if(!el || el === document.body || el === document.documentElement) return;
+    var tag = (el.tagName||'').toLowerCase();
+    if(tag !== 'input' && tag !== 'textarea' && !el.isContentEditable) return;
+    var t = (el.type||'').toLowerCase();
+    if(t === 'checkbox' || t === 'radio' || t === 'button' || t === 'submit' || t === 'file') return;
+
+    // Phải ở trong container động (form tạo phiếu)
+    var container = el.closest('#pvb_selectedItems, #phenCont, #pvFormRoot, .pv-form-container');
+    if(!container) return;
+
+    var row = el.closest('[data-id]');
+    var selStart = null, selEnd = null;
+    try{
+      if(typeof el.selectionStart === 'number'){
+        selStart = el.selectionStart;
+        selEnd = el.selectionEnd;
+      }
+    }catch(err){}
+
+    _v77LastFocus = {
+      id: el.id || '',
+      itemId: row ? (row.getAttribute('data-id') || '') : '',
+      dataK: el.getAttribute('data-k') || '',
+      placeholder: el.placeholder || '',
+      tagName: tag,
+      type: t,
+      value: el.value,
+      selStart: selStart,
+      selEnd: selEnd,
+      timestamp: Date.now()
+    };
+  }catch(err){}
+}
+
+// Listen ở nhiều event để bảo toàn state mới nhất
+['focusin','input','keyup','keydown','mouseup','select'].forEach(function(ev){
+  document.addEventListener(ev, _captureFocus77, true);
+});
+
+// Clear state khi user click ra ngoài container
+document.addEventListener('mousedown', function(e){
+  try{
+    if(!_v77LastFocus) return;
+    var target = e.target;
+    if(!target) return;
+    var inContainer = target.closest && target.closest('#pvb_selectedItems, #phenCont, #pvFormRoot, .pv-form-container');
+    if(!inContainer){
+      // Click ra ngoài → clear state để không restore lung tung
+      setTimeout(function(){
+        var ae = document.activeElement;
+        if(!ae || ae === document.body){ _v77LastFocus = null; }
+      }, 100);
+    }
+  }catch(err){}
+}, true);
+
+function _restoreFocus77(){
+  try{
+    var fp = _v77LastFocus;
+    if(!fp) return false;
+    // State quá cũ → clear
+    if(Date.now() - fp.timestamp > 60000){ // 60 giây
+      _v77LastFocus = null;
+      return false;
+    }
+
+    var ae = document.activeElement;
+    // Đang focus ở 1 input rồi (user đã focus chỗ khác) → không phá
+    if(ae && ae !== document.body && ae !== document.documentElement){
+      var aeTag = (ae.tagName||'').toLowerCase();
+      if(aeTag === 'input' || aeTag === 'textarea' || ae.isContentEditable){
+        // Check: nếu chính là element fp → đã ok, skip
+        // Nếu là element khác → user đã chuyển focus → không phá
+        return false;
+      }
+    }
+
+    var target = null;
+
+    // Strategy 1: by ID
+    if(fp.id){
+      target = document.getElementById(fp.id);
+    }
+
+    // Strategy 2: by itemId + dataK / placeholder / first input
+    if(!target && fp.itemId){
+      var rowSel = '[data-id="' + (window.CSS && CSS.escape ? CSS.escape(fp.itemId) : fp.itemId.replace(/"/g,'\\"')) + '"]';
+      var row = document.querySelector(rowSel);
+      if(row){
+        if(fp.dataK){
+          target = row.querySelector('[data-k="' + fp.dataK + '"]');
+        }
+        if(!target && fp.placeholder){
+          var inps = row.querySelectorAll('input, textarea');
+          for(var i=0; i<inps.length; i++){
+            if((inps[i].placeholder||'') === fp.placeholder){
+              target = inps[i];
+              break;
+            }
+          }
+        }
+        if(!target){
+          target = row.querySelector('input[type="text"], input:not([type]), textarea');
+        }
+      }
+    }
+
+    if(target && target !== ae){
+      _v77RestoreInProgress = true;
+      try{
+        // Restore value nếu bị mất
+        if(fp.value && !target.value){
+          target.value = fp.value;
+          // Trigger input event để các listener khác cập nhật state
+          try{ target.dispatchEvent(new Event('input', { bubbles: true })); }catch(e){}
+        }
+        target.focus({preventScroll: true});
+        if(fp.selStart != null && typeof target.setSelectionRange === 'function'){
+          try{
+            target.setSelectionRange(fp.selStart, fp.selEnd != null ? fp.selEnd : fp.selStart);
+          }catch(e){}
+        }
+      }finally{
+        // Release flag sau microtask
+        setTimeout(function(){ _v77RestoreInProgress = false; }, 0);
+      }
+      return true;
+    }
+  }catch(err){console.warn('[v77 restore]', err);}
+  return false;
+}
+
+// MutationObserver SYNC restore (không đợi RAF)
+function _setupContainerMO77(){
+  try{
+    var ids = ['pvb_selectedItems', 'phenCont', 'pvFormRoot', 'app'];
+    ids.forEach(function(id){
+      var el = document.getElementById(id);
+      if(!el || el.__v77MO) return;
+      el.__v77MO = true;
+      new MutationObserver(function(){
+        // Try restore ngay (sync)
+        _restoreFocus77();
+        // Plus delayed restore cho mutations chậm
+        setTimeout(_restoreFocus77, 0);
+        setTimeout(_restoreFocus77, 10);
+        setTimeout(_restoreFocus77, 30);
+        setTimeout(_restoreFocus77, 60);
+      }).observe(el, { childList: true, subtree: true });
+    });
+  }catch(err){console.warn('[v77 MO]', err);}
+}
+
+[80, 250, 600, 1500, 3000, 6000, 12000].forEach(function(ms){
+  setTimeout(_setupContainerMO77, ms);
+});
+
+console.log('[V77] FORCE OVERRIDE active. renderRepList replaced. Cursor sync-restore enabled.');
+
+})();
+</script>
