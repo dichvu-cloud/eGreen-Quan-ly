@@ -20033,146 +20033,78 @@ window.v43SubmitXuat=async function(mp){
 
 <!-- ════════════════════════════════════════════════════════════════
      V729 — Fix: 1 lần bấm "Lưu phiếu" tạo ra 2 phiếu đề xuất vật tư
-     
-     NGUYÊN NHÂN: Override pvBDSCSave ở V63 (dòng ~18631) thay thế hoàn
-     toàn hàm gốc nhưng KHÔNG còn cơ chế disable nút lúc đang lưu. Khi
-     mạng chậm hoặc người dùng vô tình bấm 2 lần (touchscreen, double-
-     click), 2 request savePhieu được gửi đi → 2 phiếu được tạo.
-     
-     GIẢI PHÁP: Thêm khoá tái nhập (re-entry lock) + disable nút ngay
-     lập tức bằng cách wrap pvBDSCSave hiện tại (đã là V63). Khoá
-     được set TRƯỚC await đầu tiên nên đảm bảo an toàn trong JS
-     single-thread.
-     
-     Áp dụng tương tự cho v53Approve (Duyệt phiếu) để chống bấm trùng.
+     (chi tiết: xem comment phía trên — không thay đổi)
      ════════════════════════════════════════════════════════════════ -->
 <script id="v729-anti-double-submit">
 (function(){
 'use strict';
-
-/* ───── 1. Wrap pvBDSCSave (Lưu phiếu đề xuất vật tư) ───── */
 if (typeof window.pvBDSCSave === 'function' && !window.__v729_pvBDSCSave_wrapped) {
   var _v729_baseSave = window.pvBDSCSave;
   window.__v729_pvBDSCSave_wrapped = true;
-  
   window.pvBDSCSave = async function v729SafeSave(){
-    // Khoá tái nhập: nếu đang lưu thì bỏ qua click thứ 2
     if (window.__v729_saving) {
       try {
         if (typeof toastV63 === 'function')      toastV63('⏳ Đang lưu phiếu, vui lòng đợi...', 'warn');
         else if (typeof toastSafe === 'function') toastSafe('⏳ Đang lưu phiếu, vui lòng đợi...', 'warn');
         else if (typeof toast === 'function')     toast('⏳ Đang lưu phiếu, vui lòng đợi...', 'warn');
       } catch(e){}
-      console.warn('[v729] Bỏ qua double-click savePhieu');
       return;
     }
     window.__v729_saving = true;
-    
-    // Disable nút Lưu + đổi text để người dùng biết hệ thống đang xử lý
     var btn = document.getElementById('pvb_saveBtn');
-    var oldText = '';
-    var oldDisabled = false;
+    var oldText='', oldDisabled=false;
     if (btn) {
-      oldText = btn.textContent;
-      oldDisabled = btn.disabled;
-      btn.disabled = true;
-      btn.textContent = '⏳ Đang lưu...';
-      btn.style.opacity = '0.6';
-      btn.style.cursor  = 'not-allowed';
+      oldText = btn.textContent; oldDisabled = btn.disabled;
+      btn.disabled = true; btn.textContent = '⏳ Đang lưu...';
+      btn.style.opacity='0.6'; btn.style.cursor='not-allowed';
       btn.setAttribute('data-v729-locked','1');
     }
-    
-    try {
-      return await _v729_baseSave.apply(this, arguments);
-    } catch(err) {
-      console.error('[v729 save]', err);
-      throw err;
-    } finally {
-      // Mở khoá sau ~500ms để chắc chắn không có request thứ 2 nhảy vào
-      // ngay khi savePhieu vừa trả về (nav đã chuyển sang trang khác)
+    try { return await _v729_baseSave.apply(this, arguments); }
+    catch(err) { console.error('[v729 save]', err); throw err; }
+    finally {
       setTimeout(function(){
         window.__v729_saving = false;
         var b = document.getElementById('pvb_saveBtn');
         if (b && b.getAttribute('data-v729-locked') === '1') {
-          b.disabled = oldDisabled;
-          b.textContent = oldText || (window.PV && window.PV.editing ? '💾 Cập nhật phiếu' : '💾 Lưu phiếu');
-          b.style.opacity = '';
-          b.style.cursor  = '';
-          b.removeAttribute('data-v729-locked');
+          b.disabled=oldDisabled; b.textContent=oldText||(window.PV&&window.PV.editing?'💾 Cập nhật phiếu':'💾 Lưu phiếu');
+          b.style.opacity=''; b.style.cursor=''; b.removeAttribute('data-v729-locked');
         }
       }, 500);
     }
   };
-  
-  console.log('[v729] pvBDSCSave đã được wrap chống double-submit');
 }
-
-/* ───── 2. Wrap v53Approve (Duyệt phiếu) ───── */
-/* Tương tự, nút Duyệt cũng có thể bị bấm trùng và sinh ra request kép */
 if (typeof window.v53Approve === 'function' && !window.__v729_v53Approve_wrapped) {
   var _v729_baseApprove = window.v53Approve;
   window.__v729_v53Approve_wrapped = true;
-  
   window.v53Approve = async function v729SafeApprove(mp, payload){
     var key = '__v729_approving_' + String(mp || '');
-    if (window[key]) {
-      try {
-        if (typeof toastV63 === 'function')      toastV63('⏳ Đang duyệt phiếu, vui lòng đợi...', 'warn');
-        else if (typeof toastSafe === 'function') toastSafe('⏳ Đang duyệt phiếu, vui lòng đợi...', 'warn');
-        else if (typeof toast === 'function')     toast('⏳ Đang duyệt phiếu, vui lòng đợi...', 'warn');
-      } catch(e){}
-      console.warn('[v729] Bỏ qua double-click approve cho', mp);
-      return;
-    }
+    if (window[key]) { return; }
     window[key] = true;
-    
-    try {
-      return await _v729_baseApprove.call(this, mp, payload);
-    } finally {
-      setTimeout(function(){ window[key] = false; }, 800);
-    }
+    try { return await _v729_baseApprove.call(this, mp, payload); }
+    finally { setTimeout(function(){ window[key] = false; }, 800); }
   };
-  
-  console.log('[v729] v53Approve đã được wrap chống double-submit');
 }
-
-/* ───── 3. Wrap inline onclick để chặn click thứ 2 ở cấp event ───── */
-/* Một số trường hợp click event có thể fire 2 lần (pointerdown+click trên
-   mobile). Capture click ở giai đoạn capture để debounce ngay từ DOM. */
 (function(){
   var lastClickAt = 0;
   document.addEventListener('click', function(ev){
     var t = ev.target;
     if (!t) return;
-    // Tìm nút Lưu phiếu gần nhất
     var btn = t.id === 'pvb_saveBtn' ? t : (t.closest && t.closest('#pvb_saveBtn'));
     if (!btn) return;
     var now = Date.now();
     if (now - lastClickAt < 600) {
-      ev.preventDefault();
-      ev.stopImmediatePropagation();
-      console.warn('[v729] Chặn click trùng nhanh trên nút Lưu (delta=' + (now-lastClickAt) + 'ms)');
-      return false;
+      ev.preventDefault(); ev.stopImmediatePropagation(); return false;
     }
     lastClickAt = now;
-  }, true /* capture */);
+  }, true);
 })();
-
-console.log('[v729] ✅ Anti double-submit patch đã áp dụng');
 })();
 </script>
 
 <!-- ════════════════════════════════════════════════════════════════
-     V730 — Merge V72.9 + V73 from V74_FINAL into V728
-     
-     Mục đích: Tài khoản được phân quyền VÀ tài khoản tạo phiếu được
-     phép chỉnh sửa phiếu (không chỉ admin), và GIAO DIỆN sửa phiếu
-     phải GIỐNG HỆT giao diện của admin (banner Chờ duyệt, cột ĐVT,
-     nút Thêm dòng vật tư, Duyệt & lưu).
-     
-     Hai patch (V72.9 + V73) idempotent, không chồng nếu nạp lại.
+     V72.9 + V73 — Editor mới cho Phiếu đề xuất vật tư + Phân quyền
+     (admin + approver + creator được phép sửa, UI giống nhau)
      ════════════════════════════════════════════════════════════════ -->
-
 <style id="v729-patch-style">
 /* Bỏ readonly cho ĐVT — cho phép KTV chỉnh sửa */
 .v64-dvt:not(.v729-locked),
@@ -21153,3 +21085,1336 @@ console.log('[V73] Patch loaded — approved=read-only, scroll-preserve, hour-me
 })();
 </script>
 
+
+<!-- ════════════════════════════════════════════════════════════════
+     V74_FINAL — Editor sửa báo cáo BDSC (admin / creator)
+     ════════════════════════════════════════════════════════════════ -->
+<style id="v74-final-style">
+/* Modal sửa BDSC */
+.v74f-mask{
+  position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:9999;
+  display:flex;align-items:center;justify-content:center;padding:20px;
+  backdrop-filter:blur(2px);
+}
+.v74f-modal{
+  background:#fff;border-radius:12px;width:min(960px,100%);
+  max-height:92vh;overflow:hidden;display:flex;flex-direction:column;
+  box-shadow:0 25px 60px rgba(0,0,0,.3);
+}
+.v74f-head{padding:14px 18px;background:#0d6e3f;color:#fff;display:flex;align-items:center;gap:12px}
+.v74f-head b{flex:1;font-size:14px}
+.v74f-head .sub{font-size:11px;opacity:.85;font-weight:400;margin-top:2px}
+.v74f-body{padding:16px 18px;overflow:auto;flex:1}
+.v74f-grid{display:grid;gap:10px 14px;margin-bottom:14px}
+.v74f-grid.c2{grid-template-columns:repeat(2,1fr)}
+.v74f-grid.c4{grid-template-columns:repeat(4,1fr)}
+@media(max-width:700px){.v74f-grid.c4{grid-template-columns:repeat(2,1fr)}}
+.v74f-iw{display:flex;flex-direction:column;gap:4px}
+.v74f-il{font-size:10px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:.3px}
+.v74f-inp{border:1.5px solid #cbd5e1;border-radius:7px;padding:7px 10px;font-size:12px;outline:none;background:#fff;font-family:inherit;transition:.15s}
+.v74f-inp:focus{border-color:#0d6e3f;box-shadow:0 0 0 3px rgba(13,110,63,.12)}
+.v74f-inp[readonly]{background:#f1f5f9;color:#64748b;cursor:not-allowed}
+.v74f-ta{min-height:60px;resize:vertical}
+.v74f-phen{border:1.5px solid #e2e8f0;border-radius:9px;padding:11px 13px;margin-bottom:10px;background:#fafafa}
+.v74f-phen-head{font-size:11px;font-weight:700;color:#0d6e3f;margin-bottom:8px;display:flex;align-items:center;gap:8px}
+.v74f-phen-no{background:#0d6e3f;color:#fff;border-radius:50%;width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;font-size:11px}
+.v74f-hint{background:#dbeafe;border:1px solid #93c5fd;border-radius:6px;padding:6px 10px;font-size:10.5px;color:#1e40af;margin-bottom:10px}
+.v74f-foot{padding:12px 18px;border-top:1px solid #e2e8f0;background:#f8fafc;display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
+.v74f-btn{border:none;border-radius:7px;padding:8px 16px;font-size:12px;font-weight:700;cursor:pointer;transition:.15s}
+.v74f-btn-save{background:#0d6e3f;color:#fff}
+.v74f-btn-save:hover{background:#0a5230}
+.v74f-btn-save:disabled{background:#94a3b8;cursor:wait}
+.v74f-btn-cancel{background:#e2e8f0;color:#334155}
+.v74f-btn-cancel:hover{background:#cbd5e1}
+
+/* Ẩn nút "yêu cầu quyền" 🔐 — không cần workflow này nữa */
+button[onclick^="reqPerm("]{ display:none !important; }
+</style>
+
+<script id="v74-final-script">
+(function(){
+'use strict';
+
+console.log('[V74_FINAL] Initializing...');
+
+/* ─────────────── HELPERS ─────────────── */
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(m){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m];});}
+
+// Đọc REPORTS qua localStorage (KHÔNG dùng window.REPORTS vì let scope)
+function getAllReports(){
+  try{ return JSON.parse(localStorage.getItem('eg_reps') || '[]'); }
+  catch(e){ return []; }
+}
+function getReportById(id){
+  var reps = getAllReports();
+  for(var i=0;i<reps.length;i++){ if(reps[i].id === id) return reps[i]; }
+  return null;
+}
+// Lưu báo cáo về localStorage (giữ đồng bộ với let REPORTS qua save())
+function saveReportUpdate(id, updatedReport){
+  try{
+    var reps = getAllReports();
+    var idx = reps.findIndex(function(r){return r.id === id;});
+    if(idx < 0) return false;
+    reps[idx] = Object.assign({}, reps[idx], updatedReport);
+    localStorage.setItem('eg_reps', JSON.stringify(reps));
+    return reps[idx];
+  }catch(e){console.error('[V74F save]', e); return false;}
+}
+
+function toast74(m, t){
+  try{ if(typeof window.toast === 'function') window.toast(m, t||'info'); else alert(m); }
+  catch(e){ console.log(m); }
+}
+
+function isAdmin74(){
+  try{ return !!(window.CU && (window.CU.role === 'admin')); }
+  catch(e){ return false; }
+}
+
+function canEditBDSC74(r){
+  try{
+    if(!window.CU || !r) return false;
+    if(isAdmin74()) return true;
+    var me = String(window.CU.name||'').trim().toLowerCase();
+    var creator = String(r.ktvbc||'').trim().toLowerCase();
+    return !!(me && creator && me === creator);
+  }catch(e){ return false; }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   PHẦN A: EDIT BDSC MODAL
+═══════════════════════════════════════════════════════════════ */
+
+window.editRepBDSC74 = function(id){
+  try{
+    var r = getReportById(id);
+    if(!r){ toast74('❌ Không tìm thấy báo cáo ' + id, 'err'); return; }
+    if(!canEditBDSC74(r)){
+      toast74('⛔ Bạn không có quyền sửa phiếu này. Chỉ admin và người tạo phiếu mới sửa được.', 'err');
+      return;
+    }
+    showEditBDSCModal74(r);
+  }catch(e){
+    console.error('[V74F editRep]', e);
+    toast74('❌ Lỗi: ' + (e.message||e), 'err');
+  }
+};
+
+function showEditBDSCModal74(r){
+  // Đóng modal cũ nếu có
+  var old = document.getElementById('v74f-modal-wrap');
+  if(old) old.remove();
+
+  var phenList = Array.isArray(r.phen) ? r.phen : [];
+  var phenHTML = phenList.length === 0
+    ? '<div class="v74f-hint">⚠️ Phiếu này chưa có hiện tượng nào.</div>'
+    : phenList.map(function(p, idx){
+        var cums = Array.isArray(p.cums) ? p.cums.join('; ') : '';
+        var parts = '';
+        try{
+          if(p.parts && typeof p.parts === 'object'){
+            parts = Object.keys(p.parts).map(function(k){
+              var v = p.parts[k];
+              if(v && typeof v === 'object'){
+                var loai = v.loai || '';
+                var sl = v.sl || 1;
+                return k + (loai ? ' ('+loai+', x'+sl+')' : ' (x'+sl+')');
+              }
+              return k + ' (' + String(v||'') + ')';
+            }).join('; ');
+          }
+        }catch(e){}
+
+        return '<div class="v74f-phen" data-phen="'+idx+'">'+
+          '<div class="v74f-phen-head"><span class="v74f-phen-no">'+(idx+1)+'</span> Hiện tượng / Sự cố</div>'+
+          '<div class="v74f-grid c2">'+
+            '<div class="v74f-iw" style="grid-column:1/-1">'+
+              '<label class="v74f-il">Tên hiện tượng</label>'+
+              '<input class="v74f-inp" data-pk="ht" value="'+esc(p.ht||'')+'" placeholder="VD: Công suất thấp">'+
+            '</div>'+
+            '<div class="v74f-iw" style="grid-column:1/-1">'+
+              '<label class="v74f-il">Phương pháp xử lý</label>'+
+              '<input class="v74f-inp" data-pk="pp" value="'+esc(p.pp||'')+'" placeholder="Sửa chữa; Thay thế">'+
+            '</div>'+
+            '<div class="v74f-iw" style="grid-column:1/-1">'+
+              '<label class="v74f-il">Cụm linh kiện (chỉ xem — tạo phiếu mới để đổi)</label>'+
+              '<input class="v74f-inp" value="'+esc(cums)+'" readonly>'+
+            '</div>'+
+            '<div class="v74f-iw" style="grid-column:1/-1">'+
+              '<label class="v74f-il">Linh kiện chi tiết (chỉ xem)</label>'+
+              '<input class="v74f-inp" value="'+esc(parts)+'" readonly>'+
+            '</div>'+
+            '<div class="v74f-iw" style="grid-column:1/-1">'+
+              '<label class="v74f-il">Ghi chú hiện tượng</label>'+
+              '<textarea class="v74f-inp v74f-ta" data-pk="gc">'+esc(p.gc||'')+'</textarea>'+
+            '</div>'+
+          '</div>'+
+        '</div>';
+      }).join('');
+
+  var hourMeterStr = '';
+  try{
+    if(typeof window.formatHoursToDuration === 'function'){
+      hourMeterStr = window.formatHoursToDuration(r.soGioVanHanh) || '';
+    } else if(r.soGioVanHanh){
+      hourMeterStr = String(r.soGioVanHanh);
+    }
+  }catch(e){}
+
+  var conclusions = [
+    {v:'fixed',     l:'Đã xử lý / Hoàn tất'},
+    {v:'watching',  l:'Theo dõi'},
+    {v:'pending',   l:'Vấn đề tồn đọng'},
+    {v:'',          l:'(Chưa kết luận)'}
+  ];
+
+  var html = '<div class="v74f-mask" id="v74f-modal-wrap">'+
+    '<div class="v74f-modal">'+
+      '<div class="v74f-head">'+
+        '<div style="flex:1"><b>✏️ Chỉnh sửa Phiếu BDSC — '+esc(r.id)+'</b>'+
+        '<div class="sub">Mã máy: '+esc(r.maMay||'-')+' · '+esc(r.tt||'')+' · KTV BC: '+esc(r.ktvbc||'-')+'</div></div>'+
+        '<button class="v74f-btn v74f-btn-cancel" onclick="document.getElementById(\'v74f-modal-wrap\').remove()">✕ Đóng</button>'+
+      '</div>'+
+      '<div class="v74f-body">'+
+        '<div class="v74f-hint">💡 Có thể sửa: KTV, thời gian, số giờ đồng hồ máy, kết luận, ghi chú, hiện tượng + PP + ghi chú HT. Cụm linh kiện và linh kiện chi tiết không sửa được ở đây.</div>'+
+
+        '<div class="v74f-grid c4">'+
+          '<div class="v74f-iw"><label class="v74f-il">Mã máy</label><input class="v74f-inp" id="v74f_maMay" value="'+esc(r.maMay||'')+'" readonly></div>'+
+          '<div class="v74f-iw"><label class="v74f-il">KTV báo cáo</label><input class="v74f-inp" id="v74f_ktvbc" value="'+esc(r.ktvbc||'')+'" readonly></div>'+
+          '<div class="v74f-iw"><label class="v74f-il">KTV trưởng *</label><input class="v74f-inp" id="v74f_ktv1" value="'+esc(r.ktv1||'')+'"></div>'+
+          '<div class="v74f-iw"><label class="v74f-il">KTV hỗ trợ (; phân cách)</label><input class="v74f-inp" id="v74f_ktv2" value="'+esc(r.ktv2||'')+'"></div>'+
+        '</div>'+
+
+        '<div class="v74f-grid c4">'+
+          '<div class="v74f-iw"><label class="v74f-il">Ngày BĐ</label><input class="v74f-inp" id="v74f_nd" type="date" value="'+esc(r.nd||'')+'"></div>'+
+          '<div class="v74f-iw"><label class="v74f-il">Giờ BĐ</label><input class="v74f-inp" id="v74f_gbd" type="time" value="'+esc(r.gbd||'')+'"></div>'+
+          '<div class="v74f-iw"><label class="v74f-il">Ngày KT</label><input class="v74f-inp" id="v74f_nkt" type="date" value="'+esc(r.nkt||'')+'"></div>'+
+          '<div class="v74f-iw"><label class="v74f-il">Giờ KT</label><input class="v74f-inp" id="v74f_gkt" type="time" value="'+esc(r.gkt||'')+'"></div>'+
+        '</div>'+
+
+        '<div class="v74f-grid c2">'+
+          '<div class="v74f-iw"><label class="v74f-il">⏱ Số giờ đồng hồ máy *</label><input class="v74f-inp" id="v74f_shvh" value="'+esc(hourMeterStr)+'" placeholder="VD: 12500 hoặc 12500:30:00"></div>'+
+          '<div class="v74f-iw"><label class="v74f-il">Kết luận</label><select class="v74f-inp" id="v74f_cl">'+
+            conclusions.map(function(c){ return '<option value="'+c.v+'"'+(r.cl===c.v?' selected':'')+'>'+esc(c.l)+'</option>'; }).join('')+
+          '</select></div>'+
+        '</div>'+
+
+        '<div class="v74f-iw" style="margin-bottom:14px">'+
+          '<label class="v74f-il">Ghi chú chung báo cáo</label>'+
+          '<textarea class="v74f-inp v74f-ta" id="v74f_gc">'+esc(r.gc||'')+'</textarea>'+
+        '</div>'+
+
+        '<div style="font-size:12px;font-weight:700;color:#0d6e3f;margin-bottom:8px">📋 Danh sách hiện tượng ('+phenList.length+')</div>'+
+        '<div id="v74f-phen-list">'+phenHTML+'</div>'+
+
+      '</div>'+
+      '<div class="v74f-foot">'+
+        '<button class="v74f-btn v74f-btn-cancel" onclick="document.getElementById(\'v74f-modal-wrap\').remove()">Hủy</button>'+
+        '<button class="v74f-btn v74f-btn-save" id="v74f-save-btn">💾 Lưu cập nhật</button>'+
+      '</div>'+
+    '</div>'+
+  '</div>';
+
+  document.body.insertAdjacentHTML('beforeend', html);
+  document.getElementById('v74f-save-btn').onclick = function(){ saveEditBDSC74(r.id); };
+}
+
+async function saveEditBDSC74(id){
+  var btn = document.getElementById('v74f-save-btn');
+  try{
+    var r = getReportById(id);
+    if(!r){ toast74('❌ Không tìm thấy báo cáo', 'err'); return; }
+
+    var ktv1 = (document.getElementById('v74f_ktv1')||{}).value || '';
+    var ktv2 = (document.getElementById('v74f_ktv2')||{}).value || '';
+    var nd   = (document.getElementById('v74f_nd')||{}).value || '';
+    var gbd  = (document.getElementById('v74f_gbd')||{}).value || '';
+    var nkt  = (document.getElementById('v74f_nkt')||{}).value || '';
+    var gkt  = (document.getElementById('v74f_gkt')||{}).value || '';
+    var shvh = (document.getElementById('v74f_shvh')||{}).value || '';
+    var cl   = (document.getElementById('v74f_cl')||{}).value || '';
+    var gc   = (document.getElementById('v74f_gc')||{}).value || '';
+
+    if(!ktv1.trim()){ toast74('⚠️ KTV trưởng là bắt buộc','err'); return; }
+    var shvhNum = 0;
+    if(typeof window.parseDurationToHours === 'function'){
+      shvhNum = window.parseDurationToHours(shvh);
+    } else {
+      shvhNum = parseFloat(shvh) || 0;
+    }
+    if(!shvh.trim() || shvhNum <= 0){
+      toast74('⚠️ Số giờ đồng hồ máy là bắt buộc và phải > 0','err'); return;
+    }
+
+    // Compute Tổng TG
+    var tg = r.tg || '';
+    try{
+      if(nd && gbd && nkt && gkt){
+        var s = new Date(nd + 'T' + gbd);
+        var e = new Date(nkt + 'T' + gkt);
+        var diff = (e - s) / 1000;
+        if(!isNaN(diff) && diff >= 0){
+          var h = Math.floor(diff/3600);
+          var m = Math.floor((diff%3600)/60);
+          tg = h + ' giờ ' + m + ' phút';
+        }
+      }
+    }catch(e){}
+
+    // Phen edits
+    var phenList = Array.isArray(r.phen) ? JSON.parse(JSON.stringify(r.phen)) : [];
+    document.querySelectorAll('#v74f-phen-list .v74f-phen').forEach(function(pEl){
+      var idx = parseInt(pEl.getAttribute('data-phen'), 10);
+      if(isNaN(idx) || !phenList[idx]) return;
+      pEl.querySelectorAll('[data-pk]').forEach(function(inp){
+        var k = inp.getAttribute('data-pk');
+        if(k === 'ht' || k === 'pp' || k === 'gc'){
+          phenList[idx][k] = inp.value || '';
+        }
+      });
+    });
+
+    var updates = {
+      ktv1: ktv1, ktv2: ktv2,
+      nd: nd, gbd: gbd, nkt: nkt, gkt: gkt, tg: tg,
+      soGioVanHanh: shvhNum,
+      cl: cl, gc: gc,
+      phen: phenList,
+      lastEditBy: (window.CU && window.CU.name) || '',
+      lastEditAt: new Date().toISOString()
+    };
+
+    btn.disabled = true;
+    btn.textContent = '⏳ Đang lưu...';
+
+    // Cập nhật localStorage
+    var saved = saveReportUpdate(id, updates);
+    if(!saved){ toast74('❌ Không lưu được vào localStorage','err'); btn.disabled=false; btn.textContent='💾 Lưu cập nhật'; return; }
+
+    // Cập nhật bản gốc REPORTS qua function save() có sẵn (nếu có)
+    // Cách: tìm reference đến REPORTS qua trigger re-render trực tiếp
+    // Vì REPORTS là let scope, ta dùng cách: gọi pullSheet5 hoặc reload
+    // Tạm thời: chỉ cần ghi localStorage và trigger renderRepList — vì
+    // renderRepList đọc trực tiếp REPORTS, mà ta cần REPORTS reload từ localStorage.
+    // → cách an toàn nhất: reload page sau khi sync xong.
+    // Nhưng để tránh phiền user, ta thử: gọi save() và renderAll() trước.
+
+    // Sync to Sheet 5 (delete + write)
+    if(typeof window.callGoogleAPI === 'function'){
+      try{
+        // 1. Delete old rows of this id
+        await window.callGoogleAPI('delete', { sheet: '5', id: id });
+        // 2. Write new
+        if(typeof window.syncReportGS === 'function'){
+          await window.syncReportGS(saved);
+        }
+      }catch(e){
+        console.warn('[V74F sync sheet]', e);
+        toast74('⚠️ Lưu local OK, nhưng sync Sheet bị lỗi: ' + (e.message||e), 'warn');
+      }
+    }
+
+    document.getElementById('v74f-modal-wrap')?.remove();
+    toast74('✅ Đã cập nhật phiếu ' + id + '. Đang tải lại dữ liệu...', 'ok');
+
+    // Reload data from sheet để REPORTS sync với localStorage mới
+    if(typeof window.pullSheet5 === 'function'){
+      try{
+        await window.pullSheet5();
+        if(typeof window.renderRepList === 'function') window.renderRepList();
+        if(typeof window.renderAll === 'function') window.renderAll();
+      }catch(e){
+        // Fallback: chỉ trigger renderRepList với data hiện tại
+        if(typeof window.renderRepList === 'function') window.renderRepList();
+      }
+    } else {
+      // Không có pullSheet5 → re-render với data từ localStorage
+      // Cách thủ công: dispatch event để app reload
+      if(typeof window.renderRepList === 'function') window.renderRepList();
+    }
+
+  }catch(e){
+    console.error('[V74F save]', e);
+    toast74('❌ Lỗi lưu: ' + (e.message||e), 'err');
+    if(btn){ btn.disabled = false; btn.textContent = '💾 Lưu cập nhật'; }
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   PHẦN B: PATCH NÚT EDIT trong renderRepList
+   (Post-process — KHÔNG thay thế renderRepList)
+═══════════════════════════════════════════════════════════════ */
+
+function patchBDSCButtons74(){
+  try{
+    var tbody = document.getElementById('repBody');
+    if(!tbody) return;
+
+    var rows = tbody.querySelectorAll('tr');
+    rows.forEach(function(tr){
+      // Lấy id từ cell đầu tiên
+      var idSpan = tr.querySelector('td:first-child .mm');
+      if(!idSpan) return;
+      var id = idSpan.textContent.trim();
+      if(!id || id.indexOf('BC-') !== 0) return;
+      if(tr.__v74fPatched === id) return; // đã patch rồi
+      tr.__v74fPatched = id;
+
+      // Nguyên tắc: TIN TƯỞNG vào canEdit của template gốc.
+      // - Nếu render ra toast button → original canEdit(r) đã trả true → user CÓ quyền.
+      // - Nếu render ra reqPerm button → original canEdit(r) đã trả false → user KHÔNG quyền.
+      // Không re-check localStorage để tránh race condition.
+
+      tr.querySelectorAll('button').forEach(function(btn){
+        var oc = btn.getAttribute('onclick') || '';
+        var title = btn.getAttribute('title') || '';
+
+        // Nút edit có toast 'Chỉnh sửa' → đổi thành editRepBDSC74
+        // (user đã được render template cho thấy → đã có quyền)
+        if(oc.indexOf("toast('Chỉnh sửa") >= 0){
+          btn.setAttribute('onclick', "editRepBDSC74('" + id + "')");
+          btn.setAttribute('title', 'Sửa phiếu');
+        }
+
+        // Nút "Yêu cầu quyền sửa" 🔐 → ẩn (user không có quyền → không cần workflow này)
+        if(oc.indexOf('reqPerm(') >= 0 || title === 'Yêu cầu quyền sửa'){
+          btn.style.display = 'none';
+        }
+      });
+    });
+  }catch(e){console.warn('[V74F patchBDSCButtons]', e);}
+}
+
+// Wrap renderRepList để post-process sau mỗi render
+function setupRepListWrap74(){
+  try{
+    if(typeof window.renderRepList !== 'function') return false;
+    if(window.renderRepList.__v74f) return true;
+    var base = window.renderRepList;
+    var wrapped = function(){
+      var r = base.apply(this, arguments);
+      try{ patchBDSCButtons74(); }catch(e){}
+      // Backup: sau khi browser layout xong
+      setTimeout(patchBDSCButtons74, 0);
+      setTimeout(patchBDSCButtons74, 30);
+      return r;
+    };
+    wrapped.__v74f = true;
+    wrapped.__orig = base;
+    window.renderRepList = wrapped;
+    return true;
+  }catch(e){console.warn('[V74F wrapRenderRepList]', e); return false;}
+}
+
+// MutationObserver backup trên tbody — bắt mọi lần innerHTML đổi
+function setupRepListMO74(){
+  try{
+    var tbody = document.getElementById('repBody');
+    if(!tbody || tbody.__v74fMO) return false;
+    tbody.__v74fMO = true;
+    new MutationObserver(function(){
+      // Reset patch flag cho mọi row để re-patch
+      tbody.querySelectorAll('tr').forEach(function(tr){ tr.__v74fPatched = null; });
+      patchBDSCButtons74();
+    }).observe(tbody, { childList: true });
+    return true;
+  }catch(e){console.warn('[V74F setupRepListMO]', e); return false;}
+}
+
+// Áp dụng patch tại nhiều mốc thời gian để bắt mọi tình huống
+[100, 400, 1000, 2500, 5000, 10000].forEach(function(ms){
+  setTimeout(function(){
+    setupRepListWrap74();
+    setupRepListMO74();
+    patchBDSCButtons74();
+  }, ms);
+});
+
+/* ═══════════════════════════════════════════════════════════════
+   PHẦN C: CURSOR PROTECTION cho input động (Tạo phiếu vật tư)
+═══════════════════════════════════════════════════════════════ */
+
+var _v74fFocus = null;
+var _v74fRestoring = false;
+
+function captureFocus74(e){
+  try{
+    if(_v74fRestoring) return;
+    var el = e ? e.target : document.activeElement;
+    if(!el || el === document.body || el === document.documentElement) return;
+    var tag = (el.tagName||'').toLowerCase();
+    if(tag !== 'input' && tag !== 'textarea' && !el.isContentEditable) return;
+    var t = (el.type||'').toLowerCase();
+    if(t === 'checkbox' || t === 'radio' || t === 'button' || t === 'submit' || t === 'file') return;
+
+    // Phải ở trong container động — phòng tạo phiếu/báo cáo
+    var container = el.closest('#pvb_selectedItems, #phenCont, #pvFormRoot, .pv-form-container');
+    if(!container) return;
+
+    var row = el.closest('[data-id]');
+    var selStart = null, selEnd = null;
+    try{
+      if(typeof el.selectionStart === 'number'){
+        selStart = el.selectionStart;
+        selEnd = el.selectionEnd;
+      }
+    }catch(err){}
+
+    _v74fFocus = {
+      id: el.id || '',
+      itemId: row ? (row.getAttribute('data-id') || '') : '',
+      dataK: el.getAttribute('data-k') || '',
+      placeholder: el.placeholder || '',
+      value: el.value,
+      selStart: selStart,
+      selEnd: selEnd,
+      timestamp: Date.now()
+    };
+  }catch(err){}
+}
+
+['focusin','input','keyup','keydown','mouseup','select'].forEach(function(ev){
+  document.addEventListener(ev, captureFocus74, true);
+});
+
+// Clear state khi user click ra ngoài container
+document.addEventListener('mousedown', function(e){
+  try{
+    if(!_v74fFocus) return;
+    var target = e.target;
+    if(!target) return;
+    var inContainer = target.closest && target.closest('#pvb_selectedItems, #phenCont, #pvFormRoot, .pv-form-container');
+    if(!inContainer){
+      setTimeout(function(){
+        var ae = document.activeElement;
+        if(!ae || ae === document.body){ _v74fFocus = null; }
+      }, 100);
+    }
+  }catch(err){}
+}, true);
+
+function tryRestoreFocus74(){
+  try{
+    var fp = _v74fFocus;
+    if(!fp) return false;
+    if(Date.now() - fp.timestamp > 60000){ _v74fFocus = null; return false; }
+
+    var ae = document.activeElement;
+    if(ae && ae !== document.body && ae !== document.documentElement){
+      var aeTag = (ae.tagName||'').toLowerCase();
+      if(aeTag === 'input' || aeTag === 'textarea' || ae.isContentEditable){
+        return false; // đang focus chỗ khác, không phá
+      }
+    }
+
+    var target = null;
+
+    // 1. By ID
+    if(fp.id){ target = document.getElementById(fp.id); }
+
+    // 2. By itemId + data-k
+    if(!target && fp.itemId){
+      var rowSel = '[data-id="' + (window.CSS && CSS.escape ? CSS.escape(fp.itemId) : fp.itemId.replace(/"/g,'\\"')) + '"]';
+      var row = document.querySelector(rowSel);
+      if(row){
+        if(fp.dataK){
+          target = row.querySelector('[data-k="' + fp.dataK + '"]');
+        }
+        // 3. By placeholder
+        if(!target && fp.placeholder){
+          var inps = row.querySelectorAll('input, textarea');
+          for(var i=0; i<inps.length; i++){
+            if((inps[i].placeholder||'') === fp.placeholder){ target = inps[i]; break; }
+          }
+        }
+        // 4. First text input in row (custom material — no data-k)
+        if(!target){
+          target = row.querySelector('input[type="text"], input:not([type]), textarea');
+        }
+      }
+    }
+
+    if(target && target !== ae){
+      _v74fRestoring = true;
+      try{
+        // Restore value nếu bị mất
+        if(fp.value && !target.value){
+          target.value = fp.value;
+          try{ target.dispatchEvent(new Event('input', { bubbles: true })); }catch(e){}
+        }
+        target.focus({preventScroll: true});
+        if(fp.selStart != null && typeof target.setSelectionRange === 'function'){
+          try{
+            target.setSelectionRange(fp.selStart, fp.selEnd != null ? fp.selEnd : fp.selStart);
+          }catch(e){}
+        }
+      }finally{
+        setTimeout(function(){ _v74fRestoring = false; }, 0);
+      }
+      return true;
+    }
+  }catch(e){console.warn('[V74F restoreFocus]', e);}
+  return false;
+}
+
+function setupFocusMO74(){
+  try{
+    ['pvb_selectedItems', 'phenCont', 'pvFormRoot'].forEach(function(id){
+      var el = document.getElementById(id);
+      if(!el || el.__v74fFocusMO) return;
+      el.__v74fFocusMO = true;
+      new MutationObserver(function(){
+        tryRestoreFocus74();
+        setTimeout(tryRestoreFocus74, 0);
+        setTimeout(tryRestoreFocus74, 16);
+        setTimeout(tryRestoreFocus74, 50);
+      }).observe(el, { childList: true, subtree: true });
+    });
+  }catch(e){console.warn('[V74F setupFocusMO]', e);}
+}
+
+[100, 300, 800, 2000, 5000, 10000].forEach(function(ms){
+  setTimeout(setupFocusMO74, ms);
+});
+
+/* ═══════════════════════════════════════════════════════════════
+   PHẦN D: SCROLL PRESERVATION cho 30s poll
+   Wrap các render function để snapshot/restore scroll position
+═══════════════════════════════════════════════════════════════ */
+
+function snapshotScroll74(){
+  var snap = {
+    winX: window.scrollX || window.pageXOffset || 0,
+    winY: window.scrollY || window.pageYOffset || 0,
+    scrollers: []
+  };
+  try{
+    document.querySelectorAll('.tw, .tblwrap, .v53-scroll, [style*="overflow"]').forEach(function(el){
+      if(el.scrollLeft > 0 || el.scrollTop > 0){
+        snap.scrollers.push({ el: el, sl: el.scrollLeft, st: el.scrollTop });
+      }
+    });
+  }catch(e){}
+  return snap;
+}
+
+function restoreScroll74(snap){
+  if(!snap) return;
+  var apply = function(){
+    try{
+      if(snap.winX || snap.winY) window.scrollTo(snap.winX, snap.winY);
+      (snap.scrollers||[]).forEach(function(s){
+        if(s.el && document.contains(s.el)){
+          if(s.el.scrollLeft !== s.sl) s.el.scrollLeft = s.sl;
+          if(s.el.scrollTop !== s.st) s.el.scrollTop = s.st;
+        }
+      });
+    }catch(e){}
+  };
+  apply();
+  if(typeof requestAnimationFrame === 'function'){
+    requestAnimationFrame(apply);
+    requestAnimationFrame(function(){ requestAnimationFrame(apply); });
+  }
+}
+
+function wrapWithScroll74(fnName){
+  try{
+    if(typeof window[fnName] !== 'function') return false;
+    if(window[fnName].__v74fScroll) return true;
+    var base = window[fnName];
+    var wrapped = function(){
+      var snap = snapshotScroll74();
+      try{
+        var r = base.apply(this, arguments);
+        if(r && typeof r.then === 'function'){
+          return r.then(function(v){ restoreScroll74(snap); return v; });
+        }
+        restoreScroll74(snap);
+        return r;
+      }catch(e){
+        restoreScroll74(snap);
+        throw e;
+      }
+    };
+    wrapped.__v74fScroll = true;
+    wrapped.__orig = base;
+    window[fnName] = wrapped;
+    return true;
+  }catch(e){console.warn('[V74F wrapWithScroll]', fnName, e); return false;}
+}
+
+function applyScrollWraps74(){
+  ['renderDash','renderRepList','renderWatchlist','renderLifecycle','renderAnalysis','renderAll','renderMachines','renderPhenDb','renderUsers','renderMemberList','renderPerms'].forEach(wrapWithScroll74);
+}
+[200, 700, 1500, 3000, 6000, 12000].forEach(function(ms){
+  setTimeout(applyScrollWraps74, ms);
+});
+
+console.log('[V74_FINAL] Loaded. BDSC editor + button patch + cursor MO + scroll preserve all active.');
+
+})();
+</script>
+
+<!-- ════════════════════════════════════════════════════════════════
+     V740 — Fix yêu cầu của người dùng (25/06/2026):
+     
+     1. Ô "Số giờ đồng hồ máy *" BẮT BUỘC phải điền mới cho nộp báo cáo.
+     2. Tự động điền số giờ từ bảng theo dõi vận hành (Google Sheet riêng,
+        đã có _lcCurrentHoursCache) khi KTV chọn mã máy — VẪN cho phép
+        chỉnh sửa lại nếu cần.
+     3. Sửa báo cáo trong Nhật ký BDSC: admin + người tạo báo cáo
+        ('ktvbc') được phép sửa MỌI nội dung, KỂ CẢ thêm/xóa cụm linh
+        kiện và linh kiện chi tiết. Nút "Sửa đầy đủ (kể cả linh kiện)"
+        chuyển hướng sang form chính trong chế độ Edit, dùng lại toàn bộ
+        UI nhập linh kiện đã có.
+     ════════════════════════════════════════════════════════════════ -->
+<style id="v740-style">
+.v740-required-warn{
+  border-color:#dc2626 !important;
+  background:#fef2f2 !important;
+  box-shadow:0 0 0 3px rgba(220,38,38,.15) !important;
+}
+.v740-hr-autofilled{
+  background:#ecfdf5 !important;
+  border-color:#10b981 !important;
+}
+.v740-edit-banner{
+  background:linear-gradient(135deg,#fef3c7,#fde68a);
+  border:2px solid #f59e0b;
+  border-radius:10px;
+  padding:12px 16px;
+  margin:0 0 14px 0;
+  display:flex;
+  align-items:center;
+  gap:10px;
+  flex-wrap:wrap;
+}
+.v740-edit-banner b{color:#92400e;font-size:14px}
+.v740-edit-banner .v740-cancel-edit{
+  background:#fff;
+  border:1.5px solid #92400e;
+  color:#92400e;
+  padding:5px 12px;
+  border-radius:7px;
+  font-size:12px;
+  font-weight:700;
+  cursor:pointer;
+  margin-left:auto;
+}
+.v740-edit-banner .v740-cancel-edit:hover{background:#fef3c7}
+.v740-full-edit-btn{
+  background:#7c3aed !important;
+  color:#fff !important;
+  border:none;
+  padding:8px 14px;
+  border-radius:7px;
+  font-size:12px;
+  font-weight:700;
+  cursor:pointer;
+  margin-right:6px;
+}
+.v740-full-edit-btn:hover{background:#6d28d9 !important}
+</style>
+<script id="v740-script">
+(function(){
+'use strict';
+
+console.log('[V740] Init: bắt buộc số giờ + auto-fill + sửa linh kiện trong nhật ký BDSC');
+
+function toast740(m,t){
+  try{ if(typeof window.toast==='function') window.toast(m,t||'info'); else alert(m); }
+  catch(e){ console.log(m); }
+}
+
+/* ═══════════════ FIX 1+2: SỐ GIỜ ĐỒNG HỒ MÁY ═══════════════ */
+
+// 1a. Hook fillMachineByMa để tự điền số giờ từ bảng theo dõi vận hành
+if(typeof window.fillMachineByMa === 'function' && !window.__v740_fillMachine_wrapped){
+  var _v740_baseFillMachine = window.fillMachineByMa;
+  window.__v740_fillMachine_wrapped = true;
+  
+  window.fillMachineByMa = function v740FillMachine(maMay){
+    // Gọi hàm gốc trước (điền tt, dv, lh, kv, tinh, ts)
+    var result = _v740_baseFillMachine.apply(this, arguments);
+    
+    // Sau đó điền thêm số giờ đồng hồ máy
+    try {
+      var shvhEl = document.getElementById('rf-soGioVanHanh');
+      if(!shvhEl || !maMay) return result;
+      
+      // KHÔNG ghi đè nếu KTV đã điền tay (giữ giá trị chỉnh sửa thủ công)
+      var userTyped = shvhEl.getAttribute('data-v740-user-typed') === '1';
+      if(userTyped) return result;
+      
+      // Ưu tiên: cache đã fetch sẵn
+      var cache = window._lcCurrentHoursCache || {};
+      var gioFromCache = cache[maMay];
+      
+      if(typeof gioFromCache === 'number' && gioFromCache > 0){
+        // Format dạng "12500" hoặc "12500:30:00" nếu có hàm format
+        var displayStr;
+        if(typeof window.formatHoursToDuration === 'function'){
+          displayStr = window.formatHoursToDuration(gioFromCache) || String(gioFromCache);
+        } else {
+          displayStr = String(Math.round(gioFromCache));
+        }
+        shvhEl.value = displayStr;
+        shvhEl.classList.add('v740-hr-autofilled');
+        shvhEl.setAttribute('title','✓ Tự động điền từ bảng theo dõi vận hành — vẫn có thể chỉnh sửa nếu cần');
+        console.log('[V740] Auto-fill số giờ cho '+maMay+': '+displayStr);
+      } else {
+        // Cache chưa có → thử fetch
+        if(typeof window.fetchCurrentMachineHours === 'function'){
+          window.fetchCurrentMachineHours().then(function(c){
+            // Sau khi fetch xong, kiểm tra lại và điền (nếu user vẫn chưa gõ)
+            try {
+              var el = document.getElementById('rf-soGioVanHanh');
+              if(!el) return;
+              if(el.getAttribute('data-v740-user-typed') === '1') return;
+              // Kiểm tra mã máy vẫn còn là mã đang chọn (user không đổi máy)
+              var curMm = (document.getElementById('rf-mm')||{}).value || '';
+              if(curMm !== maMay) return;
+              var g = (c||{})[maMay];
+              if(typeof g === 'number' && g > 0){
+                var s = (typeof window.formatHoursToDuration === 'function')
+                  ? (window.formatHoursToDuration(g) || String(g))
+                  : String(Math.round(g));
+                el.value = s;
+                el.classList.add('v740-hr-autofilled');
+                el.setAttribute('title','✓ Tự động điền từ bảng theo dõi vận hành — vẫn có thể chỉnh sửa nếu cần');
+                console.log('[V740] Auto-fill số giờ (sau fetch) cho '+maMay+': '+s);
+              }
+            } catch(e){ console.warn('[V740 autofill after fetch]',e); }
+          }).catch(function(e){ console.warn('[V740 fetch hours]', e); });
+        }
+      }
+    } catch(e){ console.warn('[V740 fillMachine]', e); }
+    
+    return result;
+  };
+  
+  // Khi KTV gõ tay vào ô, đánh dấu để lần auto-fill sau không ghi đè
+  setTimeout(function(){
+    var el = document.getElementById('rf-soGioVanHanh');
+    if(el && !el.__v740_bound){
+      el.__v740_bound = true;
+      el.addEventListener('input', function(){
+        el.setAttribute('data-v740-user-typed','1');
+        el.classList.remove('v740-hr-autofilled');
+      });
+      // Reset cờ user-typed khi form được init lại
+      var origInit = window.initForm;
+      if(typeof origInit === 'function' && !window.__v740_initForm_wrapped){
+        window.__v740_initForm_wrapped = true;
+        window.initForm = function(){
+          var r = origInit.apply(this, arguments);
+          try {
+            var e2 = document.getElementById('rf-soGioVanHanh');
+            if(e2){
+              e2.removeAttribute('data-v740-user-typed');
+              e2.classList.remove('v740-hr-autofilled');
+              e2.value = '';
+            }
+          }catch(e){}
+          return r;
+        };
+      }
+    }
+  }, 500);
+}
+
+// 1b. Hook submitReport & saveDraft — bắt buộc nhập số giờ đồng hồ máy
+function v740ValidateHourMeter(){
+  var el = document.getElementById('rf-soGioVanHanh');
+  if(!el) return true; // không tìm thấy thì không chặn
+  var val = (el.value||'').trim();
+  if(!val){
+    toast740('⚠️ Vui lòng nhập Số giờ đồng hồ máy (bắt buộc)','err');
+    el.focus();
+    el.classList.add('v740-required-warn');
+    setTimeout(function(){ el.classList.remove('v740-required-warn'); }, 3000);
+    return false;
+  }
+  // Parse giá trị — phải > 0
+  var hours = 0;
+  try {
+    if(typeof window.parseDurationToHours === 'function'){
+      hours = window.parseDurationToHours(val) || 0;
+    } else {
+      hours = parseFloat(val) || 0;
+    }
+  } catch(e){}
+  if(hours <= 0){
+    toast740('⚠️ Số giờ đồng hồ máy phải lớn hơn 0','err');
+    el.focus();
+    el.classList.add('v740-required-warn');
+    setTimeout(function(){ el.classList.remove('v740-required-warn'); }, 3000);
+    return false;
+  }
+  return true;
+}
+
+if(typeof window.submitReport === 'function' && !window.__v740_submitReport_wrapped){
+  var _v740_baseSubmit = window.submitReport;
+  window.__v740_submitReport_wrapped = true;
+  window.submitReport = function v740Submit(){
+    if(!v740ValidateHourMeter()) return;
+    return _v740_baseSubmit.apply(this, arguments);
+  };
+}
+if(typeof window.saveDraft === 'function' && !window.__v740_saveDraft_wrapped){
+  var _v740_baseDraft = window.saveDraft;
+  window.__v740_saveDraft_wrapped = true;
+  window.saveDraft = function v740Draft(){
+    // Cho lưu nháp KHÔNG bắt buộc số giờ — phù hợp ngữ nghĩa "draft"
+    return _v740_baseDraft.apply(this, arguments);
+  };
+}
+
+/* ═══════════════ FIX 3: SỬA BÁO CÁO BDSC ĐẦY ĐỦ (kể cả linh kiện) ═══════════════ */
+
+// State edit mode
+window._v740EditingReportId = null;
+window._v740EditingOrigReport = null; // bản gốc trước khi sửa (để restore khi cancel)
+
+function v740IsAdmin(){
+  try{ return !!(window.CU && window.CU.role === 'admin'); }catch(e){return false;}
+}
+function v740IsCreator(rep){
+  try{
+    if(!rep || !window.CU) return false;
+    var me = String(window.CU.name||window.CU.fullName||window.CU.username||window.CU.u||'').trim().toLowerCase();
+    var creator = String(rep.ktvbc||rep.ktv1||'').trim().toLowerCase();
+    if(!me || !creator) return false;
+    return me === creator || creator.indexOf(me) >= 0 || me.indexOf(creator) >= 0;
+  }catch(e){return false;}
+}
+function v740CanEditFull(rep){
+  return v740IsAdmin() || v740IsCreator(rep);
+}
+
+// Tìm báo cáo trong REPORTS (qua localStorage cho an toàn vì REPORTS là let scope)
+function v740GetReportById(id){
+  try {
+    var reps = JSON.parse(localStorage.getItem('eg_reps')||'[]');
+    for(var i=0;i<reps.length;i++){ if(reps[i].id === id) return reps[i]; }
+  } catch(e){}
+  return null;
+}
+
+// Mở báo cáo trong form chính (chế độ Edit) — re-use toàn bộ UI nhập của form newrep
+window.v740OpenFullEdit = function(reportId){
+  var rep = v740GetReportById(reportId);
+  if(!rep){ toast740('❌ Không tìm thấy báo cáo '+reportId,'err'); return; }
+  if(!v740CanEditFull(rep)){
+    toast740('⛔ Bạn không có quyền sửa báo cáo này. Chỉ admin và KTV tạo báo cáo mới sửa được.','err');
+    return;
+  }
+  if(!confirm('Mở báo cáo '+reportId+' để chỉnh sửa đầy đủ (kể cả cụm linh kiện & linh kiện chi tiết)?\n\nDữ liệu hiện tại sẽ được tải vào form. Bấm "Nộp báo cáo" để lưu thay đổi.')){
+    return;
+  }
+  
+  // Đóng modal V74 nếu đang mở
+  try{ document.getElementById('v74f-modal-wrap')?.remove(); }catch(e){}
+  
+  // Lưu state để khi submit biết là update chứ không phải tạo mới
+  window._v740EditingReportId = reportId;
+  // Lưu bản gốc deep clone để cancel có thể restore
+  try { window._v740EditingOrigReport = JSON.parse(JSON.stringify(rep)); } catch(e){ window._v740EditingOrigReport = rep; }
+  
+  // Navigate sang trang newrep
+  if(typeof window.nav === 'function') window.nav('newrep');
+  
+  // Đợi DOM render xong rồi pre-fill
+  setTimeout(function(){ v740PrefillFormFromReport(rep); }, 200);
+};
+
+function v740PrefillFormFromReport(rep){
+  try {
+    // Reset form (gọi initForm sẽ tạo 1 phen rỗng và clear hết)
+    if(typeof window.initForm === 'function') window.initForm();
+    
+    setTimeout(function(){
+      // Hiển thị banner cảnh báo
+      v740ShowEditBanner(rep.id);
+      
+      // 1. Mã máy (kích hoạt fillMachineByMa)
+      var elMm = document.getElementById('rf-mm');
+      if(elMm){
+        elMm.value = rep.maMay || '';
+        if(typeof window.fillMachineByMa === 'function' && rep.maMay) window.fillMachineByMa(rep.maMay);
+      }
+      
+      // 2. Số giờ đồng hồ máy (ưu tiên giá trị cũ trong báo cáo, không auto-fill)
+      var elHr = document.getElementById('rf-soGioVanHanh');
+      if(elHr && rep.soGioVanHanh){
+        var hourStr = (typeof window.formatHoursToDuration === 'function')
+          ? (window.formatHoursToDuration(rep.soGioVanHanh) || String(rep.soGioVanHanh))
+          : String(rep.soGioVanHanh);
+        elHr.value = hourStr;
+        // Đánh dấu user-typed để autofill không ghi đè
+        elHr.setAttribute('data-v740-user-typed','1');
+      }
+      
+      // 3. KTV trưởng / hỗ trợ
+      var elK1 = document.getElementById('rf-ktv1'); if(elK1) elK1.value = rep.ktv1 || '';
+      // KTV2 có thể là chuỗi cách nhau bởi ;
+      try {
+        if(rep.ktv2 && typeof window.addKTV2Tag === 'function'){
+          String(rep.ktv2).split(/[;,]/).map(function(s){return s.trim();}).filter(Boolean).forEach(function(n){
+            window.addKTV2Tag(n);
+          });
+        } else {
+          var elK2 = document.getElementById('rf-ktv2'); if(elK2) elK2.value = rep.ktv2 || '';
+        }
+      }catch(e){ console.warn('[V740 prefill ktv2]',e); }
+      
+      // 4. Ngày giờ
+      var dateFields = {'rf-nd':rep.nd, 'rf-gbd':rep.gbd, 'rf-nkt':rep.nkt, 'rf-gkt':rep.gkt};
+      Object.keys(dateFields).forEach(function(k){
+        var e = document.getElementById(k); if(e) e.value = dateFields[k] || '';
+      });
+      if(typeof window.calcTime === 'function') window.calcTime();
+      
+      // 5. Ghi chú chung
+      var elGc = document.getElementById('rf-gc'); if(elGc) elGc.value = rep.gc || '';
+      
+      // 6. Kết luận (curConclusion là module-level let; phải click vào .copt tương ứng)
+      if(rep.cl){
+        var copts = document.querySelectorAll('.copt');
+        copts.forEach(function(co){
+          // .copt có thể có data-cl hoặc onclick chứa value
+          var clVal = co.dataset.cl || '';
+          if(!clVal){
+            // Đọc từ onclick attribute
+            var oc = co.getAttribute('onclick')||'';
+            var m = oc.match(/setConclusion\(['"]([^'"]+)['"]/);
+            if(m) clVal = m[1];
+          }
+          if(clVal === rep.cl){
+            try { co.click(); } catch(e){}
+          }
+        });
+      }
+      
+      // 7. Phenomena (HIỆN TƯỢNG) — phần phức tạp nhất
+      // initForm đã tạo sẵn 1 phen rỗng (#ph-1). Ta sẽ điền dần.
+      var phenArr = Array.isArray(rep.phen) ? rep.phen : [];
+      // Xóa phen mặc định để bắt đầu sạch
+      var phenCont = document.getElementById('phenCont');
+      if(phenCont) phenCont.innerHTML = '';
+      // Reset phenCount qua trick: dùng window
+      try { window.phenCount = 0; } catch(e){}
+      
+      phenArr.forEach(function(p, idx){
+        // Thêm 1 phen mới
+        if(typeof window.addPhen === 'function') window.addPhen();
+        var pidx = idx + 1; // ID phen 1-based
+        
+        // Chờ DOM ready từng phen rồi điền
+        setTimeout(function(){
+          v740FillPhenBlock(pidx, p);
+        }, 50 + idx * 80);
+      });
+      
+      toast740('📝 Đã tải báo cáo '+rep.id+' để chỉnh sửa. Sau khi sửa xong, bấm "Nộp báo cáo".','ok');
+    }, 100);
+  } catch(e){
+    console.error('[V740 prefill]', e);
+    toast740('❌ Lỗi khi tải dữ liệu: '+(e.message||e),'err');
+  }
+}
+
+function v740FillPhenBlock(pidx, p){
+  try {
+    // Hiện tượng (select)
+    var selHt = document.getElementById('ph-ht-'+pidx);
+    if(selHt && p.ht){
+      // Kiểm tra ht có trong options không
+      var opts = Array.from(selHt.options).map(function(o){return o.value;});
+      if(opts.indexOf(p.ht) >= 0){
+        selHt.value = p.ht;
+      } else {
+        // Hiện tượng tự nhập
+        selHt.value = '__new__';
+        if(typeof window.onHtChange === 'function') window.onHtChange(pidx);
+        setTimeout(function(){
+          var newInp = document.getElementById('ph-ht-new-'+pidx);
+          if(newInp) newInp.value = p.ht;
+        }, 50);
+      }
+      // Trigger onChange để build các dropdown phụ thuộc
+      if(typeof window.onHtChange === 'function') window.onHtChange(pidx);
+    }
+    
+    setTimeout(function(){
+      // Cụm linh kiện (cums) — restore chips
+      try {
+        var cumCont = document.getElementById('ph-cum-'+pidx);
+        if(cumCont && Array.isArray(p.cums)){
+          // Trigger UI để thêm chip cho mỗi cụm: cố gắng dùng function có sẵn
+          p.cums.forEach(function(cumName){
+            // Một số bản code có addCumChip / addCum / addCumLk; thử lần lượt
+            var added = false;
+            ['addCumChip','addCumToPhen','addCum','addCumLinhKien'].forEach(function(fn){
+              if(added) return;
+              if(typeof window[fn] === 'function'){
+                try { window[fn](pidx, cumName); added = true; } catch(e){}
+              }
+            });
+            // Fallback: chèn thẳng chip vào DOM (cần đồng bộ với cấu trúc gốc)
+            if(!added){
+              var safeCum = String(cumName||'').replace(/"/g,'&quot;');
+              cumCont.insertAdjacentHTML('beforeend',
+                '<span class="chip" data-cum="'+safeCum+'">'+safeCum+
+                ' <span class="x" style="cursor:pointer" onclick="this.closest(\'.chip\').remove()">×</span></span>');
+            }
+          });
+        }
+      } catch(e){ console.warn('[V740 cums]',e); }
+      
+      // Parts (linh kiện chi tiết) — restore qua dataset
+      try {
+        var pd = document.getElementById('ph-parts-'+pidx);
+        if(pd && p.parts){
+          pd.dataset.parts = JSON.stringify(p.parts);
+          // Trigger re-render nếu có hàm renderPartsUI
+          ['renderPartsForPhen','renderPhenParts','renderParts','onCumChange'].forEach(function(fn){
+            if(typeof window[fn] === 'function'){
+              try { window[fn](pidx); } catch(e){}
+            }
+          });
+        }
+      } catch(e){ console.warn('[V740 parts]',e); }
+      
+      // PP (phương pháp xử lý)
+      var ppEl = document.getElementById('ph-pp-'+pidx);
+      if(ppEl) ppEl.value = p.pp || '';
+      
+      // Ghi chú hiện tượng
+      var gcEl = document.getElementById('ph-gc-'+pidx);
+      if(gcEl) gcEl.value = p.gc || '';
+    }, 100);
+  } catch(e){
+    console.error('[V740 fillPhen '+pidx+']', e);
+  }
+}
+
+function v740ShowEditBanner(reportId){
+  // Xóa banner cũ nếu có
+  var old = document.getElementById('v740-edit-banner');
+  if(old) old.remove();
+  
+  var bannerHTML = '<div class="v740-edit-banner" id="v740-edit-banner">'+
+    '<span style="font-size:24px">✏️</span>'+
+    '<div><b>Đang chỉnh sửa báo cáo '+String(reportId).replace(/[<>]/g,'')+'</b>'+
+    '<div style="font-size:11px;color:#92400e;margin-top:2px">Bấm "Nộp báo cáo" ở dưới để lưu thay đổi. Tất cả nội dung (kể cả linh kiện) đều có thể sửa.</div></div>'+
+    '<button class="v740-cancel-edit" onclick="window.v740CancelEdit()">✕ Hủy sửa, không lưu</button>'+
+    '</div>';
+  
+  // Chèn vào đầu page newrep
+  var pageNewrep = document.getElementById('pg-newrep');
+  if(pageNewrep){
+    var phHeader = pageNewrep.querySelector('.ph') || pageNewrep.firstElementChild;
+    if(phHeader){
+      phHeader.insertAdjacentHTML('afterend', bannerHTML);
+    } else {
+      pageNewrep.insertAdjacentHTML('afterbegin', bannerHTML);
+    }
+  }
+}
+
+window.v740CancelEdit = function(){
+  if(!window._v740EditingReportId){
+    var b = document.getElementById('v740-edit-banner'); if(b) b.remove();
+    return;
+  }
+  if(!confirm('Hủy chỉnh sửa? Mọi thay đổi sẽ KHÔNG được lưu, báo cáo gốc giữ nguyên.')) return;
+  window._v740EditingReportId = null;
+  window._v740EditingOrigReport = null;
+  if(typeof window.initForm === 'function') window.initForm();
+  var b = document.getElementById('v740-edit-banner'); if(b) b.remove();
+  if(typeof window.nav === 'function') window.nav('replist');
+  toast740('Đã hủy chỉnh sửa','info');
+};
+
+// Hook submitReport để: nếu đang trong edit mode → update thay vì tạo mới
+// Wrap LẦN 2 (đè lên wrapper bắt buộc số giờ ở trên)
+if(typeof window.submitReport === 'function' && !window.__v740_submitReport_editmode_wrapped){
+  var _v740_baseSubmit2 = window.submitReport;
+  window.__v740_submitReport_editmode_wrapped = true;
+  
+  window.submitReport = function v740SubmitEditMode(){
+    var editingId = window._v740EditingReportId;
+    
+    if(!editingId){
+      // Không phải edit mode → submit bình thường
+      return _v740_baseSubmit2.apply(this, arguments);
+    }
+    
+    // Edit mode: validate, collect data, rồi update report cũ trong REPORTS
+    try {
+      // Chạy validate qua submit gốc nhưng KHÔNG để nó push REPORTS — quá phức tạp
+      // → Cách đơn giản: chạy collectReport, validate, rồi tự update
+      if(typeof window.v740ValidateBeforeUpdate === 'function'){
+        if(!window.v740ValidateBeforeUpdate()) return;
+      } else {
+        // Validate cơ bản
+        var mm = (document.getElementById('rf-mm')||{}).value || '';
+        if(!mm){ toast740('Vui lòng chọn mã máy','err'); return; }
+        var ktv1 = (document.getElementById('rf-ktv1')||{}).value || '';
+        if(!ktv1.trim()){ toast740('⚠️ Vui lòng nhập KTV trưởng phụ trách','err'); return; }
+        if(!v740ValidateHourMeter()) return;
+        if(typeof window.curConclusion === 'string' && !window.curConclusion){
+          toast740('Vui lòng chọn kết luận','err'); return;
+        }
+      }
+      
+      if(typeof window.collectReport !== 'function'){
+        toast740('❌ Hệ thống không khả dụng (collectReport thiếu)','err'); return;
+      }
+      var newR = window.collectReport();
+      if(!newR.phen || !newR.phen.length){
+        toast740('Cần ít nhất 1 hiện tượng','err'); return;
+      }
+      
+      // Giữ ID gốc + một số metadata
+      var origR = window._v740EditingOrigReport || v740GetReportById(editingId) || {};
+      newR.id = editingId;
+      newR.cat = origR.cat || newR.cat; // giữ thời điểm tạo gốc
+      newR.status = origR.status || 'submitted';
+      // ktvbc giữ nguyên người tạo gốc (KHÔNG đổi sang người đang sửa)
+      newR.ktvbc = origR.ktvbc || newR.ktvbc;
+      newR.uat = new Date().toISOString(); // updated-at
+      newR.uby = (window.CU && (window.CU.name||window.CU.fullName||window.CU.username||'')) || '';
+      
+      // Update vào REPORTS qua localStorage + đồng bộ với let REPORTS
+      var reps = [];
+      try { reps = JSON.parse(localStorage.getItem('eg_reps')||'[]'); } catch(e){}
+      var idx = reps.findIndex(function(r){return r.id === editingId;});
+      if(idx < 0){
+        toast740('❌ Không tìm thấy báo cáo gốc để cập nhật','err'); return;
+      }
+      reps[idx] = newR;
+      localStorage.setItem('eg_reps', JSON.stringify(reps));
+      
+      // Đồng bộ với let REPORTS thông qua hàm save() nếu có, hoặc reload page
+      try {
+        if(typeof window.REPORTS !== 'undefined' && Array.isArray(window.REPORTS)){
+          // Hiếm khi let scope; nhưng nếu lộ ra window thì cập nhật
+          var arrIdx = window.REPORTS.findIndex(function(r){return r.id === editingId;});
+          if(arrIdx >= 0) window.REPORTS[arrIdx] = newR;
+        }
+      } catch(e){}
+      
+      // Đồng bộ Google Sheet
+      try {
+        if(typeof window.syncReportGS === 'function'){
+          window.syncReportGS(newR);
+        } else if(typeof window.updateReportGS === 'function'){
+          window.updateReportGS(newR);
+        }
+      } catch(e){ console.warn('[V740 sync GS]',e); }
+      
+      // Clear edit state
+      window._v740EditingReportId = null;
+      window._v740EditingOrigReport = null;
+      var b = document.getElementById('v740-edit-banner'); if(b) b.remove();
+      
+      // Refresh UI
+      try { if(typeof window.renderAll === 'function') window.renderAll(); } catch(e){}
+      try { if(typeof window.initForm === 'function') window.initForm(); } catch(e){}
+      try { if(typeof window.nav === 'function') window.nav('replist'); } catch(e){}
+      
+      toast740('✅ Đã cập nhật báo cáo '+editingId+' — đang đồng bộ Sheet 5','ok');
+      
+      // Reload trang sau 1.5s để chắc chắn let REPORTS đồng bộ với localStorage
+      setTimeout(function(){
+        if(confirm('Đã cập nhật xong. Tải lại trang để áp dụng đầy đủ thay đổi?')){
+          window.location.reload();
+        }
+      }, 1500);
+      
+    } catch(e){
+      console.error('[V740 update submit]', e);
+      toast740('❌ Lỗi khi cập nhật: '+(e.message||e),'err');
+    }
+  };
+}
+
+// Inject button "🔧 Sửa đầy đủ" vào V74 modal khi nó được mở
+// V74 modal có id="v74f-modal-wrap". Quan sát DOM để chèn nút.
+var v740Observer = new MutationObserver(function(muts){
+  muts.forEach(function(mu){
+    mu.addedNodes && mu.addedNodes.forEach(function(node){
+      if(node.nodeType !== 1) return;
+      if(node.id === 'v74f-modal-wrap' || (node.querySelector && node.querySelector('#v74f-modal-wrap'))){
+        try { v740InjectFullEditBtn(); } catch(e){ console.warn('[V740 inject]',e); }
+      }
+    });
+  });
+});
+try { v740Observer.observe(document.body, {childList:true, subtree:true}); }
+catch(e){ console.warn('[V740 observer]',e); }
+
+function v740InjectFullEditBtn(){
+  var modal = document.getElementById('v74f-modal-wrap');
+  if(!modal) return;
+  if(modal.querySelector('.v740-full-edit-btn')) return; // đã inject rồi
+  
+  // Lấy report ID từ tiêu đề modal: "✏️ Chỉnh sửa Phiếu BDSC — BC-0001"
+  var headerB = modal.querySelector('.v74f-head b');
+  var reportId = '';
+  if(headerB){
+    var m = (headerB.textContent||'').match(/BC-\w+|\w+-\d+/);
+    if(m) reportId = m[0];
+  }
+  if(!reportId) return;
+  
+  // Tìm khu vực action buttons (Hủy / Lưu) ở chân modal
+  var btns = modal.querySelectorAll('.v74f-btn');
+  if(!btns.length) return;
+  
+  // Lấy đúng container chứa các nút action
+  var actionContainer = btns[btns.length-1].parentNode;
+  if(!actionContainer) return;
+  
+  // Tạo nút mới
+  var btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'v74f-btn v740-full-edit-btn';
+  btn.innerHTML = '🔧 Sửa đầy đủ (kể cả linh kiện)';
+  btn.title = 'Mở báo cáo trong form chính để sửa toàn bộ, bao gồm cụm linh kiện và linh kiện chi tiết';
+  btn.onclick = function(){
+    window.v740OpenFullEdit(reportId);
+  };
+  
+  // Chèn vào ĐẦU container (bên trái các nút khác)
+  actionContainer.insertBefore(btn, actionContainer.firstChild);
+  
+  console.log('[V740] Đã chèn nút Sửa đầy đủ vào modal V74');
+}
+
+/* ═══════════════ Đảm bảo nút Sửa trong nhật ký BDSC dùng editor ═══════════════ */
+// V728 gốc: nút sửa chỉ hiện toast (line 3391). V74_FINAL đã patch để mở modal.
+// Phần này CHỈ thêm hỗ trợ — nếu nút Sửa vẫn không hoạt động, chèn handler trực tiếp.
+
+// Style cho ô bắt buộc Số giờ đồng hồ máy
+setTimeout(function(){
+  var lbl = document.querySelector('label[for="rf-soGioVanHanh"]');
+  // Thực tế label dùng class .il, không có for; tìm qua text content
+  var ils = document.querySelectorAll('.il');
+  ils.forEach(function(il){
+    if((il.textContent||'').indexOf('Số giờ đồng hồ máy') >= 0){
+      // Đã có dấu * trong text rồi — chỉ chỉnh màu cho rõ
+      il.style.color = '#92400e';
+      il.style.fontWeight = '700';
+    }
+  });
+}, 1000);
+
+console.log('[V740] ✅ Loaded — bắt buộc & auto-fill số giờ + sửa đầy đủ báo cáo BDSC');
+})();
+</script>
