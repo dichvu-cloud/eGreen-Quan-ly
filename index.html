@@ -7418,7 +7418,11 @@ function exportWord(id, mode){
     const ktv1  = rep.ktv1||'';
     const ktv2  = rep.ktv2||'';
     const tinh  = rep.tinh||rep.kv||'';
-    const {dd,mm,yyyy} = parseDateParts(rep.nkt||rep.nd);
+    // V72.9 FIX: tách riêng ngày bắt đầu (rep.nd - cột K) và ngày kết thúc (rep.nkt - cột M)
+    const _dpBD = parseDateParts(rep.nd||rep.nkt);
+    const _dpKT = parseDateParts(rep.nkt||rep.nd);
+    const dd   = _dpBD.dd,   mm   = _dpBD.mm,   yyyy   = _dpBD.yyyy;
+    const ddKT = _dpKT.dd,   mmKT = _dpKT.mm,   yyyyKT = _dpKT.yyyy;
     const gioKT = fmtTime(rep.gkt);
     const gioBD = fmtTime(rep.gbd);
 
@@ -7645,13 +7649,15 @@ table.phieu td { border:1px solid #000; padding:5pt 6pt; vertical-align:top; wor
 <p class="ma-phieu">Mã phiếu: <b>${esc(rep.id)}</b></p>
 
 <!-- ══ MỞ ĐẦU ══ -->
-<p class="body-p i">Hôm nay, ngày ${dd||'&nbsp;&nbsp;'} tháng ${mm||'&nbsp;&nbsp;'} năm ${yyyy||'&nbsp;&nbsp;&nbsp;&nbsp;'} tại ${tinh?esc(tinh):'...................................................'}</p>
+<p class="body-p i">Hôm nay, ngày ${(ddKT||dd)||'&nbsp;&nbsp;'} tháng ${(mmKT||mm)||'&nbsp;&nbsp;'} năm ${(yyyyKT||yyyy)||'&nbsp;&nbsp;&nbsp;&nbsp;'} tại ${tinh?esc(tinh):'...................................................'}</p>
 <p class="body-p" style="margin-top:6pt">Phiếu sửa chữa này lập bởi:</p>
 <p class="body-p indent">Ông/bà: <span class="u b">${esc(ktv1)||'&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;'}</span>&nbsp;&nbsp;&nbsp;&nbsp;Chức vụ: KTV trưởng phụ trách</p>
 <p class="body-p indent">Số điện thoại: .........................................................................</p>
 ${ktv2Line}
 <p class="body-p indent">Ông/bà: <span class="u">${esc(ktv2||ktv1)}</span> tiến hành sửa chữa máy phát điện chạy bằng biogas tại trang trại <b>${esc(rep.tt||'')}</b>${rep.tt?',':', '} địa chỉ: ${esc(tinh)}${tinh?'.':'...................................................'}</p>
-<p class="body-p">Mã máy: <span class="u b">${esc(rep.maMay)}</span>${rep.nd?` &nbsp;&nbsp; Thời gian: ${gioBD} ${dd}/${mm}/${yyyy} → ${gioKT||'...'} ${dd}/${mm}/${yyyy} &nbsp;&nbsp; Tổng TG: ${esc(rep.tg||'...')}`:''}...........</p>
+<p class="body-p">Mã máy: <span class="u b">${esc(rep.maMay)}</span>${(()=>{const gioVH=(typeof formatHoursToDuration==='function'?formatHoursToDuration(rep.soGioVanHanh):'')||(rep.soGioVanHanh?String(rep.soGioVanHanh):''); return `&nbsp;&nbsp;&nbsp;&nbsp;Số giờ đồng hồ máy: <span class="u b">${esc(gioVH||'.............................')}</span>`;})()}</p>
+${rep.nd?`<p class="body-p" style="margin-top:4pt">Thời gian: ${gioBD} ${dd}/${mm}/${yyyy} → ${gioKT||'...'} ${ddKT||dd}/${mmKT||mm}/${yyyyKT||yyyy}........................</p>
+<p class="body-p">Tổng TG: ${esc(rep.tg||'...')}.............................................................................................</p>`:''}
 
 <!-- ══ PHẦN 1 ══ -->
 <p class="sec">1. Tình trạng trước sửa chữa</p>
