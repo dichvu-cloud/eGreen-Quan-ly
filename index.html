@@ -22424,3 +22424,111 @@ setTimeout(function(){
 console.log('[V740] ✅ Loaded — bắt buộc & auto-fill số giờ + sửa đầy đủ báo cáo BDSC');
 })();
 </script>
+<script id="v750-approver-sync-fix">
+/* ═══════════════════════════════════════════════════════════════════════
+   V750 FIX: Đồng bộ danh sách phân quyền duyệt vật tư cho TÀI KHOẢN KTV
+   ─────────────────────────────────────────────────────────────────────
+   VẤN ĐỀ: Admin lưu phân quyền qua setVatTuApprovers → lưu lên server.
+   Nhưng khi KTV đăng nhập trên máy khác, getAppData không chắc trả về
+   vatTuApprovers → localStorage KTV trống → isApprover() = false → không
+   hiển thị nút Duyệt dù đã được phân quyền.
+
+   GIẢI PHÁP: Sau khi app khởi động, nếu PV.data.vatTuApprovers chưa có
+   hoặc chưa được cache ở localStorage, tự động gọi getVatTuApprovers từ
+   server rồi ghi vào cả PV.data lẫn localStorage. Sau đó re-render trang
+   danhSachPhieu nếu đang mở để nút Duyệt hiển thị đúng.
+   ══════════════════════════════════════════════════════════════════════ */
+(function(){
+  'use strict';
+  var APR_KEY_FIX = 'EGREEN_V43_APR';
+  var _synced = false;
+
+  function getTokenFix(){
+    try{ return (window.PV&&PV.token)||(window.CU&&(CU.pvToken||CU.token))||''; }catch(e){return '';}
+  }
+
+  function applyApprovers(list){
+    if(!Array.isArray(list)||!list.length) return;
+    /* Ghi vào PV.data để mọi getApprovers() đọc được ngay lập tức */
+    try{ if(window.PV){ if(!PV.data) PV.data={}; PV.data.vatTuApprovers=list; } }catch(e){}
+    /* Ghi vào localStorage làm cache dự phòng */
+    try{ localStorage.setItem(APR_KEY_FIX, JSON.stringify(list)); }catch(e){}
+    /* Re-render danh sách phiếu nếu đang mở để nút Duyệt hiện đúng */
+    try{
+      if(window.curPage==='danhSachPhieu'){
+        var root=document.getElementById('pvHistoryRoot');
+        if(root && typeof window.pvBDSCRenderHistoryList==='function'){
+          var cache=[];
+          try{ cache=(typeof window._pvBDSCListCache!=='undefined'&&window._pvBDSCListCache)||[]; }catch(e){}
+          if(cache.length) window.pvBDSCRenderHistoryList(root,cache);
+        }
+      }
+    }catch(e){}
+  }
+
+  async function syncApproversFromServer(){
+    if(_synced) return;
+    _synced = true;
+    try{
+      /* Phương án 1: getAppData có trả về vatTuApprovers không? */
+      if(window.PV && PV.data && Array.isArray(PV.data.vatTuApprovers) && PV.data.vatTuApprovers.length){
+        applyApprovers(PV.data.vatTuApprovers);
+        return;
+      }
+      /* Phương án 2: Gọi API getVatTuApprovers (nếu server hỗ trợ) */
+      if(typeof window.pvApi === 'function'){
+        try{
+          var r = await window.pvApi('getVatTuApprovers',{token:getTokenFix()});
+          if(r && Array.isArray(r.list) && r.list.length){
+            applyApprovers(r.list);
+            return;
+          }
+        }catch(e){ console.log('[V750-fix] getVatTuApprovers không khả dụng, thử getAppData'); }
+        /* Phương án 3: Fetch lại getAppData và lấy vatTuApprovers */
+        try{
+          var d = await window.pvApi('getAppData',{});
+          if(d && Array.isArray(d.vatTuApprovers) && d.vatTuApprovers.length){
+            applyApprovers(d.vatTuApprovers);
+            /* Merge vào PV.data để không mất dữ liệu khác */
+            try{ if(window.PV){ PV.data=Object.assign({},PV.data||{},d,{selected:(PV.data&&PV.data.selected)||[]}); } }catch(e){}
+            return;
+          }
+        }catch(e){ console.log('[V750-fix] getAppData fallback lỗi:',e.message); }
+      }
+    }catch(e){ console.warn('[V750-fix] syncApproversFromServer lỗi:',e); }
+  }
+
+  /* Khởi động sau khi app đã boot xong (CU và PV.token đã có) */
+  function waitAndSync(){
+    var tries=0;
+    var iv=setInterval(function(){
+      tries++;
+      /* Chờ đến khi CU (tài khoản đã đăng nhập) và pvApi sẵn sàng */
+      if(window.CU && typeof window.pvApi==='function' && getTokenFix()){
+        clearInterval(iv);
+        syncApproversFromServer();
+      }
+      if(tries>60) clearInterval(iv); /* timeout 30s */
+    },500);
+  }
+
+  if(document.readyState==='loading'){
+    document.addEventListener('DOMContentLoaded', waitAndSync);
+  } else {
+    waitAndSync();
+  }
+
+  /* Cũng hook vào pvBDSCInit để sync mỗi khi navigate vào trang phiếu */
+  var _origInit = window.pvBDSCInit;
+  window.pvBDSCInit = async function(view){
+    var result = _origInit ? await _origInit.apply(this, arguments) : undefined;
+    if(view==='history') {
+      _synced = false; /* reset để cho phép sync lại */
+      setTimeout(syncApproversFromServer, 300);
+    }
+    return result;
+  };
+
+})();
+console.log('[V750-fix] ✅ Approver sync fix loaded');
+</script>
