@@ -17733,10 +17733,12 @@ function selectableV58(){
       list=list.filter(function(x){return rel.includes(norm(materialCum(x)));});
     }
   }else if(md === 'Gửi thêm vật tư'){
-    if(!p.hienTuongSel.length) return [];
-    const rel=unique([].concat.apply([],p.hienTuongSel.map(relatedCums))).map(norm);
-    if(!rel.length) return [];
-    list=list.filter(function(x){return rel.includes(norm(materialCum(x)));});
+    // Nếu đã chọn hiện tượng: lọc theo cụm liên quan; nếu chưa chọn: hiển thị toàn bộ (giống Sản xuất)
+    if(p.hienTuongSel.length){
+      const rel=unique([].concat.apply([],p.hienTuongSel.map(relatedCums))).map(norm);
+      if(rel.length) list=list.filter(function(x){return rel.includes(norm(materialCum(x)));});
+    }
+    // Khi chưa chọn hiện tượng: giữ toàn bộ list (không filter)
   }
   if(!noFixedPurpose(md)){
     const fixedNames=selectedFixedNameSet(p);
@@ -17750,10 +17752,8 @@ function renderSearchV58(){
   const box=document.getElementById('pvb_vatTuSearchList'); if(!box) return;
   const md=getPurpose();
   const q=norm(val('pvb_searchVatTu'));
-  if(md === 'Gửi thêm vật tư' && !p.hienTuongSel.length){
-    box.innerHTML='<div class="v58-empty">Chọn một hoặc nhiều hiện tượng/sự cố ở phần Mục đích để hiển thị cụm linh kiện và vật tư liên quan.</div>';
-    scheduleLegacyCleanup(); return;
-  }
+  // Khi "Gửi thêm vật tư": hiển thị toàn bộ danh sách (giống Sản xuất)
+  // Nếu đã chọn hiện tượng thì lọc theo hiện tượng, nếu chưa thì hiển thị tất cả
   const selectedIds=new Set((p.data.selected || []).filter(function(x){return x && x.included !== false;}).map(function(x){return x.id;}));
   const fixedNames=!noFixedPurpose(md) ? selectedFixedNameSet(p) : {};
   let list=selectableV58().filter(function(x){
@@ -17861,7 +17861,7 @@ function updatePurposeUI(){
   const hint=document.getElementById('pvb_v58_purposeHint') || document.getElementById('pvb_v56_purposeHint');
   if(hint){
     if(md === 'Sản xuất') hint.textContent='Mục Sản xuất không nạp vật tư cố định; danh sách chọn thêm hiển thị toàn bộ vật tư theo từng cụm linh kiện.';
-    else if(md === 'Gửi thêm vật tư') hint.textContent='Mục Gửi thêm vật tư không nạp vật tư cố định; hãy chọn một hoặc nhiều hiện tượng để lọc cụm linh kiện và vật tư liên quan.';
+    else if(md === 'Gửi thêm vật tư') hint.textContent='Mục Gửi thêm vật tư không nạp vật tư cố định; toàn bộ vật tư hiển thị theo cụm linh kiện — chọn hiện tượng để lọc nhanh vật tư liên quan.';
     else if(md === 'Bảo dưỡng sửa chữa') hint.textContent='Mục Bảo dưỡng sửa chữa tự nạp vật tư cố định từ Sheet 9; vật tư đã nằm trong danh sách cố định sẽ không lặp ở phần chọn thêm.';
     else hint.textContent='Mục Lắp đặt tự nạp vật tư cố định từ Sheet 9; vật tư đã nằm trong danh sách cố định sẽ không lặp ở phần chọn thêm.';
   }
