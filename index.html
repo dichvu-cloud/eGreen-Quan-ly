@@ -2141,6 +2141,21 @@ REPORTS = REPORTS.map(r=>({
   gkt: _cleanTime(r.gkt)
 }));
 let WATCHLIST = JSON.parse(localStorage.getItem('eg_watch')  || '[]');
+// V752: theo dõi mã máy đã sync vào Sheet 6 để phát hiện & xóa khi máy rời watchlist.
+// Nếu key chưa tồn tại (VD upgrade từ V750 lên V752), khởi tạo từ WATCHLIST hiện tại
+// để đảm bảo các mã máy đã có sẵn trên Sheet 6 vẫn được track & xóa đúng khi rời watchlist.
+let WATCHLIST_SHEET6_MACHINES;
+(function _initWatchlistSheet6Tracker(){
+  const raw = localStorage.getItem('eg_watch_s6');
+  if(raw === null){
+    // Chưa có key → khởi tạo từ WATCHLIST hiện tại (migration V750→V752)
+    WATCHLIST_SHEET6_MACHINES = new Set(WATCHLIST.map(w => String(w.maMay||'').trim()).filter(Boolean));
+    localStorage.setItem('eg_watch_s6', JSON.stringify([...WATCHLIST_SHEET6_MACHINES]));
+  } else {
+    try { WATCHLIST_SHEET6_MACHINES = new Set(JSON.parse(raw)); }
+    catch(e){ WATCHLIST_SHEET6_MACHINES = new Set(); }
+  }
+})();
 let PERM_REQS = JSON.parse(localStorage.getItem('eg_perms')  || '[]');
 
 function save(){
@@ -3514,13 +3529,39 @@ function recomputeWatchlist(){
     // ISO full (createdAt)
     const d=new Date(st); return isNaN(d)?0:d.getTime();
   }
-  // Nhóm báo cáo submitted theo mã máy, lấy báo cáo MỚI NHẤT (theo nkt hoặc nd hoặc cat)
+  // Nhóm báo cáo submitted theo mã máy, lấy báo cáo MỚI NHẤT
+  // FIX V752: Chỉ dựa vào (mã máy, kết luận) như user yêu cầu.
+  // KHÔNG dùng `cat` (createdAt) vì pullSheet5 gán cat = new Date() mỗi lần pull,
+  // khiến MỌI phiếu có cùng `cat` = thời điểm pull → sort không xác định
+  // → BC "warn" cũ có thể "thắng" BC "ok" mới cho cùng mã máy.
+  //
+  // Cách xác định BC mới nhất trên cùng mã máy (đủ tin cậy):
+  //   1. dMax = MAX(nkt, nd)  — mốc thời gian thực do KTV nhập vào phiếu
+  //   2. Tiebreaker: số thứ tự phiếu (BC-1182 > BC-1179) — chắc chắn phiếu tạo sau
+  function _bcTS(s){ return toTS(s)||0; }
+  function _bcIdNum(r){
+    // Lấy số từ id: "BC-1182" → 1182, "-1182" → 1182, "1182" → 1182
+    const m = String(r.id||'').match(/(\d+)/);
+    return m ? parseInt(m[1],10) : 0;
+  }
+  function _bcSortKey(r){
+    return {
+      idNum: _bcIdNum(r),                             // PRIMARY: ID phiếu (BC-1182 > BC-1179 = tạo sau)
+      dMax: Math.max(_bcTS(r.nkt), _bcTS(r.nd))       // FALLBACK: dùng khi 2 phiếu không phân biệt được ID (rare)
+    };
+  }
   const byMachine={};
-  REPORTS.filter(r=>r.status!=='draft').forEach(r=>{
-    const existing=byMachine[r.maMay];
-    const tsR  = toTS(r.nkt)||toTS(r.nd)||toTS(r.cat)||0;
-    const tsEx = existing?(toTS(existing.nkt)||toTS(existing.nd)||toTS(existing.cat)||0):0;
-    if(!existing||tsR>=tsEx) byMachine[r.maMay]=r;
+  REPORTS.filter(r=>r.status!=='draft' && (r.maMay||'').trim()).forEach(r=>{
+    const mmKey = String(r.maMay).trim();  // Chuẩn hoá mã máy (bỏ khoảng trắng thừa)
+    const existing = byMachine[mmKey];
+    if(!existing){ byMachine[mmKey]=r; return; }
+    const kR = _bcSortKey(r), kE = _bcSortKey(existing);
+    // FIX V753: dùng ID phiếu làm PRIMARY, ngày làm fallback.
+    // Lý do: nkt (Ngày KT) của BC dài ngày (như 897 giờ) có thể trễ hơn ngày BC mới,
+    // khiến logic cũ (max ngày) sai. ID phiếu tăng dần theo thứ tự tạo trên hệ thống,
+    // BC tạo sau chắc chắn có ID lớn hơn — đúng ý user "kiểm tra mã máy + kết luận".
+    if(kR.idNum > kE.idNum) byMachine[mmKey]=r;
+    else if(kR.idNum === kE.idNum && kR.dMax > kE.dMax) byMachine[mmKey]=r;
   });
   // Xây dựng WATCHLIST mới — chỉ máy có BC mới nhất kết luận warn/err
   WATCHLIST=[];
@@ -3541,11 +3582,37 @@ function recomputeWatchlist(){
   // Đồng bộ Sheet 6 nếu có kết nối (async, không block UI)
   if(GS_URL) syncWatchlistToSheet6().catch(()=>{});
 }
-// Đồng bộ WATCHLIST lên Sheet 6 (ghi đè toàn bộ)
+// V752: Đồng bộ WATCHLIST lên Sheet 6 + XÓA TƯỜNG MINH các mã máy đã rời watchlist
+// Kiến trúc thực tế: web hiển thị dựa trên Sheet 6, nên nếu chỉ writeSheet6 (append/overwrite)
+// mà không xóa dòng cũ khi máy chuyển sang "Ổn định" → dòng cũ vẫn hiển thị.
+// Fix: track set mã máy đã sync trước đó, so sánh, xóa các mã máy rời khỏi watchlist.
 async function syncWatchlistToSheet6(){
   if(!GS_URL) return;
-  const rows=WATCHLIST.map(w=>[w.maMay,w.tt||'',w.dv||'',w.cl==='warn'?'⚠️ Cần theo dõi':'🔴 Chưa xử lý',w.nd||w.nkt||'',w.ktv1||'',w.gc||'']);
-  await callGoogleAPI('writeSheet6',{rows});
+  const currentMachines = new Set(WATCHLIST.map(w => String(w.maMay||'').trim()).filter(Boolean));
+  // Tìm các mã máy TRƯỚC ĐÓ có trong Sheet 6 nhưng GIỜ KHÔNG còn trong watchlist
+  // (nghĩa là có BC "Ổn định" mới hơn → phải xóa khỏi Sheet 6)
+  const removedMachines = [];
+  WATCHLIST_SHEET6_MACHINES.forEach(mm => {
+    if(!currentMachines.has(mm)) removedMachines.push(mm);
+  });
+  // Ghi đè toàn bộ Sheet 6 với danh sách hiện tại (warn/err)
+  const rows = WATCHLIST.map(w=>[w.maMay, w.tt||'', w.dv||'', w.cl==='warn'?'⚠️ Cần theo dõi':'🔴 Chưa xử lý', w.nd||w.nkt||'', w.ktv1||'', w.gc||'']);
+  try {
+    await callGoogleAPI('writeSheet6', {rows});
+  } catch(e){ console.warn('[watchlist] writeSheet6 fail', e); }
+  // Xóa TƯỜNG MINH từng mã máy đã rời watchlist khỏi Sheet 6
+  // (phòng trường hợp writeSheet6 không clear-first, hoặc chỉ append)
+  for(const mm of removedMachines){
+    try {
+      await callGoogleAPI('delete', {sheet:'6', id: mm});
+    } catch(e){ console.warn('[watchlist] delete row Sheet6', mm, e); }
+  }
+  // Cập nhật set đã sync để lần sau tiếp tục track đúng
+  WATCHLIST_SHEET6_MACHINES = currentMachines;
+  localStorage.setItem('eg_watch_s6', JSON.stringify([...WATCHLIST_SHEET6_MACHINES]));
+  if(removedMachines.length){
+    console.log('[watchlist] Đã xóa khỏi Sheet 6:', removedMachines);
+  }
 }
 function renderWatchlist(){
   const c=document.getElementById('watchCont');
@@ -5017,13 +5084,20 @@ function buildLifecycleData() {
     }
   });
 
-  // ── Bước 2: Thu thập sự kiện thay thế và tính tuổi thọ từng lần ──
+  // ── Bước 2: Thu thập sự kiện thay thế ──
+  // FIX V751: Trước đây prevGio lấy từ BC bất kỳ trước đó (kể cả không thay vật tư này)
+  // → sai bản chất "tuổi thọ". Ví dụ: nếu giữa 2 lần thay turbo có xen BC khác (không thay turbo),
+  // lifeHours bị tính = curGio − gioBC_xen_giữa → nhỏ, sai, và có thể bị filter khỏi samples,
+  // khiến số mẫu tuổi thọ turbo KHÔNG tăng khi có thêm BC thay turbo mới.
+  //
+  // Sửa: gom sự kiện thay theo (mã máy, tên vật tư), sau đó SẮP XẾP THEO GIỜ VẬN HÀNH tăng dần,
+  // rồi tuổi thọ lần thay k = gio(k) − gio(k−1) TRÊN CÙNG MÁY, CÙNG VẬT TƯ.
   const byPart = {};
+  const _partMachineEvents = {}; // { partKey: { maMay: [ eventRef... ] } }
 
   list.forEach(r => {
     const curGio = parseDurationToHours(r.soGioVanHanh) || 0;
     const maMay = r.maMay || '__unknown__';
-    const prevGio = getPrevGio(maMay, r.id);
 
     (r.phen || []).forEach(p => {
       Object.entries(p.parts || {}).forEach(([lk, v]) => {
@@ -5035,29 +5109,51 @@ function buildLifecycleData() {
         if (!byPart[key]) {
           byPart[key] = { name: key, events: [], machines: new Set() };
         }
+        if (!_partMachineEvents[key]) _partMachineEvents[key] = {};
+        if (!_partMachineEvents[key][maMay]) _partMachineEvents[key][maMay] = [];
 
-        // Tính tuổi thọ của linh kiện trong lần thay này:
-        // = gio_bc_hien_tai - gio_bc_truoc_do (cùng mã máy)
-        let lifeHours = null;
-        if (curGio > 0 && prevGio !== null && curGio > prevGio) {
-          lifeHours = curGio - prevGio;
-        } else if (curGio > 0 && prevGio === null) {
-          // Lần thay đầu tiên: dùng chính curGio (giờ từ đầu đến khi thay lần 1)
-          // Đánh dấu là "first_replace" để có thể filter riêng nếu cần
-          lifeHours = curGio; // sẽ xử lý sau trong phân tích
-        }
-
-        byPart[key].events.push({
+        const evt = {
           date: r.nd || r.cat,
           gio: curGio,
-          prevGio: prevGio,
-          lifeHours: lifeHours,
-          isFirstReplace: (prevGio === null),
+          prevGio: null,       // sẽ điền sau khi sort
+          lifeHours: null,     // sẽ điền sau khi sort
+          isFirstReplace: false,
           maMay: maMay,
           repId: r.id,
           sl
-        });
+        };
+        byPart[key].events.push(evt);
         byPart[key].machines.add(maMay);
+        _partMachineEvents[key][maMay].push(evt);
+      });
+    });
+  });
+
+  // Với mỗi (vật tư, máy): sort các event theo (gio tăng dần, ngày tăng dần),
+  // rồi tính lifeHours = gio(k) − gio(k−1). Lần đầu tiên → isFirstReplace, lifeHours = gio(1).
+  Object.keys(_partMachineEvents).forEach(partKey => {
+    Object.keys(_partMachineEvents[partKey]).forEach(mm => {
+      const arr = _partMachineEvents[partKey][mm];
+      arr.sort((a, b) => {
+        // Ưu tiên sort theo giờ vận hành (chỉ số quyết định tuổi thọ);
+        // nếu bằng hoặc chưa có giờ, sort theo ngày báo cáo.
+        if (a.gio > 0 && b.gio > 0 && a.gio !== b.gio) return a.gio - b.gio;
+        const da = parseVNDate(a.date) || new Date(0);
+        const db = parseVNDate(b.date) || new Date(0);
+        return da - db;
+      });
+      let prevGio = null;
+      arr.forEach((e, i) => {
+        if (i === 0) {
+          e.isFirstReplace = true;
+          if (e.gio > 0) e.lifeHours = e.gio;   // giờ từ khi lắp máy đến lần thay đầu tiên
+        } else {
+          e.prevGio = prevGio;
+          if (e.gio > 0 && prevGio !== null && e.gio > prevGio) {
+            e.lifeHours = e.gio - prevGio;
+          }
+        }
+        if (e.gio > 0) prevGio = e.gio;
       });
     });
   });
@@ -5079,11 +5175,11 @@ function buildLifecycleData() {
     const lastMaMay = lastEvt.maMay;
 
     // Tập hợp mẫu tuổi thọ để tính định mức:
-    // Ưu tiên: các lần thay KHÔNG phải lần đầu tiên (prevGio known)
-    // Nếu không đủ mẫu: bổ sung cả lần đầu tiên
-    const nonFirstSamples = events.filter(e => !e.isFirstReplace && e.lifeHours !== null && e.lifeHours > 0);
-    const allSamples = events.filter(e => e.lifeHours !== null && e.lifeHours > 0);
-    const samples = nonFirstSamples.length >= 1 ? nonFirstSamples : allSamples;
+    // V752 (theo yêu cầu user): LUÔN dùng TẤT CẢ lần thay có gio > 0 làm mẫu.
+    //   - Lần thay đầu tiên trên máy → coi như "giờ ban đầu = 0" → tuổi thọ = curGio
+    //   - Các lần sau → tuổi thọ = curGio − gio lần thay trước (cùng vật tư, cùng máy)
+    // Không còn ưu tiên loại bỏ lần đầu — data lần đầu vẫn là thông tin tuổi thọ hợp lệ.
+    const samples = events.filter(e => e.lifeHours !== null && e.lifeHours > 0);
 
     let avgGio = null, stdGio = null, cvPct = null;
     if (samples.length >= 1) {
@@ -7335,11 +7431,13 @@ function startPolling(){
     }).catch(() => {});
   }, 10 * 60 * 1000);
 
-  // Mỗi 30s: kéo TOÀN BỘ dữ liệu từ Sheet về (không push) — dùng Promise.all để chạy song song
+  // FIX V751: Trước đây 30s là quá nhanh — 4 sheet pull song song + re-render gây lag/đơ giao diện.
+  // Giãn thành 60s, thêm debounce mở rộng 55s và pause khi tab bị ẩn (document.hidden).
   setInterval(async()=>{
     if(!GS_URL||!CU) return;
+    if(document.hidden) return; // Không poll khi tab ẩn — tiết kiệm CPU + tránh spam khi user quay lại
     const now = Date.now();
-    if(now - _lastPollTime < 25000) return; // debounce: không chạy nếu vừa poll <25s trước
+    if(now - _lastPollTime < 55000) return; // debounce: không chạy nếu vừa poll <55s trước
     _lastPollTime = now;
     try {
       // Kéo song song Sheet 2 (máy), Sheet 3 (hiện tượng), Sheet 5 (báo cáo), Sheet 8 (KTV)
@@ -7365,7 +7463,7 @@ function startPolling(){
         }).catch(()=>{});
       }
     } catch(e) { console.warn('[poll]',e); }
-  }, 30000);
+  }, 60000); // V751: 30s → 60s để giảm lag/đơ do sync liên tục
 }
 
 // ═══ EXPORT ═══
@@ -8133,11 +8231,13 @@ async function pvBDSCRefreshHistory_(silent=true) {
 function pvBDSCStartPolling_() {
   if (_pvBDSCPollStarted) return;
   _pvBDSCPollStarted = true;
+  // V751: 30s → 60s + pause khi tab ẩn để giảm lag khi upload dữ liệu liên tục
   setInterval(() => {
     if (!CU) return;
+    if (document.hidden) return;
     pvBDSCRefreshFastData_(curPage === 'taoPhieu');
     if (curPage === 'danhSachPhieu') pvBDSCRefreshHistory_(true);
-  }, 30000);
+  }, 60000);
 }
 
 async function pvBDSCInit(view) {
@@ -17733,12 +17833,10 @@ function selectableV58(){
       list=list.filter(function(x){return rel.includes(norm(materialCum(x)));});
     }
   }else if(md === 'Gửi thêm vật tư'){
-    // Nếu đã chọn hiện tượng: lọc theo cụm liên quan; nếu chưa chọn: hiển thị toàn bộ (giống Sản xuất)
-    if(p.hienTuongSel.length){
-      const rel=unique([].concat.apply([],p.hienTuongSel.map(relatedCums))).map(norm);
-      if(rel.length) list=list.filter(function(x){return rel.includes(norm(materialCum(x)));});
-    }
-    // Khi chưa chọn hiện tượng: giữ toàn bộ list (không filter)
+    if(!p.hienTuongSel.length) return [];
+    const rel=unique([].concat.apply([],p.hienTuongSel.map(relatedCums))).map(norm);
+    if(!rel.length) return [];
+    list=list.filter(function(x){return rel.includes(norm(materialCum(x)));});
   }
   if(!noFixedPurpose(md)){
     const fixedNames=selectedFixedNameSet(p);
@@ -17752,8 +17850,10 @@ function renderSearchV58(){
   const box=document.getElementById('pvb_vatTuSearchList'); if(!box) return;
   const md=getPurpose();
   const q=norm(val('pvb_searchVatTu'));
-  // Khi "Gửi thêm vật tư": hiển thị toàn bộ danh sách (giống Sản xuất)
-  // Nếu đã chọn hiện tượng thì lọc theo hiện tượng, nếu chưa thì hiển thị tất cả
+  if(md === 'Gửi thêm vật tư' && !p.hienTuongSel.length){
+    box.innerHTML='<div class="v58-empty">Chọn một hoặc nhiều hiện tượng/sự cố ở phần Mục đích để hiển thị cụm linh kiện và vật tư liên quan.</div>';
+    scheduleLegacyCleanup(); return;
+  }
   const selectedIds=new Set((p.data.selected || []).filter(function(x){return x && x.included !== false;}).map(function(x){return x.id;}));
   const fixedNames=!noFixedPurpose(md) ? selectedFixedNameSet(p) : {};
   let list=selectableV58().filter(function(x){
@@ -17861,7 +17961,7 @@ function updatePurposeUI(){
   const hint=document.getElementById('pvb_v58_purposeHint') || document.getElementById('pvb_v56_purposeHint');
   if(hint){
     if(md === 'Sản xuất') hint.textContent='Mục Sản xuất không nạp vật tư cố định; danh sách chọn thêm hiển thị toàn bộ vật tư theo từng cụm linh kiện.';
-    else if(md === 'Gửi thêm vật tư') hint.textContent='Mục Gửi thêm vật tư không nạp vật tư cố định; toàn bộ vật tư hiển thị theo cụm linh kiện — chọn hiện tượng để lọc nhanh vật tư liên quan.';
+    else if(md === 'Gửi thêm vật tư') hint.textContent='Mục Gửi thêm vật tư không nạp vật tư cố định; hãy chọn một hoặc nhiều hiện tượng để lọc cụm linh kiện và vật tư liên quan.';
     else if(md === 'Bảo dưỡng sửa chữa') hint.textContent='Mục Bảo dưỡng sửa chữa tự nạp vật tư cố định từ Sheet 9; vật tư đã nằm trong danh sách cố định sẽ không lặp ở phần chọn thêm.';
     else hint.textContent='Mục Lắp đặt tự nạp vật tư cố định từ Sheet 9; vật tư đã nằm trong danh sách cố định sẽ không lặp ở phần chọn thêm.';
   }
@@ -22532,3 +22632,6 @@ console.log('[V740] ✅ Loaded — bắt buộc & auto-fill số giờ + sửa �
 })();
 console.log('[V750-fix] ✅ Approver sync fix loaded');
 </script>
+
+</body>
+</html>
