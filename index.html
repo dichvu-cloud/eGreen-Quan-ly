@@ -997,6 +997,9 @@ tbody tr{border-bottom:1px solid #f1f5f9;transition:.1s}tbody tr:hover{backgroun
     <div class="nitem" onclick="nav('phenom')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l3 3"/></svg>Hiện tượng & LK
     </div>
+    <div class="nitem" onclick="nav('mavt')" id="ni-mavt">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>Mã vật tư
+    </div>
     <div class="nsec" id="nav-admin">Quản trị</div>
     <div class="nitem" onclick="nav('members')" id="ni-members">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>Quản lý thành viên<span class="nbadge am" id="nb-pend">0</span>
@@ -1863,6 +1866,15 @@ tbody tr{border-bottom:1px solid #f1f5f9;transition:.1s}tbody tr:hover{backgroun
       <div id="pvCompleteRoot"></div>
     </div>
 
+    <!-- MÃ VẬT TƯ theo máy (Sheet 12) -->
+    <div class="page" id="pg-mavt" style="max-width:100%;padding:16px 20px;margin:0">
+      <div class="ph">
+        <h1>🧰 Mã vật tư theo máy</h1>
+        <p>Nguồn: Sheet <b>12. Vật tư máy</b> · Cột B = Mã máy · Cột C = Loại động cơ · Từ cột D trở đi là các cặp (Tên vật tư | Định mức) · Kỹ thuật có thể sửa/bổ sung</p>
+      </div>
+      <div id="mavtRoot"></div>
+    </div>
+
     <!-- PROFILE -->
     <div class="page" id="pg-profile">
       <div class="ph"><h1>👤 Hồ sơ cá nhân</h1></div>
@@ -2516,6 +2528,9 @@ function nav(p){
     setTimeout(()=>{
       if(typeof renderLifecycle==='function') renderLifecycle();
     }, 80);
+  }
+  if(p==='mavt'){
+    if(typeof renderMaVatTuPage==='function') renderMaVatTuPage();
   }
 }
 
@@ -4217,10 +4232,13 @@ function renderAnalysis(){
 
   // 3) Top linh kiện thay thế/sửa chữa ─────────────────────────
   // Đếm theo SL thực tế từ parts[key].sl (không chỉ đếm dòng)
+  // V751: Loại trừ vật tư TIÊU HAO (hạt lọc, nhớt, bugi, lọc nhớt, lọc gió)
+  //       vì đã có định mức định lượng rõ ràng, không cần thống kê tần suất.
   const lkMap={};
   const lkCntMap={};
   list.forEach(r=>(r.phen||[]).forEach(p=>{
     Object.entries(p.parts||{}).forEach(([lk,val])=>{
+      if(typeof isConsumableV751==='function' && isConsumableV751(lk)) return; // ⬅ SKIP tiêu hao
       const loai = typeof val==='object'?(val.loai||''):String(val||'');
       const sl   = typeof val==='object'?(parseInt(val.sl)||1):1;
       if(loai.includes('Thay')||loai.includes('Sửa')){
@@ -5103,6 +5121,8 @@ function buildLifecycleData() {
       Object.entries(p.parts || {}).forEach(([lk, v]) => {
         const loai = typeof v === 'object' ? (v.loai || '') : String(v || '');
         if (!loai.toLowerCase().includes('thay')) return;
+        // V751: bỏ vật tư TIÊU HAO (hạt lọc, nhớt, bugi, lọc nhớt, lọc gió) khỏi phân tích vòng đời
+        if (typeof isConsumableV751 === 'function' && isConsumableV751(lk)) return;
         const sl = typeof v === 'object' ? (parseInt(v.sl) || 1) : 1;
         const key = lk.trim();
         if (!key) return;
@@ -17842,6 +17862,29 @@ function selectableV58(){
     const fixedNames=selectedFixedNameSet(p);
     list=list.filter(function(x){ return !fixedNames[norm(materialName(x))]; });
   }
+  // V751: Lọc theo Mã máy đã chọn — dùng data từ Sheet 12 (window.VT12_BY_MACHINE)
+  //       Chỉ lọc khi (1) máy đã chọn, (2) có dữ liệu Sheet 12 cho máy đó.
+  //       Máy chưa có dữ liệu → không lọc (fallback an toàn).
+  try{
+    var mmEl=document.getElementById('pvb_maMay');
+    var mm=mmEl?String(mmEl.value||'').trim():'';
+    if(mm && window.VT12_BY_MACHINE){
+      var mmNorm=String(mm).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/đ/g,'d').trim();
+      var machineData=window.VT12_BY_MACHINE[mmNorm];
+      if(machineData && machineData.parts && machineData.parts.length){
+        var allowed={};
+        machineData.parts.forEach(function(pt){
+          var k=String(pt.name||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/đ/g,'d').trim();
+          if(k) allowed[k]=1;
+        });
+        var filtered=list.filter(function(x){
+          var nk=String(materialName(x)||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/đ/g,'d').trim();
+          return allowed[nk];
+        });
+        if(filtered.length) list=filtered;
+      }
+    }
+  }catch(e){}
   return list;
 }
 
@@ -22631,6 +22674,1004 @@ console.log('[V740] ✅ Loaded — bắt buộc & auto-fill số giờ + sửa �
 
 })();
 console.log('[V750-fix] ✅ Approver sync fix loaded');
+</script>
+
+<!-- ═══════════════════════════════════════════════════════════════════
+     V751.2 — Mã vật tư theo máy (Sheet 12, schema thực tế)
+     Các chỉnh sửa nhỏ đã inject trực tiếp trong file gốc:
+       - renderAnalysis (Top LK)      → bỏ vật tư tiêu hao
+       - buildLifecycleData            → bỏ vật tư tiêu hao
+       - selectableV58                 → lọc theo Mã máy (Sheet 12)
+       - nav()                         → xử lý p==='mavt'
+     Script dưới CHỈ chứa mã cho tính năng mới (không đè hàm nào).
+     ═══════════════════════════════════════════════════════════════════ -->
+<script>
+(function(){
+  'use strict';
+
+  /* ---------- Chuẩn hoá & consumable ---------- */
+  function norm(s){
+    return String(s||'').trim().toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/đ/g,'d')
+      .replace(/\s+/g,' ');
+  }
+  const CONSUMABLE_KEYWORDS = ['hat loc','nhot','bugi','loc nhot','loc gio'];
+  window.isConsumableV751 = function(name){
+    const n = norm(name); if(!n) return false;
+    return CONSUMABLE_KEYWORDS.some(k => n.includes(k));
+  };
+  function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+  function jse(s){ return String(s==null?'':s).replace(/'/g,"\\'").replace(/"/g,'\\"'); }
+
+  /* ---------- Cache Sheet 12 ---------- */
+  // VT12_CACHE.items  = [{index, name, unit, hasDinhMuc}, ...]
+  // VT12_CACHE.rows   = [{rowIndex, maMay, loaiDongCo, ghiChu, nguoiCapNhat, thoiGianCapNhat,
+  //                       values: [{chungLoai, dinhMuc}, ...]}]
+  // VT12_BY_MACHINE   = { normMaMay: rowRef }
+  window.VT12_CACHE = { items:[], rows:[], loaded:false, loading:false };
+  window.VT12_BY_MACHINE = {};
+
+  async function loadVT12(force){
+    if(VT12_CACHE.loading) return;
+    if(VT12_CACHE.loaded && !force) return;
+    VT12_CACHE.loading = true;
+    try{
+      const r = await pvApi('getVatTuMay12', {});
+      VT12_CACHE.items = (r && r.items) || [];
+      VT12_CACHE.rows  = (r && r.rows)  || [];
+      VT12_CACHE.loaded = true;
+      const idx = {};
+      VT12_CACHE.rows.forEach(row => {
+        if(row.maMay) idx[norm(row.maMay)] = row;
+        // Build "parts" list (item names that HAVE data) for filter compatibility
+        row.parts = [];
+        (row.values||[]).forEach((v,i) => {
+          const it = VT12_CACHE.items[i];
+          if(!it) return;
+          if(String(v.chungLoai||'').trim() || String(v.dinhMuc||'').trim()){
+            row.parts.push({ name: it.name, chungLoai: v.chungLoai, dinhMuc: v.dinhMuc, unit: it.unit });
+          }
+        });
+      });
+      window.VT12_BY_MACHINE = idx;
+    }catch(e){
+      console.warn('[V751.2] loadVT12:', e);
+      if(typeof toast==='function') toast('❌ Không tải được Sheet 12: '+e.message,'err');
+    }finally{
+      VT12_CACHE.loading = false;
+    }
+  }
+  setTimeout(()=>loadVT12().catch(()=>{}), 1500);
+
+  /* ═════════════════ Trang "Mã vật tư" ═════════════════ */
+  // V751.3: Nguồn mã máy = Sheet 12 (cột B, từ hàng 2). Fallback về PV.data.may nếu VT12 chưa tải.
+  function machineList(){
+    // Ưu tiên: lấy trực tiếp từ Sheet 12 (VT12_CACHE.rows). Bù thêm tên trại từ PV.data.may (nếu khớp mã).
+    const tenTraiMap = {};
+    if(window.PV && PV.data && Array.isArray(PV.data.may)){
+      PV.data.may.forEach(function(m){
+        const mm = String(m['Mã máy']||m.maMay||m.ma||'').trim();
+        if(!mm) return;
+        const tt = String(m['Tên trang trại']||m['Tên trại']||m.tenTrai||'').trim();
+        if(tt) tenTraiMap[norm(mm)] = tt;
+      });
+    }
+    if(window.VT12_CACHE && VT12_CACHE.loaded && Array.isArray(VT12_CACHE.rows) && VT12_CACHE.rows.length){
+      return VT12_CACHE.rows.map(function(r){
+        const mm = String(r.maMay||'').trim();
+        return {
+          maMay: mm,
+          tenTrai: tenTraiMap[norm(mm)] || '',
+          loaiDong: String(r.loaiDongCo||'').trim()
+        };
+      }).filter(function(x){return x.maMay;});
+    }
+    // Fallback
+    let list = [];
+    if(window.PV && PV.data && Array.isArray(PV.data.may)) list = PV.data.may;
+    else if(window.MACHINES && Array.isArray(window.MACHINES)) list = window.MACHINES;
+    return list.map(function(m){return {
+      maMay: String(m['Mã máy']||m.maMay||m.ma||'').trim(),
+      tenTrai: String(m['Tên trang trại']||m['Tên trại']||m.tenTrai||'').trim(),
+      loaiDong: String(m['Loại động cơ']||m['Loai dong co']||m.loaiDong||'').trim()
+    };}).filter(function(x){return x.maMay;});
+  }
+
+  window.renderMaVatTuPage = async function(){
+    const root = document.getElementById('mavtRoot'); if(!root) return;
+    root.innerHTML = `
+      <div class="card">
+        <div class="cb">
+          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:8px">
+            <div style="flex:1;min-width:280px;max-width:520px">
+              <div class="il">🔍 Chọn Mã máy</div>
+              <div style="position:relative">
+                <input class="inp" id="mavt_mmSearch" placeholder="Gõ mã máy, loại động cơ hoặc tên trại để lọc..." autocomplete="off"
+                  oninput="mavtOnMMInput(this)" onfocus="mavtShowMMSug(this.value)"
+                  onblur="setTimeout(()=>mavtHideMMSug(),220)">
+                <div id="mavt_mm_sug" style="display:none;position:absolute;top:100%;left:0;min-width:100%;width:max-content;max-width:min(760px,95vw);background:#fff;border:1.5px solid var(--g);border-top:none;border-radius:0 0 10px 10px;max-height:min(60vh,520px);overflow-y:auto;z-index:400;box-shadow:0 8px 28px rgba(0,0,0,.22)"></div>
+              </div>
+            </div>
+            <button class="btn bg-b sm" onclick="mavtReload()">🔄 Tải lại</button>
+          </div>
+          <div id="mavt_info" style="font-size:11px;color:var(--mu)"></div>
+        </div>
+      </div>
+      <div class="card" style="margin-top:12px">
+        <div class="cb" id="mavt_body"><i>Đang tải...</i></div>
+      </div>`;
+    await loadVT12();
+    mavtRender();
+  };
+
+  window.mavtOnMMInput = function(inp){ mavtShowMMSug(inp.value); mavtRender(); };
+  window.mavtShowMMSug = function(val){
+    const box=document.getElementById('mavt_mm_sug'); if(!box) return;
+    const nq=norm(val);
+    let list=machineList();
+    const total = list.length;
+    if(nq){
+      // Ưu tiên khớp đầu chuỗi (mã máy), rồi tới chứa
+      const q = nq;
+      list = list.filter(function(m){ return norm(m.maMay+' '+(m.loaiDong||'')+' '+(m.tenTrai||'')).includes(q); });
+      list.sort(function(a,b){
+        const na=norm(a.maMay), nb=norm(b.maMay);
+        const sa = na.startsWith(q) ? 0 : (na.includes(q) ? 1 : 2);
+        const sb = nb.startsWith(q) ? 0 : (nb.includes(q) ? 1 : 2);
+        if(sa !== sb) return sa - sb;
+        return na.localeCompare(nb);
+      });
+    } else {
+      list.sort(function(a,b){ return norm(a.maMay).localeCompare(norm(b.maMay)); });
+    }
+    const shown = list.slice(0, 200);
+    if(!shown.length){
+      box.innerHTML='<div style="padding:12px 14px;color:var(--mu);font-size:12.5px">Không có máy phù hợp'
+        + (total? ' (tổng '+total+' mã máy trong Sheet 12)':'')+'</div>';
+      box.style.display='block'; return;
+    }
+    const headerHtml = '<div style="padding:6px 14px;background:#f8fafc;border-bottom:1px solid #e2e8f0;font-size:11px;color:var(--mu);font-weight:600;position:sticky;top:0;z-index:2">'
+      + 'Hiển thị <b>'+shown.length+'</b>' + (list.length>shown.length? ' / '+list.length : '')
+      + ' · Sheet 12 có <b>'+total+'</b> mã máy · Nhấn để chọn</div>';
+    box.innerHTML = headerHtml + shown.map(function(m){
+      const rec = VT12_BY_MACHINE[norm(m.maMay)];
+      const cnt = rec && rec.parts ? rec.parts.length : 0;
+      const tag = cnt>0
+        ? '<span style="color:#0d6e3f;font-weight:700;font-size:11px;background:#dcfce7;padding:2px 8px;border-radius:10px">✓ '+cnt+' VT</span>'
+        : '<span style="color:#94a3b8;font-size:11px">chưa khai</span>';
+      return '<div style="padding:9px 14px;cursor:pointer;border-bottom:1px solid #f1f5f9;font-size:13px;display:flex;align-items:center;gap:10px" '
+        + 'onmouseover="this.style.background=\'#f0fdf4\'" onmouseout="this.style.background=\'\'" '
+        + 'onmousedown="mavtPickMM(\''+jse(m.maMay)+'\')">'
+        + '<b style="min-width:130px">'+esc(m.maMay)+'</b>'
+        + '<span style="color:#7c3aed;flex:1;font-size:12px">'+esc(m.loaiDong||'')+'</span>'
+        + (m.tenTrai?'<span style="color:var(--mu);font-size:11px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(m.tenTrai)+'</span>':'')
+        + tag
+        + '</div>';
+    }).join('');
+    box.style.display='block';
+  };
+  window.mavtHideMMSug=function(){const b=document.getElementById('mavt_mm_sug');if(b)b.style.display='none';};
+  window.mavtPickMM=function(mm){const i=document.getElementById('mavt_mmSearch');if(i)i.value=mm;mavtHideMMSug();mavtRender();};
+
+  window.mavtRender = function(){
+    const body=document.getElementById('mavt_body'); if(!body) return;
+    if(!VT12_CACHE.loaded){ body.innerHTML='<i>Đang tải...</i>'; return; }
+
+    const mm=((document.getElementById('mavt_mmSearch')||{}).value||'').trim();
+
+    // Info line
+    const info=document.getElementById('mavt_info');
+    if(info){
+      const total = VT12_CACHE.rows.length;
+      const covered = VT12_CACHE.rows.filter(function(r){return r.parts && r.parts.length;}).length;
+      info.innerHTML = '📊 Sheet 12 có <b>'+total+'</b> mã máy · '
+        + 'Đã khai báo vật tư: <b>'+covered+'</b> / '+total+' máy · '
+        + '<b>'+VT12_CACHE.items.length+'</b> hạng mục vật tư (cột D→AF)';
+    }
+
+    if(!mm){
+      // Overview: 1 hàng / máy — dữ liệu ĐÃ được filter sẵn ở backend (bỏ 2 hàng header)
+      const rows = VT12_CACHE.rows;
+      if(!rows.length){ body.innerHTML='<i style="color:var(--mu)">Sheet 12 chưa có dữ liệu máy nào.</i>'; return; }
+      body.innerHTML = `
+        <div style="font-size:12px;margin-bottom:10px;color:var(--mu)">💡 Chọn 1 mã máy phía trên để xem chi tiết + chỉnh sửa</div>
+        <div style="overflow-x:auto">
+        <table style="width:100%;min-width:820px;border-collapse:collapse;font-size:12px">
+          <thead>
+            <tr style="background:#f0fdf4;border-bottom:2px solid #86efac">
+              <th style="padding:9px 12px;text-align:left">Mã máy</th>
+              <th style="padding:9px 12px;text-align:left">Loại động cơ</th>
+              <th style="padding:9px 12px;text-align:right">Số VT khai báo</th>
+              <th style="padding:9px 12px;text-align:left">Người cập nhật gần nhất</th>
+              <th style="padding:9px 12px;text-align:left">Thời gian</th>
+              <th style="padding:9px 12px;text-align:center">Thao tác</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows.map(r=>{
+              const cnt = r.parts ? r.parts.length : 0;
+              return `<tr style="border-bottom:1px solid #f1f5f9">
+                <td style="padding:8px 12px"><b>${esc(r.maMay)}</b></td>
+                <td style="padding:8px 12px;color:#7c3aed">${esc(r.loaiDongCo||'')}</td>
+                <td style="padding:8px 12px;text-align:right"><b>${cnt}</b></td>
+                <td style="padding:8px 12px;color:#0d6e3f">${esc(r.nguoiCapNhat||'')}</td>
+                <td style="padding:8px 12px;color:var(--mu);font-size:11px">${esc(r.thoiGianCapNhat||'')}</td>
+                <td style="padding:8px 12px;text-align:center">
+                  <button class="btn bg-a sm" onclick="mavtPickMM('${jse(r.maMay)}')">👁 Xem</button>
+                </td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table></div>`;
+      return;
+    }
+
+    // Detail view: 1 máy → bảng đầy đủ items
+    const rec = VT12_BY_MACHINE[norm(mm)];
+    const machInfo = machineList().find(m=>norm(m.maMay)===norm(mm));
+    const loaiDongCo = (rec && rec.loaiDongCo) || (machInfo && machInfo.loaiDong) || '';
+
+    // ALL items từ layout (kể cả rỗng — như yêu cầu)
+    const items = VT12_CACHE.items;
+    const values = rec ? (rec.values||[]) : items.map(()=>({chungLoai:'',dinhMuc:''}));
+
+    body.innerHTML = `
+      <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin-bottom:14px;padding:11px 14px;background:#f0fdf4;border:1px solid #86efac;border-radius:10px">
+        <div><b style="font-size:15px">🔧 ${esc(mm)}</b>${machInfo && machInfo.tenTrai?` <span style="color:var(--mu)">· ${esc(machInfo.tenTrai)}</span>`:''}</div>
+        <div>Loại động cơ: <b style="color:#7c3aed">${esc(loaiDongCo||'—')}</b></div>
+        ${rec && rec.nguoiCapNhat?`<div style="color:var(--mu);font-size:11px">Cập nhật: <b>${esc(rec.nguoiCapNhat)}</b> · ${esc(rec.thoiGianCapNhat||'')}</div>`:''}
+        <div style="margin-left:auto"><button class="btn bg-g sm" onclick="mavtOpenEditor('${jse(mm)}')">✏️ ${rec?'Sửa / bổ sung':'Khai báo mới'}</button></div>
+      </div>
+      <div style="overflow-x:auto">
+      <table style="width:100%;min-width:640px;border-collapse:collapse;font-size:12.5px">
+        <thead>
+          <tr style="background:#f0fdf4;border-bottom:2px solid #86efac">
+            <th style="padding:9px 12px;text-align:left;width:44px">#</th>
+            <th style="padding:9px 12px;text-align:left">Tên vật tư (hạng mục)</th>
+            <th style="padding:9px 12px;text-align:center;width:80px">Đơn vị</th>
+            <th style="padding:9px 12px;text-align:left">Chủng loại</th>
+            <th style="padding:9px 12px;text-align:right;width:120px">Định mức</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${items.map((it,i)=>{
+            const v = values[i] || {chungLoai:'',dinhMuc:''};
+            return `<tr style="border-bottom:1px solid #f1f5f9">
+              <td style="padding:7px 12px;color:var(--mu)">${i+1}</td>
+              <td style="padding:7px 12px"><b>${esc(it.name)}</b></td>
+              <td style="padding:7px 12px;text-align:center;color:var(--mu)">${esc(it.unit||'')}</td>
+              <td style="padding:7px 12px">${v.chungLoai?esc(v.chungLoai):'<span style="color:#cbd5e1">—</span>'}</td>
+              <td style="padding:7px 12px;text-align:right">${it.hasDinhMuc ? (v.dinhMuc?`<b>${esc(v.dinhMuc)}</b>`:'<span style="color:#cbd5e1">—</span>') : '<span style="color:#94a3b8;font-size:11px">(không áp dụng)</span>'}</td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table></div>
+      <div style="margin-top:14px;padding:11px 14px;background:#fef9c3;border:1px solid #fde68a;border-radius:8px">
+        <div style="font-size:11px;font-weight:700;color:#78350f;margin-bottom:4px">📝 GHI CHÚ (cột AE Sheet 12)</div>
+        <div style="font-size:13px;color:#3f3f46;white-space:pre-wrap">${rec && rec.ghiChu ? esc(rec.ghiChu) : '<i style="color:#a1a1aa">(chưa có ghi chú)</i>'}</div>
+      </div>
+    `;
+  };
+
+  window.mavtReload=async function(){
+    VT12_CACHE.loaded=false;
+    const b=document.getElementById('mavt_body'); if(b) b.innerHTML='<i>Đang tải...</i>';
+    await loadVT12(true); mavtRender();
+    if(typeof toast==='function') toast('✅ Đã tải lại','ok');
+  };
+
+  /* ═════════════════ Editor: sửa 1 máy — 2-chiều ═════════════════ */
+  window.mavtOpenEditor = function(mm){
+    const rec = VT12_BY_MACHINE[norm(mm)];
+    const machInfo = machineList().find(m=>norm(m.maMay)===norm(mm));
+    const loaiDongCo = (rec && rec.loaiDongCo) || (machInfo && machInfo.loaiDong) || '';
+    const items = VT12_CACHE.items;
+    const values = rec ? (rec.values||items.map(()=>({chungLoai:'',dinhMuc:''}))) : items.map(()=>({chungLoai:'',dinhMuc:''}));
+    // Ensure length parity
+    while(values.length < items.length) values.push({chungLoai:'',dinhMuc:''});
+
+    document.getElementById('mavt_editor')?.remove();
+    document.body.insertAdjacentHTML('beforeend', `
+      <div id="mavt_editor" style="position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px">
+        <div style="background:#fff;border-radius:14px;max-width:880px;width:100%;max-height:94vh;overflow:auto;display:flex;flex-direction:column">
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid #e2e8f0;background:#f0fdf4">
+            <div>
+              <h3 style="margin:0;font-size:16px">🧰 Sửa / bổ sung — ${esc(mm)}</h3>
+              <div style="font-size:12px;color:var(--mu);margin-top:2px">${machInfo && machInfo.tenTrai?esc(machInfo.tenTrai):''}${rec?` · Dòng Sheet 12: ${rec.rowIndex}`:''}</div>
+            </div>
+            <button class="btn bg-gr sm" onclick="document.getElementById('mavt_editor').remove()">✕</button>
+          </div>
+          <div style="padding:16px 20px;overflow:auto;flex:1">
+            <div class="iw" style="margin-bottom:14px;max-width:400px">
+              <div class="il">Loại động cơ</div>
+              <input class="inp" id="mavt_e_loaiDC" value="${esc(loaiDongCo)}" placeholder="VD: PERKINS 1103, HINO EK130...">
+            </div>
+            <div style="overflow-x:auto">
+            <table style="width:100%;min-width:640px;border-collapse:collapse;font-size:12.5px">
+              <thead>
+                <tr style="background:#f0fdf4;border-bottom:2px solid #86efac">
+                  <th style="padding:8px 10px;text-align:left;width:40px">#</th>
+                  <th style="padding:8px 10px;text-align:left">Tên vật tư</th>
+                  <th style="padding:8px 10px;text-align:center;width:70px">Đơn vị</th>
+                  <th style="padding:8px 10px;text-align:left">Chủng loại</th>
+                  <th style="padding:8px 10px;text-align:right;width:130px">Định mức</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${items.map((it,i)=>{
+                  const v = values[i] || {chungLoai:'',dinhMuc:''};
+                  return `<tr style="border-bottom:1px solid #f1f5f9;background:${i%2?'#fafafa':'#fff'}">
+                    <td style="padding:6px 10px;color:var(--mu)">${i+1}</td>
+                    <td style="padding:6px 10px"><b>${esc(it.name)}</b></td>
+                    <td style="padding:6px 10px;text-align:center;color:var(--mu)">${esc(it.unit||'')}</td>
+                    <td style="padding:5px 10px"><input class="inp" style="width:100%;font-size:12px;padding:5px 8px" data-mavt-idx="${i}" data-mavt-fld="chungLoai" value="${esc(v.chungLoai||'')}" placeholder=""></td>
+                    <td style="padding:5px 10px;text-align:right">
+                      ${it.hasDinhMuc
+                        ? `<input class="inp" type="text" style="width:100%;font-size:12px;padding:5px 8px;text-align:right" data-mavt-idx="${i}" data-mavt-fld="dinhMuc" value="${esc(v.dinhMuc||'')}" placeholder="—">`
+                        : '<span style="color:#94a3b8;font-size:11px">(không áp dụng)</span>'}
+                    </td>
+                  </tr>`;
+                }).join('')}
+              </tbody>
+            </table></div>
+            <div style="margin-top:14px">
+              <div class="il">📝 Ghi chú (cột AE)</div>
+              <textarea class="ta" id="mavt_e_ghiChu" rows="3" placeholder="Ghi chú thêm về máy — chỉnh sửa được...">${esc(rec ? (rec.ghiChu||'') : '')}</textarea>
+            </div>
+          </div>
+          <div style="padding:12px 20px;border-top:1px solid #e2e8f0;display:flex;gap:8px;justify-content:flex-end;background:#f8fafc">
+            <button class="btn bg-gr" onclick="document.getElementById('mavt_editor').remove()">Đóng</button>
+            <button class="btn bg-g" onclick="mavtSaveEditor('${jse(mm)}',${rec?rec.rowIndex:-1})">💾 Lưu về Sheet 12</button>
+          </div>
+        </div>
+      </div>`);
+  };
+
+  window.mavtSaveEditor = async function(mm, rowIndex){
+    const items = VT12_CACHE.items;
+    const values = items.map((it,i)=>{
+      const cEl = document.querySelector(`#mavt_editor input[data-mavt-idx="${i}"][data-mavt-fld="chungLoai"]`);
+      const dEl = document.querySelector(`#mavt_editor input[data-mavt-idx="${i}"][data-mavt-fld="dinhMuc"]`);
+      return {
+        chungLoai: cEl ? cEl.value.trim() : '',
+        dinhMuc:   dEl ? dEl.value.trim() : ''
+      };
+    });
+    const payload = {
+      rowIndex: rowIndex > 0 ? rowIndex : null,
+      maMay: mm,
+      loaiDongCo: ((document.getElementById('mavt_e_loaiDC')||{}).value||'').trim(),
+      ghiChu: ((document.getElementById('mavt_e_ghiChu')||{}).value||''),
+      values
+    };
+    try{
+      const r = await pvApi('saveVatTuMay12', {payload, currentUser: window.CU || null});
+      if(r && r.success===false) throw new Error(r.error||'Lưu thất bại');
+      if(typeof toast==='function') toast('✅ Đã lưu về Sheet 12','ok');
+      document.getElementById('mavt_editor')?.remove();
+      await loadVT12(true); mavtRender();
+      if(typeof renderSearchV58==='function') renderSearchV58();
+    }catch(e){
+      if(typeof toast==='function') toast('❌ '+e.message,'err');
+    }
+  };
+
+  /* ═════════════════ Info banner trong form Tạo phiếu ═════════════════ */
+  function updateMachineFilterBanner(){
+    const searchInp=document.getElementById('pvb_searchVatTu'); if(!searchInp) return;
+    let banner=document.getElementById('vt12_banner');
+    if(!banner){
+      banner=document.createElement('div');
+      banner.id='vt12_banner';
+      banner.style.cssText='padding:8px 12px;border-radius:8px;margin-bottom:8px;font-size:12px;display:none';
+      searchInp.parentNode.insertBefore(banner, searchInp);
+    }
+    const mmEl=document.getElementById('pvb_maMay');
+    const mm=mmEl?String(mmEl.value||'').trim():'';
+    if(!mm){ banner.style.display='none'; return; }
+    if(!VT12_CACHE.loaded){ banner.style.display='none'; return; }
+    const rec = VT12_BY_MACHINE[norm(mm)];
+    const cnt = rec && rec.parts ? rec.parts.length : 0;
+    if(cnt > 0){
+      banner.style.background='#eff6ff';
+      banner.style.border='1px solid #bfdbfe';
+      banner.style.color='#1e40af';
+      banner.style.display='block';
+      banner.innerHTML=`🎯 Đang lọc theo máy <b>${esc(mm)}</b>: <b>${cnt}</b> hạng mục vật tư · <a href="javascript:void(0)" onclick="nav('mavt');setTimeout(()=>mavtPickMM('${jse(mm)}'),120)" style="color:#0d6e3f;text-decoration:underline">Sửa</a>`;
+    } else {
+      banner.style.background='#fef9c3';
+      banner.style.border='1px solid #fde68a';
+      banner.style.color='#78350f';
+      banner.style.display='block';
+      banner.innerHTML=`ℹ Máy <b>${esc(mm)}</b> chưa khai báo Sheet 12 — đang hiện <b>toàn bộ</b>. <a href="javascript:void(0)" onclick="nav('mavt');setTimeout(()=>mavtPickMM('${jse(mm)}'),120)" style="color:#0d6e3f;text-decoration:underline">Khai báo ngay</a>`;
+    }
+  }
+
+  document.addEventListener('input', function(e){
+    if(e.target && e.target.id==='pvb_maMay'){
+      updateMachineFilterBanner();
+      if(typeof renderSearchV58==='function') setTimeout(renderSearchV58, 30);
+    }
+  }, true);
+  document.addEventListener('change', function(e){
+    if(e.target && e.target.id==='pvb_maMay'){
+      updateMachineFilterBanner();
+      if(typeof renderSearchV58==='function') setTimeout(renderSearchV58, 30);
+    }
+  }, true);
+  setInterval(function(){
+    if(window.curPage==='taoPhieu' && document.getElementById('pvb_searchVatTu')){
+      updateMachineFilterBanner();
+    }
+  }, 1200);
+
+  console.log('[V751.2] ✅ Loaded — Sheet 12 schema v2 (row1+row2 headers)');
+})();
+</script>
+
+<!-- ═══════════════════════════════════════════════════════════════════
+     V752 — Patch pack (theo yêu cầu user)
+       1. Fix dropdown gợi ý mã máy bị ẩn (position:fixed thay vì absolute)
+       2. Thêm chức năng "➕ Thêm mã máy" trong tab Mã vật tư
+       3. Thêm chức năng "➕ Thêm hạng mục vật tư" (chèn cột)
+       4. Loại "Bộ lọc khí/Đường khí" khỏi Phân tích & Vòng đời VT
+       5. Click 1 dòng trong bảng "Định mức chi tiết toàn bộ VT" → mở modal
+          chi tiết từng lần thay (có sẵn xuất PDF / Excel)
+     ═══════════════════════════════════════════════════════════════════ -->
+<script>
+(function(){
+  'use strict';
+
+  /* ─────────── Utilities ─────────── */
+  function nq(s){
+    return String(s||'').trim().toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/đ/g,'d')
+      .replace(/\s+/g,' ');
+  }
+  function esc(s){
+    return String(s==null?'':s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+  function jse(s){
+    return String(s==null?'':s).replace(/'/g,"\\'").replace(/"/g,'\\"');
+  }
+  function toastMsg(m, t){ if(typeof toast==='function') toast(m, t||'ok'); }
+
+  // pvApi wrapper (fallback if not loaded yet)
+  async function api(action, data){
+    if(typeof pvApi === 'function') return pvApi(action, data||{});
+    throw new Error('API chưa sẵn sàng');
+  }
+
+  /* ═══════════════════════════════════════════════════════════════════
+     FIX #1 — Dropdown gợi ý mã máy dùng position:fixed để không bị cắt
+     bởi overflow:hidden của card cha.
+     ═══════════════════════════════════════════════════════════════════ */
+  const _prev_mavtShowMMSug = window.mavtShowMMSug;
+  const _prev_mavtHideMMSug = window.mavtHideMMSug;
+
+  function positionSugBox(){
+    const inp = document.getElementById('mavt_mmSearch');
+    const box = document.getElementById('mavt_mm_sug');
+    if(!inp || !box) return;
+    const rect = inp.getBoundingClientRect();
+    // Ước lượng chiều cao ~5 mã máy (mỗi dòng ~44px) + header ~32px = ~252px
+    // Nhưng để linh hoạt, dùng max-height 320px (>5 dòng vẫn cuộn tốt)
+    // Đảm bảo dropdown không tràn qua bottom viewport
+    const viewportH  = window.innerHeight || document.documentElement.clientHeight;
+    const spaceBelow = viewportH - rect.bottom - 12;   // khoảng trống bên dưới input
+    const maxH       = Math.max(180, Math.min(340, spaceBelow)); // ưu tiên đủ 5 dòng
+    const boxWidth   = Math.max(rect.width, 340);
+
+    // Reset các inline style cũ có thể gây méo layout khi chuyển sang fixed
+    box.style.position   = 'fixed';
+    box.style.top        = (rect.bottom + 2) + 'px';
+    box.style.left       = rect.left + 'px';
+    box.style.right      = 'auto';
+    box.style.bottom     = 'auto';
+    box.style.width      = boxWidth + 'px';
+    box.style.minWidth   = '0';                    // ⬅ hủy min-width:100% cũ
+    box.style.maxWidth   = 'min(760px, 95vw)';
+    box.style.height     = 'auto';
+    box.style.maxHeight  = maxH + 'px';
+    box.style.overflowY  = 'auto';
+    box.style.zIndex     = '9998';
+    box.style.background = '#fff';
+    box.style.border       = '1.5px solid var(--g, #0d6e3f)';
+    box.style.borderRadius = '10px';
+    box.style.boxShadow  = '0 10px 32px rgba(0,0,0,.28)';
+  }
+
+  // Ghi đè show/hide để giữ nguyên logic populate nhưng reposition + fixed.
+  window.mavtShowMMSug = function(val){
+    if(typeof _prev_mavtShowMMSug === 'function'){
+      _prev_mavtShowMMSug(val);
+    }
+    // Reposition ngay sau khi render nội dung xong
+    positionSugBox();
+  };
+  window.mavtHideMMSug = function(){
+    if(typeof _prev_mavtHideMMSug === 'function'){
+      _prev_mavtHideMMSug();
+    } else {
+      const b = document.getElementById('mavt_mm_sug'); if(b) b.style.display='none';
+    }
+  };
+
+  // Reposition khi scroll/resize (dropdown fixed cần theo dõi input)
+  ['scroll','resize'].forEach(function(evt){
+    window.addEventListener(evt, function(){
+      const box = document.getElementById('mavt_mm_sug');
+      if(box && box.style.display !== 'none') positionSugBox();
+    }, true);
+  });
+
+  /* ═══════════════════════════════════════════════════════════════════
+     FIX #2 & #3 — Nút "➕ Thêm mã máy" và "➕ Thêm hạng mục vật tư"
+     ═══════════════════════════════════════════════════════════════════ */
+
+  // Ghi đè renderMaVatTuPage: thêm 2 nút hành động vào toolbar
+  const _prev_renderMaVatTuPage = window.renderMaVatTuPage;
+  window.renderMaVatTuPage = async function(){
+    // Gọi bản gốc trước
+    if(typeof _prev_renderMaVatTuPage === 'function'){
+      await _prev_renderMaVatTuPage();
+    }
+    // Sau khi DOM render xong: chèn 2 nút "Thêm ..." vào cạnh nút "Tải lại"
+    // Tìm nút Tải lại và chèn 2 nút mới NGAY TRƯỚC nó
+    setTimeout(function(){
+      const reloadBtn = document.querySelector('#mavtRoot button[onclick="mavtReload()"]');
+      if(reloadBtn && !document.getElementById('mavt_btn_addMachine')){
+        const btnMach = document.createElement('button');
+        btnMach.id = 'mavt_btn_addMachine';
+        btnMach.className = 'btn bg-g sm';
+        btnMach.innerHTML = '➕ Thêm mã máy';
+        btnMach.onclick = function(){ mavtOpenAddMachineDialog(); };
+        reloadBtn.parentNode.insertBefore(btnMach, reloadBtn);
+
+        const btnItem = document.createElement('button');
+        btnItem.id = 'mavt_btn_addItem';
+        btnItem.className = 'btn bg-b sm';
+        btnItem.style.background = '#7c3aed';
+        btnItem.style.color = '#fff';
+        btnItem.innerHTML = '➕ Thêm hạng mục vật tư';
+        btnItem.onclick = function(){ mavtOpenAddItemDialog(); };
+        reloadBtn.parentNode.insertBefore(btnItem, reloadBtn);
+      }
+    }, 60);
+  };
+
+  /* ─────────── Dialog: Thêm mã máy mới ─────────── */
+  window.mavtOpenAddMachineDialog = function(){
+    document.getElementById('mavt_add_machine_modal')?.remove();
+    const modal = document.createElement('div');
+    modal.id = 'mavt_add_machine_modal';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:10000;display:flex;align-items:center;justify-content:center;padding:16px';
+    modal.innerHTML = `
+      <div style="background:#fff;border-radius:14px;max-width:560px;width:100%;max-height:94vh;overflow:auto">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid #e2e8f0;background:#f0fdf4">
+          <div>
+            <h3 style="margin:0;font-size:16px">➕ Thêm mã máy mới</h3>
+            <div style="font-size:12px;color:#64748b;margin-top:2px">Google Sheet sẽ tự thêm 1 dòng mới ở cuối bảng Sheet 12. Chủng loại &amp; Định mức sẽ do KTV nhập sau.</div>
+          </div>
+          <button class="btn bg-gr sm" onclick="document.getElementById('mavt_add_machine_modal').remove()">✕</button>
+        </div>
+        <div style="padding:18px 22px">
+          <div class="iw" style="margin-bottom:12px">
+            <div class="il">Mã máy mới <span style="color:#dc2626">*</span></div>
+            <input class="inp" id="mavt_new_mm" placeholder="VD: NS200KVA30" style="text-transform:uppercase" autocomplete="off">
+            <div style="font-size:11px;color:#64748b;margin-top:4px">Không được trùng với mã máy đã có. Tên vật tư (hạng mục) và đơn vị sẽ dùng chung cấu trúc cột với các máy trước đó.</div>
+          </div>
+          <div class="iw" style="margin-bottom:12px">
+            <div class="il">Loại động cơ (có thể để trống)</div>
+            <input class="inp" id="mavt_new_loaiDC" placeholder="VD: PE6T, PERKINS 1103, HINO EK130..." autocomplete="off">
+          </div>
+          <div class="iw" style="margin-bottom:12px">
+            <div class="il">Ghi chú ban đầu (nếu có)</div>
+            <textarea class="ta" id="mavt_new_ghiChu" rows="2" placeholder="Ghi chú thêm về máy..."></textarea>
+          </div>
+        </div>
+        <div style="padding:12px 20px;border-top:1px solid #e2e8f0;display:flex;gap:8px;justify-content:flex-end;background:#f8fafc">
+          <button class="btn bg-gr" onclick="document.getElementById('mavt_add_machine_modal').remove()">Đóng</button>
+          <button class="btn bg-g" id="mavt_new_mm_save" onclick="mavtSaveNewMachine()">💾 Thêm vào Sheet 12</button>
+        </div>
+      </div>`;
+    document.body.appendChild(modal);
+    setTimeout(function(){
+      const el = document.getElementById('mavt_new_mm');
+      if(el) el.focus();
+    }, 30);
+  };
+
+  window.mavtSaveNewMachine = async function(){
+    const mm       = ((document.getElementById('mavt_new_mm')     ||{}).value||'').trim().toUpperCase();
+    const loaiDC   = ((document.getElementById('mavt_new_loaiDC') ||{}).value||'').trim();
+    const ghiChu   = ((document.getElementById('mavt_new_ghiChu') ||{}).value||'').trim();
+    if(!mm){ toastMsg('❌ Vui lòng nhập Mã máy', 'err'); return; }
+
+    // Kiểm tra client-side trước cho phản hồi tức thì
+    if(window.VT12_BY_MACHINE && VT12_BY_MACHINE[nq(mm)]){
+      toastMsg('❌ Mã máy "'+mm+'" đã tồn tại', 'err');
+      return;
+    }
+
+    const btn = document.getElementById('mavt_new_mm_save');
+    if(btn){ btn.disabled = true; btn.innerHTML = '⏳ Đang lưu...'; }
+
+    try{
+      const r = await api('addMachineVT12', {
+        payload: { maMay: mm, loaiDongCo: loaiDC, ghiChu: ghiChu },
+        currentUser: window.CU || null
+      });
+      if(!r || r.success === false){
+        throw new Error((r && r.error) || 'Không lưu được');
+      }
+      toastMsg('✅ Đã thêm mã máy "'+mm+'" vào Sheet 12', 'ok');
+      document.getElementById('mavt_add_machine_modal')?.remove();
+      // Reload cache và render lại + auto-select máy mới
+      if(window.VT12_CACHE) VT12_CACHE.loaded = false;
+      // Tải lại cache
+      const rf = await api('getVatTuMay12', {});
+      if(window.VT12_CACHE){
+        VT12_CACHE.items = (rf && rf.items) || [];
+        VT12_CACHE.rows  = (rf && rf.rows)  || [];
+        VT12_CACHE.loaded = true;
+        const idx = {};
+        VT12_CACHE.rows.forEach(function(row){
+          if(row.maMay) idx[nq(row.maMay)] = row;
+          row.parts = [];
+          (row.values||[]).forEach(function(v, i){
+            const it = VT12_CACHE.items[i];
+            if(!it) return;
+            if(String(v.chungLoai||'').trim() || String(v.dinhMuc||'').trim()){
+              row.parts.push({ name: it.name, chungLoai: v.chungLoai, dinhMuc: v.dinhMuc, unit: it.unit });
+            }
+          });
+        });
+        window.VT12_BY_MACHINE = idx;
+      }
+      // Auto-select máy mới để KTV nhập tiếp
+      if(typeof mavtPickMM === 'function') mavtPickMM(mm);
+      else if(typeof mavtRender === 'function') mavtRender();
+    }catch(e){
+      toastMsg('❌ '+e.message, 'err');
+      if(btn){ btn.disabled = false; btn.innerHTML = '💾 Thêm vào Sheet 12'; }
+    }
+  };
+
+  /* ─────────── Dialog: Thêm hạng mục vật tư mới ─────────── */
+  window.mavtOpenAddItemDialog = function(){
+    document.getElementById('mavt_add_item_modal')?.remove();
+    // Số hạng mục hiện tại
+    const currentCount = (window.VT12_CACHE && VT12_CACHE.items) ? VT12_CACHE.items.length : 0;
+    const modal = document.createElement('div');
+    modal.id = 'mavt_add_item_modal';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:10000;display:flex;align-items:center;justify-content:center;padding:16px';
+    modal.innerHTML = `
+      <div style="background:#fff;border-radius:14px;max-width:600px;width:100%;max-height:94vh;overflow:auto">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid #e2e8f0;background:#faf5ff">
+          <div>
+            <h3 style="margin:0;font-size:16px;color:#6b21a8">➕ Thêm hạng mục vật tư mới</h3>
+            <div style="font-size:12px;color:#64748b;margin-top:2px">Chèn thêm cột vào bên phải cột <b>Ghi chú</b> (cột AG). Hạng mục sẽ áp dụng cho <b>toàn bộ ${currentCount} hạng mục hiện tại</b> + toàn bộ mã máy.</div>
+          </div>
+          <button class="btn bg-gr sm" onclick="document.getElementById('mavt_add_item_modal').remove()">✕</button>
+        </div>
+        <div style="padding:18px 22px">
+          <div class="iw" style="margin-bottom:12px">
+            <div class="il">Tên vật tư (hạng mục) mới <span style="color:#dc2626">*</span></div>
+            <input class="inp" id="mavt_new_itemName" placeholder="VD: Lọc gió số 2, Cảm biến áp suất..." autocomplete="off">
+          </div>
+
+          <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:12px 14px;margin-bottom:12px">
+            <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:13px;font-weight:600;color:#334155">
+              <input type="checkbox" id="mavt_new_hasDM" style="width:16px;height:16px;cursor:pointer" checked onchange="mavtToggleDMUnit()">
+              <span>Vật tư này <b>có định mức</b> (số lượng dự trù mỗi lần thay)</span>
+            </label>
+            <div id="mavt_new_dm_unitBox" style="margin-top:10px;padding-left:26px">
+              <div class="il" style="font-size:11px">Đơn vị định mức</div>
+              <input class="inp" id="mavt_new_dmUnit" placeholder="VD: cái, lít, bộ, hộp..." value="cái" style="max-width:200px">
+              <div style="font-size:11px;color:#64748b;margin-top:6px">→ Sẽ chèn <b>2 cột</b>: "Tên vật tư" và "Định mức (đơn vị)"</div>
+            </div>
+            <div id="mavt_new_noDMHint" style="display:none;margin-top:8px;padding:8px 12px;background:#fef3c7;border:1px solid #fde68a;border-radius:6px;font-size:12px;color:#78350f">
+              → Sẽ chèn <b>1 cột</b>: chỉ có "Tên vật tư", không có cột Định mức
+            </div>
+          </div>
+
+          <div style="padding:10px 14px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;font-size:12px;color:#1e40af">
+            <b>Nguyên tắc chèn cột:</b> Cột mới được chèn ngay bên phải cột "Ghi chú" (AG).
+            Các hạng mục thêm tiếp theo tự động nối tiếp về bên phải, giữ cột "Ghi chú" ở vị trí AG
+            và các cột audit (Người/Thời gian cập nhật) luôn ở cuối cùng.
+          </div>
+        </div>
+        <div style="padding:12px 20px;border-top:1px solid #e2e8f0;display:flex;gap:8px;justify-content:flex-end;background:#f8fafc">
+          <button class="btn bg-gr" onclick="document.getElementById('mavt_add_item_modal').remove()">Đóng</button>
+          <button class="btn" style="background:#7c3aed;color:#fff" id="mavt_new_item_save" onclick="mavtSaveNewItem()">💾 Chèn cột vào Sheet 12</button>
+        </div>
+      </div>`;
+    document.body.appendChild(modal);
+    setTimeout(function(){
+      const el = document.getElementById('mavt_new_itemName');
+      if(el) el.focus();
+    }, 30);
+  };
+
+  window.mavtToggleDMUnit = function(){
+    const cb = document.getElementById('mavt_new_hasDM');
+    const box = document.getElementById('mavt_new_dm_unitBox');
+    const hint = document.getElementById('mavt_new_noDMHint');
+    if(!cb) return;
+    if(cb.checked){
+      if(box) box.style.display = '';
+      if(hint) hint.style.display = 'none';
+    } else {
+      if(box) box.style.display = 'none';
+      if(hint) hint.style.display = '';
+    }
+  };
+
+  window.mavtSaveNewItem = async function(){
+    const name  = ((document.getElementById('mavt_new_itemName')||{}).value||'').trim();
+    const hasDM = !!(document.getElementById('mavt_new_hasDM')||{}).checked;
+    const unit  = ((document.getElementById('mavt_new_dmUnit')  ||{}).value||'').trim();
+    if(!name){ toastMsg('❌ Vui lòng nhập Tên vật tư', 'err'); return; }
+    if(hasDM && !unit){ toastMsg('❌ Vui lòng nhập Đơn vị định mức', 'err'); return; }
+
+    // Kiểm tra client-side trước
+    if(window.VT12_CACHE && VT12_CACHE.items){
+      const dup = VT12_CACHE.items.find(function(it){ return nq(it.name) === nq(name); });
+      if(dup){ toastMsg('❌ Hạng mục "'+name+'" đã có trong bảng', 'err'); return; }
+    }
+
+    const btn = document.getElementById('mavt_new_item_save');
+    if(btn){ btn.disabled = true; btn.innerHTML = '⏳ Đang chèn cột...'; }
+
+    try{
+      const r = await api('addItemVT12', {
+        payload: { name: name, hasDinhMuc: hasDM, unit: unit },
+        currentUser: window.CU || null
+      });
+      if(!r || r.success === false){
+        throw new Error((r && r.error) || 'Không chèn được cột');
+      }
+      toastMsg('✅ Đã chèn hạng mục "'+name+'" vào Sheet 12 ('+(r.colsInserted||1)+' cột)', 'ok');
+      document.getElementById('mavt_add_item_modal')?.remove();
+      // Reload cache
+      if(window.VT12_CACHE) VT12_CACHE.loaded = false;
+      const rf = await api('getVatTuMay12', {});
+      if(window.VT12_CACHE){
+        VT12_CACHE.items = (rf && rf.items) || [];
+        VT12_CACHE.rows  = (rf && rf.rows)  || [];
+        VT12_CACHE.loaded = true;
+        const idx = {};
+        VT12_CACHE.rows.forEach(function(row){
+          if(row.maMay) idx[nq(row.maMay)] = row;
+          row.parts = [];
+          (row.values||[]).forEach(function(v, i){
+            const it = VT12_CACHE.items[i];
+            if(!it) return;
+            if(String(v.chungLoai||'').trim() || String(v.dinhMuc||'').trim()){
+              row.parts.push({ name: it.name, chungLoai: v.chungLoai, dinhMuc: v.dinhMuc, unit: it.unit });
+            }
+          });
+        });
+        window.VT12_BY_MACHINE = idx;
+      }
+      if(typeof mavtRender === 'function') mavtRender();
+    }catch(e){
+      toastMsg('❌ '+e.message, 'err');
+      if(btn){ btn.disabled = false; btn.innerHTML = '💾 Chèn cột vào Sheet 12'; }
+    }
+  };
+
+  /* ═══════════════════════════════════════════════════════════════════
+     FIX #4 — Loại "Bộ lọc khí / Đường khí" khỏi Phân tích & Vòng đời VT
+     Cách làm: mở rộng hàm isConsumableV751 để trả về true cho cả các
+     hạng mục thuộc cụm linh kiện "Bộ lọc khí / Đường khí".
+     ═══════════════════════════════════════════════════════════════════ */
+  const AIR_FILTER_CLUSTER_PATTERNS = [
+    'bo loc khi',
+    'duong khi',
+    'bo loc khi/duong khi',
+    'bo loc khi / duong khi'
+  ];
+  function matchesAirFilterCluster(cum){
+    const nc = nq(cum);
+    if(!nc) return false;
+    return AIR_FILTER_CLUSTER_PATTERNS.some(function(p){ return nc.indexOf(p) >= 0; });
+  }
+
+  let _airFilterSet = null;
+  function buildAirFilterSet(){
+    const set = new Set();
+
+    // 1) Từ PV.data.vatTu (dữ liệu vật tư từ Google Sheet)
+    try{
+      if(window.PV && PV.data && Array.isArray(PV.data.vatTu)){
+        PV.data.vatTu.forEach(function(m){
+          const cum = m['Cụm Linh Kiện'] || m['Cụm linh kiện'] || m['Cum Linh Kien']
+                   || m.cumLinhKien || m.cum || '';
+          if(matchesAirFilterCluster(cum)){
+            const name = m['Tên vật tư'] || m['Tên VT'] || m['Ten vat tu']
+                      || m.tenVatTu || '';
+            if(name) set.add(nq(name));
+          }
+        });
+      }
+    }catch(_){}
+
+    // 2) Từ PARTS_MAP tĩnh
+    try{
+      if(window.PARTS_MAP){
+        Object.keys(window.PARTS_MAP).forEach(function(cum){
+          if(matchesAirFilterCluster(cum)){
+            (window.PARTS_MAP[cum] || []).forEach(function(p){
+              if(p) set.add(nq(p));
+            });
+          }
+        });
+      }
+    }catch(_){}
+
+    return set;
+  }
+  function rebuildAirFilterSet(){ _airFilterSet = buildAirFilterSet(); }
+
+  window.isAirFilterPartV752 = function(name){
+    if(!_airFilterSet) rebuildAirFilterSet();
+    return _airFilterSet.has(nq(name));
+  };
+
+  // Wrap isConsumableV751 (được dùng trong buildLifecycleData & renderAnalysis Top LK)
+  const _prevIsConsumable = window.isConsumableV751;
+  window.isConsumableV751 = function(name){
+    // Kiểm tra bản gốc trước (nhớt, bugi, lọc nhớt, lọc gió, hạt lọc)
+    if(typeof _prevIsConsumable === 'function' && _prevIsConsumable(name)) return true;
+    // Bộ lọc khí / Đường khí
+    if(isAirFilterPartV752(name)) return true;
+    return false;
+  };
+
+  // Khi PV.data.vatTu được nạp/thay đổi, rebuild set
+  // Cách đơn giản: rebuild định kỳ, và khi user bấm "Cập nhật BC"
+  setInterval(function(){
+    // Chỉ rebuild khi tab liên quan (analysis / lifecycle / mavt) đang mở
+    if(window.curPage==='analysis' || window.curPage==='lifecycle' || window.curPage==='mavt'){
+      const before = _airFilterSet ? _airFilterSet.size : 0;
+      rebuildAirFilterSet();
+      const after = _airFilterSet ? _airFilterSet.size : 0;
+      // Không log spam
+    }
+  }, 5000);
+
+  /* ═══════════════════════════════════════════════════════════════════
+     FIX #5 — Click vào 1 dòng trong bảng "Định mức chi tiết toàn bộ vật tư"
+     → mở modal chi tiết (dùng lại lcShowBarDetail đã có sẵn xuất PDF/Excel)
+     Cách làm: event-delegation trên tbody id="lc-tbody" và một wrapper
+     override của renderLifecycleTable để đảm bảo mọi lần re-render đều có
+     visual hint (con trỏ chuột + hover) đúng.
+     ═══════════════════════════════════════════════════════════════════ */
+
+  // Bảo đảm tbody có style cursor:pointer trên các dòng sau mỗi lần render
+  // MutationObserver theo dõi tbody để tự set style
+  function enhanceLcTbody(){
+    const tbody = document.getElementById('lc-tbody');
+    if(!tbody) return;
+    Array.prototype.forEach.call(tbody.querySelectorAll('tr'), function(tr){
+      // Skip empty state row (colspan)
+      if(tr.querySelector('td[colspan]')) return;
+      if(tr.dataset._lcClickable === '1') return;
+      tr.dataset._lcClickable = '1';
+      tr.style.cursor = 'pointer';
+      // Nhấn hint hover
+      tr.title = 'Nhấn để xem chi tiết từng lần thay';
+      // Second column (index 1) chứa tên VT
+      const nameCell = tr.children[1];
+      if(nameCell){
+        // Thêm mũi tên nhỏ + underline khi hover, giữ nội dung
+        const orig = nameCell.innerHTML;
+        // Chỉ wrap nếu chưa wrap
+        if(!nameCell.dataset._lcWrapped){
+          nameCell.dataset._lcWrapped = '1';
+          nameCell.innerHTML = '<span style="text-decoration:underline;text-decoration-style:dotted;text-decoration-color:#0d6e3f">'
+            + orig + '</span> <span style="font-size:10px;color:#0d6e3f">›</span>';
+        }
+      }
+    });
+  }
+
+  // Event delegation cho click trên tbody
+  document.addEventListener('click', function(evt){
+    const tbody = document.getElementById('lc-tbody');
+    if(!tbody) return;
+    const tr = evt.target && evt.target.closest && evt.target.closest('tr');
+    if(!tr || !tbody.contains(tr)) return;
+    // Bỏ qua nếu là empty state
+    if(tr.querySelector('td[colspan]')) return;
+    // Bỏ qua nếu click vào button/link bên trong dòng
+    if(evt.target && (evt.target.tagName === 'BUTTON' || evt.target.tagName === 'A')) return;
+    // Lấy tên vật tư từ cột thứ 2 (index 1)
+    const nameCell = tr.children[1];
+    if(!nameCell) return;
+    // Lấy text gốc (không bao gồm mũi tên và underline span)
+    let name = nameCell.textContent.replace(/›/g,'').trim();
+    // Nếu có wrapping thì .textContent vẫn cho ra text nguyên bản
+    if(!name) return;
+
+    // Gọi helper để mở modal
+    openLifecycleDetailFor(name);
+  }, false);
+
+  // Helper: mở modal chi tiết cho 1 tên VT (giống như click bar chart)
+  function openLifecycleDetailFor(partName){
+    if(typeof buildLifecycleData !== 'function' || typeof lcShowBarDetail !== 'function' || typeof lcGetPartDetailRows !== 'function'){
+      toastMsg('Chức năng chi tiết chưa sẵn sàng', 'err');
+      return;
+    }
+    const data = buildLifecycleData();
+    // Tìm exact match trước, sau đó thử normalized
+    let d = data.find(function(x){ return x.name === partName; });
+    if(!d){
+      d = data.find(function(x){ return nq(x.name) === nq(partName); });
+    }
+    if(!d){
+      toastMsg('Không tìm thấy dữ liệu chi tiết cho "'+partName+'"', 'err');
+      return;
+    }
+    const detail = lcGetPartDetailRows(d.name);
+    const title = 'Chi tiết: ' + d.name + ' (' + d.totalCount + ' lần)';
+    // Thêm subtitle info
+    lcShowBarDetail(
+      title,
+      detail.rows,
+      ['Mã máy','Ngày BDSC','Giờ ĐH trước','Giờ ĐH lúc thay','Tuổi thọ'],
+      detail.repIds
+    );
+    // Nếu có sub-title trong modal, cập nhật để có thêm "X lần thay thế · Y báo cáo BDSC"
+    // (lcShowBarDetail đã tự làm điều này rồi)
+  }
+
+  // Sau mỗi lần renderLifecycle, kích hoạt enhance
+  const _prevRenderLifecycle = window.renderLifecycle;
+  if(typeof _prevRenderLifecycle === 'function'){
+    window.renderLifecycle = function(){
+      const ret = _prevRenderLifecycle.apply(this, arguments);
+      // enhance lần đầu
+      requestAnimationFrame(function(){ enhanceLcTbody(); });
+      // enhance lần thứ 2 sau delay ngắn (đề phòng render lại chart, table update async)
+      setTimeout(enhanceLcTbody, 200);
+      return ret;
+    };
+  }
+
+  // MutationObserver dự phòng — chạy 1 lần khi tbody xuất hiện lần đầu
+  const _lcObserver = new MutationObserver(function(muts){
+    for(let i=0;i<muts.length;i++){
+      const m = muts[i];
+      // Nếu tbody bị thay đổi children thì enhance
+      if(m.target && m.target.id === 'lc-tbody'){
+        enhanceLcTbody();
+        break;
+      }
+    }
+  });
+  function setupLcObserver(){
+    const tbody = document.getElementById('lc-tbody');
+    if(tbody){
+      try{ _lcObserver.observe(tbody, { childList: true, subtree: false }); }catch(_){}
+      enhanceLcTbody();
+      return true;
+    }
+    return false;
+  }
+  // Retry set up observer nếu chưa có DOM
+  let _lcObsTries = 0;
+  const _lcObsInt = setInterval(function(){
+    if(setupLcObserver() || ++_lcObsTries > 30){
+      clearInterval(_lcObsInt);
+    }
+  }, 500);
+
+  console.log('[V752] ✅ Patch loaded — dropdown fix + add-machine + add-item + air-filter exclusion + lifecycle-row-click');
+})();
 </script>
 
 </body>
