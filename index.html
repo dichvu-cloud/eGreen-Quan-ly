@@ -2,7 +2,7 @@
 <html lang="vi">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=10.0,user-scalable=yes">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=5.0,user-scalable=yes">
 <title>eGreen BDSC + Phiếu vật tư</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 <script>
@@ -833,53 +833,7 @@ tbody tr{border-bottom:1px solid #f1f5f9;transition:.1s}tbody tr:hover{backgroun
   .pv17-list-table th, .pv17-list-table td{ padding:7px 8px; }
 }
 
-/* ── V73: đảm bảo mọi bảng dữ liệu hiển thị đầy đủ trên mọi thiết bị ──
-   Bảng cuộn ngang mượt trên iOS/Android, giữ nguyên toàn bộ cột, không cắt dữ liệu. */
-html{overscroll-behavior-x:none}
-body{overscroll-behavior-x:none}
-.v73-scrollx{overflow-x:auto;max-width:100%;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain}
-.v73-scrollx table{width:max-content;min-width:100%}
-[class*="wrap"],[class*="scroll"]{-webkit-overflow-scrolling:touch}
 </style>
-<script id="v73-table-safety-script">
-(function(){
-  // Bọc mọi <table> chưa nằm trong vùng cuộn ngang, để không bảng nào bị tràn/che khuất dữ liệu trên mobile.
-  function hasScrollAncestor(el){
-    var p = el.parentElement;
-    while(p && !p.classList.contains('page')){
-      var cs = getComputedStyle(p);
-      if(cs.overflowX === 'auto' || cs.overflowX === 'scroll') return true;
-      p = p.parentElement;
-    }
-    return false;
-  }
-  function wrapTables(root){
-    (root || document).querySelectorAll('table').forEach(function(t){
-      if(t.closest('.v73-scrollx')) return;
-      if(hasScrollAncestor(t)) return;
-      var w = document.createElement('div');
-      w.className = 'v73-scrollx';
-      t.parentNode.insertBefore(w, t);
-      w.appendChild(t);
-    });
-  }
-  function run(){ try{ wrapTables(document); }catch(e){} }
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', run);
-  } else { run(); }
-  var mo = new MutationObserver(function(muts){
-    var needsRun = false;
-    for (var i=0;i<muts.length;i++){
-      if (muts[i].addedNodes && muts[i].addedNodes.length){ needsRun = true; break; }
-    }
-    if (needsRun) run();
-  });
-  document.addEventListener('DOMContentLoaded', function(){
-    var appEl = document.getElementById('app');
-    if (appEl) mo.observe(appEl, {childList:true, subtree:true});
-  });
-})();
-</script>
 </head>
 <body>
 <!-- AUTH -->
@@ -1005,13 +959,13 @@ body{overscroll-behavior-x:none}
       <button onclick="closeSidebar()" style="width:28px;height:28px;border-radius:50%;border:none;background:#f1f5f9;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px;color:var(--mu)">✕</button>
     </div>
     <div class="nsec">Báo cáo</div>
-    <div class="nitem on" onclick="nav('dash')" id="ni-dash">
+    <div class="nitem on" onclick="nav('dash')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>Tổng quan
     </div>
-    <div class="nitem" onclick="nav('newrep')" id="ni-newrep">
+    <div class="nitem" onclick="nav('newrep')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>Nhập báo cáo mới
     </div>
-    <div class="nitem" onclick="nav('replist')" id="ni-replist">
+    <div class="nitem" onclick="nav('replist')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 12h6M9 16h6M17 21H7a2 2 0 01-2-2V5a2 2 0 012-2h7l5 5v11a2 2 0 01-2 2z"/></svg>Nhật ký BDSC<span class="nbadge" id="nb-rep">0</span>
     </div>
 
@@ -1027,20 +981,20 @@ body{overscroll-behavior-x:none}
     <div class="nitem" onclick="nav('phieuvattu')" id="ni-phieuvattu" style="display:none">
       <span class="ico">📦</span><span>Phiếu vật tư (legacy)</span>
     </div>
-    <div class="nitem" onclick="nav('watch')" id="ni-watch">
+    <div class="nitem" onclick="nav('watch')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>Theo dõi vấn đề<span class="nbadge am" id="nb-watch">0</span>
     </div>
-    <div class="nitem" onclick="nav('analysis')" id="ni-analysis">
+    <div class="nitem" onclick="nav('analysis')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>Phân tích
     </div>
     <div class="nitem" onclick="nav('lifecycle')" id="ni-lifecycle">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><polyline points="12 6 12 12 16 14"/></svg>Vòng đời vật tư<span class="nbadge rd" id="nb-lifecycle" style="display:none">0</span>
     </div>
     <div class="nsec">Danh mục</div>
-    <div class="nitem" onclick="nav('machines')" id="ni-machines">
+    <div class="nitem" onclick="nav('machines')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 3h-8M12 3v4"/></svg>Danh sách máy<span class="nbadge" id="nb-mach">0</span>
     </div>
-    <div class="nitem" onclick="nav('phenom')" id="ni-phenom">
+    <div class="nitem" onclick="nav('phenom')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l3 3"/></svg>Hiện tượng & LK
     </div>
     <div class="nitem" onclick="nav('mavt')" id="ni-mavt">
@@ -2524,7 +2478,10 @@ function nav(p){
   document.querySelectorAll('.nitem').forEach(x=>x.classList.remove('on'));
   const pg=document.getElementById('pg-'+p);if(pg)pg.classList.add('on');
   curPage=p;
-  // V74 fix: bôi đậm menu theo id, không dùng chỉ số vị trí (đã lệch do thêm mục mới)
+  const map={dash:0,newrep:1,replist:2,watch:3,analysis:4,machines:5,phenom:6,members:7,users:8,perms:9,settings:10};
+  const ni=document.querySelectorAll('.nitem');
+  if(map[p]!==undefined&&ni[map[p]])ni[map[p]].classList.add('on');
+  // ID-based highlight for newer pages
   const niById = document.getElementById('ni-'+p);
   if(niById) niById.classList.add('on');
   if(p==='dash')    { renderDash(); updateBadges(); }
@@ -9575,15 +9532,9 @@ function closeSidebar(){
   if(sb) sb.classList.remove('open');
   if(ov) ov.classList.remove('show');
 }
-// V74b: phát hiện mobile bền vững — một số trình duyệt trong-app trên điện thoại báo sai innerWidth (>768),
-// nên ưu tiên kiểm tra khả năng cảm ứng (hover:none/pointer:coarse) trước, innerWidth chỉ là dự phòng.
-window.__eGreenIsMobile=function(){
-  try{ if(window.matchMedia && window.matchMedia('(hover:none) and (pointer:coarse)').matches) return true; }catch(e){}
-  return window.innerWidth<=900;
-};
 // Ẩn/hiện nút hamburger và sidebar header dựa theo kích thước màn hình
 function updateMobileUI(){
-  const isMobile=window.__eGreenIsMobile();
+  const isMobile=window.innerWidth<=768;
   const btn=document.getElementById('mobMenuBtn');
   const hd=document.getElementById('sidebarMobileHeader');
   if(btn) btn.style.display=isMobile?'flex':'none';
@@ -10459,7 +10410,7 @@ nav=function(p){
     try{
       const content=document.querySelector('.content');
       const sidebar=document.getElementById('mainSidebar')||document.querySelector('.sidebar');
-      if(!window.__eGreenIsMobile()){
+      if(window.innerWidth>768){
         if(content){
           content.style.marginLeft='0';
           content.style.width='';
@@ -10619,7 +10570,7 @@ nav=function(p){
     try{
       var content=document.querySelector('.content');
       var sidebar=document.getElementById('mainSidebar')||document.querySelector('.sidebar');
-      if(!window.__eGreenIsMobile()){
+      if(window.innerWidth>768){
         if(content){
           content.style.setProperty('margin-left','206px','important');
           content.style.setProperty('width','calc(100% - 206px)','important');
@@ -10907,7 +10858,7 @@ nav=function(p){
 <script id="pv24-stable-layout-restore-js">
 (function(){
   var DESKTOP_TOP=54, MOBILE_TOP=50;
-  function isDesk(){return !window.__eGreenIsMobile();}
+  function isDesk(){return window.innerWidth>768;}
   function setImp(el,p,v){if(el)el.style.setProperty(p,v,'important');}
 
   function resetScroll(){
@@ -10979,16 +10930,6 @@ nav=function(p){
           setImp(sidebar,'transform','none');
           var ov=document.getElementById('mobOverlay'); if(ov)ov.classList.remove('show');
         }else{
-          // V75 fix: xoa cac inline style desktop (position/width/flex/transform) de CSS mobile (.sidebar off-canvas) hoat dong lai, tranh sidebar chiem 206px lam noi dung bi day sang phai.
-          sidebar.style.removeProperty('position');
-          sidebar.style.removeProperty('left');
-          sidebar.style.removeProperty('bottom');
-          sidebar.style.removeProperty('width');
-          sidebar.style.removeProperty('min-width');
-          sidebar.style.removeProperty('max-width');
-          sidebar.style.removeProperty('flex');
-          sidebar.style.removeProperty('transform');
-          sidebar.style.removeProperty('overflow-y');
           setImp(sidebar,'top',h+'px');
           setImp(sidebar,'height','calc(100vh - '+h+'px)');
         }
@@ -10999,32 +10940,14 @@ nav=function(p){
         setImp(content,'left','auto');
         setImp(content,'right','auto');
         setImp(content,'bottom','auto');
+        setImp(content,'flex','1 1 auto');
+        setImp(content,'min-width','0');
+        setImp(content,'width',desk?'auto':'100%');
+        setImp(content,'max-width','none');
         setImp(content,'height','auto');
         setImp(content,'min-height','calc(100vh - '+h+'px)');
-        // V75 fix: mot so trang (Danh sach may, Hien tuong & LK...) la flex-sibling truc tiep cua .layout, khong nam trong .content.
-        // Neu khong xu ly, .content rong van chiem 1 nua be rong, ep trang dang hien thi bi thu hep con mot nua.
-        var outsidePage=document.querySelector('.layout > .page.on');
-        if(outsidePage){
-          setImp(content,'flex','0 0 0');
-          setImp(content,'width','0');
-          setImp(content,'min-width','0');
-          setImp(content,'max-width','0');
-          setImp(content,'margin','0');
-          setImp(content,'padding','0');
-          setImp(content,'overflow','hidden');
-          setImp(outsidePage,'flex','1 1 auto');
-          setImp(outsidePage,'min-width','0');
-          setImp(outsidePage,'width','100%');
-          setImp(outsidePage,'max-width',desk?'1800px':'none');
-          setImp(outsidePage,'margin',desk?'0 auto':'0');
-        }else{
-          setImp(content,'flex','1 1 auto');
-          setImp(content,'min-width','0');
-          setImp(content,'width',desk?'auto':'100%');
-          setImp(content,'max-width','none');
-          setImp(content,'margin','0');
-          setImp(content,'overflow','visible');
-        }
+        setImp(content,'margin','0');
+        setImp(content,'overflow','visible');
       }
       ['pg-taoPhieu','pg-danhSachPhieu','pg-hoanThanhPhieu'].forEach(function(id){
         var pg=document.getElementById(id); if(!pg)return;
@@ -11519,7 +11442,7 @@ nav=function(p){
   window.__pv28FastMaterialLayoutFix=true;
 
   var DESKTOP_TOP=54, MOBILE_TOP=50, SIDEBAR_W=206;
-  function isDesk(){return !window.__eGreenIsMobile();}
+  function isDesk(){return window.innerWidth>768;}
   function setImp(el,p,v){if(el&&el.style)el.style.setProperty(p,v,'important');}
   function idle(fn,delay){
     delay=delay||0;
@@ -11576,34 +11499,9 @@ nav=function(p){
       if(layout){setImp(layout,'display','flex');setImp(layout,'align-items','flex-start');setImp(layout,'width','100%');setImp(layout,'height','auto');setImp(layout,'min-height','calc(100vh - '+h+'px)');setImp(layout,'margin','0');setImp(layout,'padding','0');setImp(layout,'overflow','visible');}
       if(sidebar){
         if(desk){sidebar.classList.remove('open');setImp(sidebar,'position','sticky');setImp(sidebar,'top',h+'px');setImp(sidebar,'left','auto');setImp(sidebar,'bottom','auto');setImp(sidebar,'width',SIDEBAR_W+'px');setImp(sidebar,'min-width',SIDEBAR_W+'px');setImp(sidebar,'max-width',SIDEBAR_W+'px');setImp(sidebar,'flex','0 0 '+SIDEBAR_W+'px');setImp(sidebar,'height','calc(100vh - '+h+'px)');setImp(sidebar,'overflow-y','auto');setImp(sidebar,'overflow-x','hidden');setImp(sidebar,'transform','none');setImp(sidebar,'box-shadow','none');}
-        else{
-          sidebar.style.removeProperty('position');
-          sidebar.style.removeProperty('left');
-          sidebar.style.removeProperty('bottom');
-          sidebar.style.removeProperty('width');
-          sidebar.style.removeProperty('min-width');
-          sidebar.style.removeProperty('max-width');
-          sidebar.style.removeProperty('flex');
-          sidebar.style.removeProperty('transform');
-          sidebar.style.removeProperty('overflow-y');
-          sidebar.style.removeProperty('overflow-x');
-          sidebar.style.removeProperty('box-shadow');
-          setImp(sidebar,'top',h+'px');
-          setImp(sidebar,'height','calc(100vh - '+h+'px)');
-        }
+        else{setImp(sidebar,'top',h+'px');setImp(sidebar,'height','calc(100vh - '+h+'px)');}
       }
-      if(content){
-        setImp(content,'position','relative');
-        setImp(content,'height','auto');
-        setImp(content,'min-height','calc(100vh - '+h+'px)');
-        var outsidePage2=document.querySelector('.layout > .page.on');
-        if(outsidePage2){
-          setImp(content,'flex','0 0 0');setImp(content,'width','0');setImp(content,'min-width','0');setImp(content,'max-width','0');setImp(content,'margin','0');setImp(content,'padding','0');setImp(content,'overflow','hidden');
-          setImp(outsidePage2,'flex','1 1 auto');setImp(outsidePage2,'min-width','0');setImp(outsidePage2,'width','100%');setImp(outsidePage2,'max-width',desk?'1800px':'none');setImp(outsidePage2,'margin',desk?'0 auto':'0');
-        }else{
-          setImp(content,'flex','1 1 auto');setImp(content,'min-width','0');setImp(content,'width',desk?'auto':'100%');setImp(content,'max-width',desk?'none':'100%');setImp(content,'margin','0');setImp(content,'padding','0');setImp(content,'overflow','visible');
-        }
-      }
+      if(content){setImp(content,'position','relative');setImp(content,'flex','1 1 auto');setImp(content,'min-width','0');setImp(content,'width',desk?'auto':'100%');setImp(content,'max-width',desk?'none':'100%');setImp(content,'height','auto');setImp(content,'min-height','calc(100vh - '+h+'px)');setImp(content,'margin','0');setImp(content,'padding','0');setImp(content,'overflow','visible');}
       ['pg-taoPhieu','pg-danhSachPhieu','pg-hoanThanhPhieu'].forEach(function(id){var pg=document.getElementById(id);if(!pg)return;setImp(pg,'width','100%');setImp(pg,'max-width','none');setImp(pg,'margin','0');setImp(pg,'padding',desk?'16px 20px 110px 20px':'14px 10px 100px 10px');setImp(pg,'overflow','visible');setImp(pg,'transform','none');});
       var ov=document.getElementById('mobOverlay'); if(desk&&ov)ov.classList.remove('show');
     }catch(e){}
@@ -23775,6 +23673,337 @@ console.log('[V750-fix] ✅ Approver sync fix loaded');
   console.log('[V752] ✅ Patch loaded — dropdown fix + add-machine + add-item + air-filter exclusion + lifecycle-row-click');
 })();
 </script>
+
+
+<!-- V753 PERFORMANCE OPTIMIZATION LAYER (client-side) -->
+<script id="v753-perf-patch">
+/* =============================================================
+ * V753 - Client caching + delta sync
+ *
+ * Nguyên tắc:
+ *  - Stale-while-revalidate: mở app -> render ngay từ localStorage,
+ *    ngầm gọi getAppDataFast để cập nhật delta.
+ *  - Fingerprint check: chỉ tải section thay đổi (Sheet 2/3/4/8/9).
+ *  - listPhieuFast: gửi hash cache tới server, "not-modified" thì bỏ qua.
+ *  - Wrap `fetch` để cache các call action:'read' (Sheet 2/3/4/8) 5 phút.
+ *  - Debounce concurrent identical requests (share Promise).
+ *  - Slower polling khi tab ẩn hoặc fingerprint không đổi.
+ * ============================================================= */
+(function(){
+  if (window.__V753_PERF_INSTALLED__) return;
+  window.__V753_PERF_INSTALLED__ = true;
+
+  var CACHE_KEY_APPDATA     = 'EGREEN_V753_APPDATA_CACHE';
+  var CACHE_KEY_FP          = 'EGREEN_V753_FINGERPRINTS';
+  var CACHE_KEY_PHIEU       = 'EGREEN_V753_PHIEU_LIST';
+  var CACHE_KEY_PHIEU_HASH  = 'EGREEN_V753_PHIEU_HASH';
+  var CACHE_KEY_SHEETREAD   = 'EGREEN_V753_SHEETREAD_';
+  var CACHE_KEY_LASTPULL    = 'EGREEN_V753_LAST_PULL_TS';
+
+  var SHEETREAD_TTL_MS     = 5 * 60 * 1000;   // 5 phút
+  var APPDATA_MIN_INTERVAL = 5 * 1000;        // chống spam trong 5s
+  var FP_CHECK_INTERVAL    = 45 * 1000;       // check FP mỗi 45s max
+  var LIST_FORCE_INTERVAL  = 10 * 60 * 1000;  // force re-fetch list phiếu tối đa 10 phút
+
+  /* ---------- Helpers ---------- */
+  function readJson(key, fallback){
+    try { return JSON.parse(localStorage.getItem(key) || '') || fallback; }
+    catch(e){ return fallback; }
+  }
+  function writeJson(key, val){
+    try { localStorage.setItem(key, JSON.stringify(val)); } catch(e){}
+  }
+  function nowMs(){ return Date.now(); }
+
+  /* ---------- Inflight promise dedupe ---------- */
+  var _inflight = {};
+  function inflight(key, fn){
+    if (_inflight[key]) return _inflight[key];
+    var p = fn();
+    _inflight[key] = p;
+    p.then(function(){ delete _inflight[key]; }, function(){ delete _inflight[key]; });
+    return p;
+  }
+
+  /* ---------- Guard: cần pvApi và API_URL sẵn sàng ---------- */
+  function apiReady(){
+    return typeof window.pvApi === 'function' && typeof API_URL !== 'undefined' && API_URL;
+  }
+
+  /* =============================================================
+   * 1. Cache-aware getAppData (fingerprint delta)
+   * ============================================================= */
+  var _appDataLastRefresh = 0;
+  window.v753GetAppDataFast = async function(force){
+    if (!apiReady()) return readJson(CACHE_KEY_APPDATA, null);
+
+    var t = nowMs();
+    var cached = readJson(CACHE_KEY_APPDATA, null);
+    if (!force && cached && t - _appDataLastRefresh < APPDATA_MIN_INTERVAL) return cached;
+
+    return inflight('appDataFast', async function(){
+      var fpCache = readJson(CACHE_KEY_FP, {});
+      try {
+        var res = await window.__v753OrigPvApi('getAppDataFast', { fingerprints: fpCache });
+        if (!res) return cached;
+        var merged = cached ? Object.assign({}, cached) : {};
+        if (res.currentUser) merged.currentUser = res.currentUser;
+        if (res.serverTime)  merged.serverTime  = res.serverTime;
+        if (res.changed){
+          Object.keys(res.changed).forEach(function(k){
+            merged[k] = res.changed[k];
+          });
+        }
+        // Nếu server thông báo section notModified nhưng cache client chưa có → tải full
+        if (res.notModified){
+          var missing = [];
+          Object.keys(res.notModified).forEach(function(k){
+            if (!merged[k] || (Array.isArray(merged[k]) && !merged[k].length)) missing.push(k);
+          });
+          if (missing.length){
+            // Xóa fingerprint bị "notModified nhưng chưa có data" để lần sau server trả full
+            var fps = readJson(CACHE_KEY_FP, {});
+            var keyMap = {
+              'may':'2. Danh sách máy',
+              'hienTuong':'3. Bảng mã hiện tượng',
+              'vatTu':'4. Bóc tách cụm vật tư theo chức năng',
+              'ktv':'8. Tên kỹ thuật',
+              'vatTuCoDinh':'9. Vật tư cố định'
+            };
+            missing.forEach(function(k){
+              var sheetName = keyMap[k];
+              if (sheetName) delete fps[sheetName];
+            });
+            writeJson(CACHE_KEY_FP, fps);
+          }
+        }
+        if (res.fingerprints) writeJson(CACHE_KEY_FP, res.fingerprints);
+        writeJson(CACHE_KEY_APPDATA, merged);
+        _appDataLastRefresh = t;
+        return merged;
+      } catch(err){
+        console.warn('[V753] getAppDataFast lỗi, dùng cache:', err && err.message);
+        return cached;
+      }
+    });
+  };
+
+  /* =============================================================
+   * 2. Cache-aware listPhieu (hash-based not-modified)
+   * ============================================================= */
+  var _listLastRefresh = 0;
+  window.v753ListPhieuFast = async function(force){
+    if (!apiReady()) return readJson(CACHE_KEY_PHIEU, []);
+
+    // Nếu vừa fetch <5s trước và không force -> dùng cache
+    var t = nowMs();
+    if (!force && t - _listLastRefresh < APPDATA_MIN_INTERVAL) {
+      return readJson(CACHE_KEY_PHIEU, []);
+    }
+
+    return inflight('listPhieuFast', async function(){
+      var cachedHash = localStorage.getItem(CACHE_KEY_PHIEU_HASH) || '';
+      var cachedList = readJson(CACHE_KEY_PHIEU, []);
+      // Force sau mỗi LIST_FORCE_INTERVAL để tránh cache bám lâu
+      var lastPull = parseInt(localStorage.getItem(CACHE_KEY_LASTPULL) || '0', 10) || 0;
+      if (t - lastPull > LIST_FORCE_INTERVAL) force = true;
+
+      try {
+        var res = await window.__v753OrigPvApi('listPhieuFast', { hash: force ? '' : cachedHash });
+        _listLastRefresh = t;
+        localStorage.setItem(CACHE_KEY_LASTPULL, String(t));
+
+        if (res && res.notModified) return cachedList;
+        if (res && Array.isArray(res.list)){
+          writeJson(CACHE_KEY_PHIEU, res.list);
+          if (res.hash) localStorage.setItem(CACHE_KEY_PHIEU_HASH, res.hash);
+          return res.list;
+        }
+        // Nếu server chưa có endpoint mới -> fallback về listPhieu cũ
+        if (Array.isArray(res)) {
+          writeJson(CACHE_KEY_PHIEU, res);
+          return res;
+        }
+        return cachedList;
+      } catch(err){
+        console.warn('[V753] listPhieuFast lỗi, dùng cache:', err && err.message);
+        return cachedList;
+      }
+    });
+  };
+
+  /* =============================================================
+   * 3. Wrap pvApi:
+   *    - getAppData / listPhieu -> route sang fast version
+   *    - action ghi -> invalidate localStorage tương ứng
+   * ============================================================= */
+  window.__v753OrigPvApi = window.pvApi;
+  window.pvApi = async function(action, data){
+    data = data || {};
+
+    // Redirect sang endpoint mới, có fallback tự động nếu server chưa update
+    if (action === 'getAppData'){
+      try {
+        var d = await window.v753GetAppDataFast(false);
+        if (d) return d;
+      } catch(e){}
+      return window.__v753OrigPvApi.call(this, 'getAppData', data);
+    }
+    if (action === 'listPhieu'){
+      try {
+        return await window.v753ListPhieuFast(false);
+      } catch(e){
+        return window.__v753OrigPvApi.call(this, 'listPhieu', data);
+      }
+    }
+
+    var res = await window.__v753OrigPvApi.call(this, action, data);
+
+    // Invalidate cache sau action ghi
+    try {
+      if (action === 'savePhieu' || action === 'updatePhieu' || action === 'deletePhieu'
+        || action === 'approvePhieu' || action === 'completePhieu'){
+        localStorage.removeItem(CACHE_KEY_PHIEU);
+        localStorage.removeItem(CACHE_KEY_PHIEU_HASH);
+        localStorage.setItem(CACHE_KEY_LASTPULL, '0');
+      }
+      if (action === 'saveAccount' || action === 'setAccountStatus'){
+        var fp = readJson(CACHE_KEY_FP, {});
+        delete fp['Danh Sách Tài Khoản eGreen'];
+        writeJson(CACHE_KEY_FP, fp);
+      }
+    } catch(e){}
+
+    return res;
+  };
+
+  /* =============================================================
+   * 4. Wrap fetch() cho action:'read' (Sheet 2/3/4/8)
+   *    -> Cache 5 phút để boot loop không hammer server
+   * ============================================================= */
+  var READ_SAFE = { '2':true, '3':true, '4':true, '8':true };
+  var _origFetch = window.fetch.bind(window);
+
+  window.fetch = function(url, opts){
+    try {
+      var urlStr = typeof url === 'string' ? url : (url && url.url) || '';
+      if (opts && opts.body && typeof opts.body === 'string' && urlStr.indexOf('script.google.com') >= 0){
+        var body = null;
+        try { body = JSON.parse(opts.body); } catch(e){}
+        if (body && body.action === 'read' && body.sheet != null){
+          var sh = String(body.sheet);
+          if (READ_SAFE[sh]){
+            var key = CACHE_KEY_SHEETREAD + sh;
+            var raw = localStorage.getItem(key);
+            if (raw){
+              try {
+                var entry = JSON.parse(raw);
+                if (entry && entry.savedAt && nowMs() - entry.savedAt < SHEETREAD_TTL_MS && entry.payload){
+                  // Trả về Response giả lập
+                  return Promise.resolve(new Response(JSON.stringify(entry.payload), {
+                    status: 200,
+                    headers: { 'Content-Type':'application/json' }
+                  }));
+                }
+              } catch(e){}
+            }
+            // Cache miss -> fetch thật rồi lưu
+            return _origFetch(url, opts).then(function(resp){
+              try {
+                return resp.clone().json().then(function(j){
+                  try { localStorage.setItem(key, JSON.stringify({ savedAt: nowMs(), payload: j })); } catch(e){}
+                  return resp;
+                }, function(){ return resp; });
+              } catch(e){ return resp; }
+            });
+          }
+        }
+        // Action ghi -> invalidate cache read tương ứng
+        if (body && body.action){
+          var a = body.action;
+          try {
+            if (a === 'writeMachine' || a === 'deleteMachine') localStorage.removeItem(CACHE_KEY_SHEETREAD + '2');
+            if (a === 'writePhen'    || a === 'deletePhen')    localStorage.removeItem(CACHE_KEY_SHEETREAD + '3');
+            if (a === 'writePart'    || a === 'deletePart')    localStorage.removeItem(CACHE_KEY_SHEETREAD + '4');
+          } catch(e){}
+        }
+      }
+    } catch(e){}
+    return _origFetch(url, opts);
+  };
+
+  /* =============================================================
+   * 5. Debounce pvBDSCRefreshFastData_ bằng fingerprint check
+   *    -> Nếu server bảo không đổi thì không rerender.
+   * ============================================================= */
+  var _lastFPSnapshot = null;
+  var _lastFPCheck = 0;
+  var _origRefreshFast = window.pvBDSCRefreshFastData_;
+  if (typeof _origRefreshFast === 'function'){
+    window.pvBDSCRefreshFastData_ = async function(rerender){
+      try {
+        var t = nowMs();
+        // Không check FP quá thường xuyên
+        if (t - _lastFPCheck > FP_CHECK_INTERVAL){
+          _lastFPCheck = t;
+          var res = await window.__v753OrigPvApi('getFingerprints', {});
+          if (res && res.fingerprints){
+            var snap = JSON.stringify(res.fingerprints);
+            if (_lastFPSnapshot === snap){
+              // Không đổi -> chỉ rerender nhẹ với data cache, không gọi API nữa
+              return _origRefreshFast.call(this, rerender);
+            }
+            _lastFPSnapshot = snap;
+            // Có đổi -> làm mới appdata
+            await window.v753GetAppDataFast(true);
+          }
+        }
+      } catch(e){
+        console.warn('[V753] Fingerprint check lỗi:', e && e.message);
+      }
+      return _origRefreshFast.call(this, rerender);
+    };
+  }
+
+  /* =============================================================
+   * 6. Prime cache ngay khi user đăng nhập
+   *    - Nếu có PV.data từ login/appData -> lưu ngay vào cache
+   * ============================================================= */
+  setTimeout(function(){
+    try {
+      if (window.PV && window.PV.data && Object.keys(window.PV.data).length){
+        var existing = readJson(CACHE_KEY_APPDATA, null);
+        // Chỉ ghi nếu chưa có (login mới) hoặc data hiện tại đầy đủ hơn
+        if (!existing || Object.keys(window.PV.data).length > Object.keys(existing).length){
+          writeJson(CACHE_KEY_APPDATA, window.PV.data);
+        }
+      }
+    } catch(e){}
+  }, 2000);
+
+  /* =============================================================
+   * 7. Public helper: xóa toàn bộ cache V753 (debug)
+   * ============================================================= */
+  window.v753ClearCache = function(){
+    try {
+      localStorage.removeItem(CACHE_KEY_APPDATA);
+      localStorage.removeItem(CACHE_KEY_FP);
+      localStorage.removeItem(CACHE_KEY_PHIEU);
+      localStorage.removeItem(CACHE_KEY_PHIEU_HASH);
+      localStorage.removeItem(CACHE_KEY_LASTPULL);
+      ['2','3','4','8'].forEach(function(s){ localStorage.removeItem(CACHE_KEY_SHEETREAD + s); });
+      _appDataLastRefresh = 0;
+      _listLastRefresh = 0;
+      _lastFPSnapshot = null;
+      _lastFPCheck = 0;
+      console.log('[V753] Đã xóa toàn bộ cache client.');
+    } catch(e){ console.warn('[V753] clearCache lỗi:', e); }
+  };
+
+  console.log('[V753] ✅ Performance layer đã cài — cache-first, delta sync, dedupe.');
+})();
+</script>
+<!-- END V753 PERFORMANCE OPTIMIZATION -->
 
 </body>
 </html>
