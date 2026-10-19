@@ -26319,12 +26319,14 @@ async function apiUi(host) {
   host.innerHTML = '<div class="mx-info">Đang tải…</div>';
   var c;
   try { c = await api('misaApiGetConfig', {}); } catch (e) { fail(host, e); return; }
+  if (c.mode === 'mshopkeeper') { mskUi(host, c); return; }
   var fl = function (k) { return Object.keys(c.endpoints[k].fields).map(function (f) { return f + '=' + c.endpoints[k].fields[f]; }).join('\n'); };
   host.innerHTML = '<div class="mx-warn">Hiện chưa có tài liệu công khai xác nhận API Misa eShop đọc / ghi được những dữ liệu nào, nên khung này <b>chưa được thử với Misa thật</b>. Hãy xin tài liệu API từ bộ phận hỗ trợ MISA rồi điền đường dẫn và tên trường tương ứng. Khoá API chỉ lưu phía máy chủ.</div>' +
     '<div class="mx-row"><label>Địa chỉ gốc (https://…)</label><input type="text" id="mxAB" value="' + E(c.base) + '" style="min-width:300px"></div>' +
     '<div class="mx-row"><label>Kiểu xác thực</label><select id="mxAA"><option value="bearer" ' + (c.auth === 'bearer' ? 'selected' : '') + '>Bearer token</option><option value="header" ' + (c.auth === 'header' ? 'selected' : '') + '>Header tuỳ chọn</option></select><label>Tên header</label><input type="text" id="mxAH" value="' + E(c.header) + '" style="width:130px"><label>Token / khoá</label><input type="password" id="mxAT" placeholder="' + (c.hasToken ? '(đã lưu — để trống nếu giữ nguyên)' : '') + '"><label><input type="checkbox" id="mxATc"> xoá token đã lưu</label></div>' +
     '<div class="mx-row"><label>Tham số trang</label><input type="text" id="mxAP" value="' + E(c.pageParam) + '" style="width:90px"><label>Tham số kích thước</label><input type="text" id="mxAS" value="' + E(c.sizeParam) + '" style="width:90px"><label>Số dòng / trang</label><input type="number" id="mxAZ" value="' + c.pageSize + '" style="width:80px"></div>' +
     ['hang', 'ton', 'nhap'].map(function (k) { return '<div class="mx-card" style="margin-top:8px"><b>' + KINDS[k] + '</b><div class="mx-row"><label>Đường dẫn</label><input type="text" data-e="' + k + '.path" value="' + E(c.endpoints[k].path) + '" style="min-width:220px"><label>Phương thức</label><select data-e="' + k + '.method"><option ' + (c.endpoints[k].method === 'GET' ? 'selected' : '') + '>GET</option><option ' + (c.endpoints[k].method === 'POST' ? 'selected' : '') + '>POST</option></select><label>Khoá chứa danh sách</label><input type="text" data-e="' + k + '.listKey" value="' + E(c.endpoints[k].listKey) + '" style="width:130px" placeholder="vd data.items"></div><div class="mx-row"><label>Ánh xạ trường (dạng tên_của_ta=tên_từ_Misa)</label></div><textarea data-e="' + k + '.fields" rows="5" style="width:100%;font-family:monospace;font-size:12px">' + E(fl(k)) + '</textarea><div class="mx-row"><button class="mx-btn sm" data-test="' + k + '">Đọc thử 3 dòng</button></div></div>'; }).join('') +
+    '<div class="mx-row"><button class="mx-btn" id="mxAMsk">← Dùng kết nối MISA eShop Open Platform</button></div>' +
     '<div class="mx-row"><button class="mx-btn pri" id="mxASave">Lưu cấu hình API</button><button class="mx-btn" id="mxASync">⟳ Đồng bộ ngay</button><span class="mx-stat" style="font-size:11.5px">' + (c.lastSync ? 'Lần đồng bộ cuối: ' + fmtAt(c.lastSync.at) + ' — ' + E(JSON.stringify(c.lastSync.result)) : '') + '</span></div><div id="mxAOut"></div>';
   function gather() {
     var p = { base: $('#mxAB', host).value, auth: $('#mxAA', host).value, header: $('#mxAH', host).value, pageParam: $('#mxAP', host).value, sizeParam: $('#mxAS', host).value, pageSize: $('#mxAZ', host).value, endpoints: { hang: {}, ton: {}, nhap: {} } };
@@ -26332,9 +26334,49 @@ async function apiUi(host) {
     $$('[data-e]', host).forEach(function (el) { var pr = el.dataset.e.split('.'), k = pr[0], f = pr[1]; if (f === 'fields') { var o = {}; el.value.split('\n').forEach(function (ln) { var i = ln.indexOf('='); if (i > 0) o[ln.slice(0, i).trim()] = ln.slice(i + 1).trim(); }); p.endpoints[k].fields = o; } else p.endpoints[k][f] = el.value; });
     return p;
   }
+  $('#mxAMsk', host).onclick = async function () { try { await api('misaApiSaveConfig', { mode: 'mshopkeeper' }); apiUi(host); } catch (e) { T('Lỗi: ' + e.message, 'err'); } };
   $('#mxASave', host).onclick = async function () { var b = this; busy(b, true, 'Đang lưu…'); try { await api('misaApiSaveConfig', gather()); T('✅ Đã lưu cấu hình API', 'ok'); } catch (e) { T('Lỗi: ' + e.message, 'err'); } busy(b, false); };
   $$('[data-test]', host).forEach(function (b) { b.onclick = async function () { busy(b, true, '…'); try { await api('misaApiSaveConfig', gather()); var r = await api('misaApiTest', { kind: b.dataset.test }); $('#mxAOut', host).innerHTML = '<div class="mx-ok">' + E(r.note) + '</div><div class="mx-pre">' + E(JSON.stringify(r.sample, null, 1)) + '</div>'; } catch (e) { $('#mxAOut', host).innerHTML = '<div class="mx-err">' + E(e.message) + '</div>'; } busy(b, false); }; });
   $('#mxASync', host).onclick = async function () { var b = this; if (!confirm('Đồng bộ sẽ THAY dữ liệu Misa hiện có bằng dữ liệu đọc từ API. Tiếp tục?')) return; busy(b, true, 'Đang đồng bộ…'); try { await api('misaApiSaveConfig', gather()); var r = await api('misaApiSync', {}); $('#mxAOut', host).innerHTML = '<div class="mx-pre">' + E(JSON.stringify(r.result, null, 1)) + '</div>'; MX.st = null; MX.loadCatalog(true).catch(function () { }); } catch (e) { $('#mxAOut', host).innerHTML = '<div class="mx-err">' + E(e.message) + '</div>'; } busy(b, false); };
+}
+
+
+/* ---- API · MISA eShop Open Platform (đăng nhập bằng Tên kết nối + App ID + Mã bảo mật) ---- */
+function mskUi(host, c) {
+  var ses = c.session ? ('<span class="mx-badge g">đã đăng nhập · mã cửa hàng ' + E(c.session.companyCode) + '</span>') : '<span class="mx-badge y">chưa đăng nhập</span>';
+  host.innerHTML =
+    '<div class="mx-warn"><b>Lưu ý từ Misa:</b> trang tài liệu ghi <i>«Kể từ 30/06/2026, phần mềm sẽ ngừng hỗ trợ kết nối OpenAPI»</i>. Nếu bấm « Thử đăng nhập » báo lỗi 404/từ chối thì hỏi MISA hỗ trợ còn kết nối này không. Cách nạp file Excel (mục ①) vẫn dùng được.</div>' +
+    '<div class="mx-info">Kết nối này <b>đọc được</b>: danh mục hàng hóa, tồn kho theo chi nhánh/kho, giá vốn. <b>Không có</b> trong API của Misa: lịch sử nhập mua (nhà cung cấp, giá nhập) và việc tự tạo phiếu nhập/xuất — phần đó vẫn dùng file Excel nạp (mục ①) và file .xls xuất ra từ phiếu Hoàn thành.</div>' +
+    '<div class="mx-row"><label style="min-width:110px">Tên kết nối</label><input type="text" id="mxMD" value="' + E(c.domain) + '" placeholder="egreen.mshopkeeper.vn" style="min-width:300px"><span class="ih">ô « Tên kết nối » trong Misa: Ứng dụng → API</span></div>' +
+    '<div class="mx-row"><label style="min-width:110px">App ID</label><input type="text" id="mxMA" value="' + E(c.appId) + '" placeholder="MShopKeeperOpenPlatform" style="min-width:300px"><span class="ih">ô « App ID »</span></div>' +
+    '<div class="mx-row"><label style="min-width:110px">Mã bảo mật</label><input type="password" id="mxMS" value="" autocomplete="new-password" placeholder="' + (c.hasSecret ? '•••••• (đã lưu — chỉ nhập khi muốn đổi)' : 'dán mã bảo mật từ Misa') + '" style="min-width:300px"><label><input type="checkbox" id="mxMSc"> xoá mã đã lưu</label><span class="ih">ô « Mã bảo mật » — được lưu kín phía máy chủ, không hiển thị lại</span></div>' +
+    '<div class="mx-row"><button class="mx-btn pri" id="mxMSave">Lưu</button><button class="mx-btn" data-mt="login">① Thử đăng nhập</button><button class="mx-btn" data-mt="branches">② Xem chi nhánh / kho</button><button class="mx-btn" data-mt="items">③ Đọc thử 3 mặt hàng</button><button class="mx-btn" id="mxMSync">⟳ Đồng bộ hàng hóa + tồn kho</button>' + ses + '</div>' +
+    '<div class="mx-stat" style="font-size:11.5px">' + (c.lastSync ? 'Lần đồng bộ cuối: ' + fmtAt(c.lastSync.at) + ' — ' + E(JSON.stringify(c.lastSync.result)) : 'Chưa đồng bộ lần nào.') + '</div><div id="mxMOut"></div>' +
+    '<div class="mx-row" style="margin-top:6px"><button class="mx-btn" id="mxMGen" style="font-size:11px">Chế độ nâng cao: API chung (tự khai báo đường dẫn)</button></div>';
+  function gather() { var p = { mode: 'mshopkeeper', domain: $('#mxMD', host).value, appId: $('#mxMA', host).value }; var sv = $('#mxMS', host).value; if (sv) p.secretKey = sv; if ($('#mxMSc', host).checked) p.clearSecret = true; return p; }
+  $('#mxMSave', host).onclick = async function () { var b = this; busy(b, true, 'Đang lưu…'); try { await api('misaApiSaveConfig', gather()); T('✅ Đã lưu', 'ok'); mskUi(host, await api('misaApiGetConfig', {})); } catch (e) { T('Lỗi: ' + e.message, 'err'); } busy(b, false); };
+  $$('[data-mt]', host).forEach(function (b) {
+    b.onclick = async function () {
+      busy(b, true, 'Đang gọi Misa…');
+      try {
+        await api('misaApiSaveConfig', gather()); var r = await api('misaApiTest', { kind: b.dataset.mt });
+        $('#mxMOut', host).innerHTML = '<div class="mx-ok">' + E(r.note) + '</div><div class="mx-pre">' + E(JSON.stringify(r.sample, null, 1)) + '</div>';
+        if (b.dataset.mt === 'login') mskUi.refresh = true;
+      } catch (e) { $('#mxMOut', host).innerHTML = '<div class="mx-err">' + E(e.message) + '</div>'; }
+      busy(b, false);
+    };
+  });
+  $('#mxMSync', host).onclick = async function () {
+    var b = this; if (!confirm('Đồng bộ sẽ THAY danh mục hàng hóa và tồn kho hiện có bằng dữ liệu đọc từ Misa (nhóm hàng đã nạp từ Excel được giữ lại). Lịch sử nhập mua không bị đụng tới. Tiếp tục?')) return;
+    busy(b, true, 'Đang đồng bộ… (có thể mất 1–3 phút)');
+    try {
+      await api('misaApiSaveConfig', gather()); var r = await api('misaApiSync', {});
+      $('#mxMOut', host).innerHTML = '<div class="mx-ok">Đồng bộ xong: ' + r.result.hang.count + ' mặt hàng, ' + r.result.ton.count + ' dòng tồn kho.</div><div class="mx-info">' + E(r.result.nhap.error) + '</div>';
+      MX.st = null; MX.loadCatalog(true).catch(function () { });
+    } catch (e) { $('#mxMOut', host).innerHTML = '<div class="mx-err">' + E(e.message) + '</div>'; }
+    busy(b, false);
+  };
+  $('#mxMGen', host).onclick = async function () { try { await api('misaApiSaveConfig', { mode: 'generic' }); apiUi(host); } catch (e) { T('Lỗi: ' + e.message, 'err'); } };
 }
 
 /* ============================ TAB 2 · ĐANG CẦM ============================ */
