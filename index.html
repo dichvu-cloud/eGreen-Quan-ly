@@ -7882,6 +7882,7 @@ ${ktv2Line}
 <p class="body-p">Mã máy: <span class="u b">${esc(rep.maMay)}</span>${(()=>{const gioVH=(typeof formatHoursToDuration==='function'?formatHoursToDuration(rep.soGioVanHanh):'')||(rep.soGioVanHanh?String(rep.soGioVanHanh):''); return `&nbsp;&nbsp;&nbsp;&nbsp;Số giờ đồng hồ máy: <span class="u b">${esc(gioVH||'.............................')}</span>`;})()}</p>
 ${rep.nd?`<p class="body-p" style="margin-top:4pt">Thời gian: ${gioBD} ${dd}/${mm}/${yyyy} → ${gioKT||'...'} ${ddKT||dd}/${mmKT||mm}/${yyyyKT||yyyy}........................</p>
 <p class="body-p">Tổng TG: ${esc(rep.tg||'...')}.............................................................................................</p>`:''}
+${(window.BX759&&BX759.docTime)?BX759.docTime(rep):''}
 
 <!-- ══ PHẦN 1 ══ -->
 <p class="sec">1. Tình trạng trước sửa chữa</p>
@@ -7918,6 +7919,7 @@ ${rep.nd?`<p class="body-p" style="margin-top:4pt">Thời gian: ${gioBD} ${dd}/$
   <div class="full-dot-line"></div>
 </div>
 
+${(window.BX759&&BX759.docMedia)?BX759.docMedia(rep):''}
 <!-- ══ KÝ XÁC NHẬN ══ -->
 <table class="sign-table">
   <tr>
@@ -26071,7 +26073,7 @@ MX.openExport = async function (maPhieu, opt) {
     return '<div class="mx-scroll"><table class="mx-tbl"><thead><tr><th>#</th><th>Mã SKU</th><th>Tên hàng (Misa)</th><th>ĐVT</th><th class="r">Số lượng</th>' + (kind === 'nhap' && S.d.canPrice ? '<th class="r">Đơn giá</th>' : '') + '<th>Ghi chú trên phiếu</th></tr></thead><tbody>' +
       list.map(function (r, i) {
         var bad = !r.sku;
-        return '<tr class="' + (bad ? 'bad' : '') + '"><td>' + (i + 1) + '</td><td>' + (bad ? '<span class="mx-badge r">chưa có</span>' : '<span class="mx-sku">' + E(r.sku) + '</span>') + '</td><td>' + (bad ? '<input type="text" data-pk="' + kind + ':' + i + '" value="' + E(r.tenWeb) + '" placeholder="Chọn hàng trên Misa…" style="width:100%;min-width:200px">' + '<div style="font-size:10.5px;color:#9a3412">« ' + E(r.tenWeb) + ' » chưa gắn mã — chọn để đưa vào file</div>' : E(r.ten) + (F(r.ten) !== F(r.tenWeb) ? '<div style="font-size:10.5px;color:#64748b">Tên trên web: ' + E(r.tenWeb) + '</div>' : '')) + '</td><td>' + E(r.dvt) + '</td><td class="r"><b>' + fmt(r.sl) + '</b></td>' + (kind === 'nhap' && S.d.canPrice ? '<td class="r">' + (r.gia ? money(r.gia) : '—') + '</td>' : '') + '<td style="font-size:11.5px">' + E(kind === 'xuat' ? lineMay(r) : 'Mang thêm về' + (r.nhapChiTiet ? ' · ' + r.nhapChiTiet : '')) + '</td></tr>';
+        return '<tr class="' + (bad ? 'bad' : '') + '"><td>' + (i + 1) + '</td><td>' + (bad ? '<span class="mx-badge r">chưa có</span>' : '<span class="mx-sku">' + E(r.sku) + '</span>') + '</td><td>' + (bad ? '<input type="text" data-pk="' + kind + ':' + i + '" value="' + E(r.tenWeb) + '" placeholder="Chọn hàng trên Misa…" style="width:100%;min-width:200px">' + '<div style="font-size:10.5px;color:#9a3412">« ' + E(r.tenWeb) + ' » chưa gắn mã — chọn để đưa vào file</div>' : E(r.ten) + (r.locked ? ' <span class="mx-badge g" title="Tên/mã này đã được chốt cho phiếu — mở lại vẫn giữ nguyên">🔒 đã chốt</span>' : '') + ' <button type="button" class="mx-btn" data-ch="' + kind + ':' + i + '" style="padding:1px 8px;font-size:11px">✎ đổi</button>' + (F(r.ten) !== F(r.tenWeb) ? '<div style="font-size:10.5px;color:#64748b">Tên trên web: ' + E(r.tenWeb) + '</div>' : '')) + '</td><td>' + E(r.dvt) + '</td><td class="r"><b>' + fmt(r.sl) + '</b></td>' + (kind === 'nhap' && S.d.canPrice ? '<td class="r">' + (r.gia ? money(r.gia) : '—') + '</td>' : '') + '<td style="font-size:11.5px">' + E(kind === 'xuat' ? lineMay(r) : 'Mang thêm về' + (r.nhapChiTiet ? ' · ' + r.nhapChiTiet : '')) + '</td></tr>';
       }).join('') + '</tbody></table></div>';
   }
   function render() {
@@ -26084,16 +26086,25 @@ MX.openExport = async function (maPhieu, opt) {
     h += '<h4 style="margin:14px 0 4px">① Phiếu xuất kho điều chuyển <span class="mx-badge y">' + d.xuat.length + ' dòng · SL sử dụng &gt; 0</span></h4>' + table('xuat');
     h += '<h4 style="margin:14px 0 4px">② Phiếu nhập kho <span class="mx-badge b">' + d.nhap.length + ' dòng · SL sử dụng &lt; 0 (mang thêm về)</span></h4>' + table('nhap');
     if (d.tra.length) h += '<div style="font-size:11.5px;color:#64748b;margin-top:10px">Không phát sinh (đã nhập lại đủ, SL sử dụng = 0): ' + E(d.tra.map(function (r) { return r.ten; }).join('; ')) + '</div>';
-    if (miss) h += '<div class="mx-warn">Còn <b>' + miss + '</b> dòng chưa gắn mã Misa — những dòng này sẽ <b>không có trong file</b> cho đến khi chọn mã' + (MX.isAdmin() ? ' (lựa chọn của admin được lưu thành ánh xạ cho lần sau)' : ' (lựa chọn chỉ áp dụng cho file này; nhờ admin duyệt ánh xạ để lần sau tự khớp)') + '.</div>';
+    if (miss) h += '<div class="mx-warn">Còn <b>' + miss + '</b> dòng chưa gắn mã Misa — những dòng này sẽ <b>không có trong file</b> cho đến khi chọn mã' + (MX.isAdmin() ? ' (lựa chọn của admin được lưu thành ánh xạ cho lần sau)' : ' (lựa chọn được lưu vào phiếu này — mở lại vẫn giữ nguyên; nhờ admin duyệt ánh xạ để lần sau tự khớp)') + '.</div>';
     host.innerHTML = h;
     $('#mxe_kho', host).onchange = function () { S.kho = this.value; api('misaSetPhieuKho', { maPhieu: maPhieu, kho: S.kho }).catch(function () { }); load(); };
-    $$('input[data-pk]', host).forEach(function (inp) {
-      var pr = inp.dataset.pk.split(':'), kind = pr[0], idx = +pr[1];
-      MX.suggest(inp, { title: 'Chọn hàng trên Misa', onPick: function (rec) {
-        var r = (kind === 'xuat' ? S.d.xuat : S.d.nhap)[idx]; r.sku = rec.sku; r.ten = rec.ten; r.dvt = rec.dvt || r.dvt;
+    function pickFor(inp, kind, idx) {
+      MX.suggest(inp, { title: 'Chọn hàng trên Misa', onPick: async function (rec) {
+        var r = (kind === 'xuat' ? S.d.xuat : S.d.nhap)[idx]; r.sku = rec.sku; r.ten = rec.ten; r.dvt = rec.dvt || r.dvt; r.locked = true;
+        try { await api('misaSavePhieuLine', { maPhieu: maPhieu, idx: r.idx, sku: rec.sku, ten: rec.ten, dvt: rec.dvt || '' }); T('💾 Đã lưu lựa chọn « ' + rec.ten + ' » vào phiếu ' + maPhieu, 'ok'); }
+        catch (e) { T('Chưa lưu được lựa chọn vào phiếu: ' + e.message, 'err'); }
         MX.learnPick({ tenVatTu: r.tenWeb, cum: '', sku: rec.sku, maPhieu: maPhieu });   /* V756: tự học */
         render();
       }, onNew: function (q) { MX.proposeNew({ tenWeb: q, maPhieu: maPhieu }); } });
+    }
+    $$('input[data-pk]', host).forEach(function (inp) { var pr = inp.dataset.pk.split(':'); pickFor(inp, pr[0], +pr[1]); });
+    $$('button[data-ch]', host).forEach(function (b) {      /* V759: đổi lại tên/mã Misa cho dòng đã tự khớp */
+      b.onclick = function () {
+        var pr = b.dataset.ch.split(':'), kind = pr[0], idx = +pr[1], r = (kind === 'xuat' ? S.d.xuat : S.d.nhap)[idx], td = b.closest('td');
+        td.innerHTML = '<input type="text" data-pk="' + kind + ':' + idx + '" value="' + E(r.ten) + '" placeholder="Gõ để tìm hàng trên Misa…" style="width:100%;min-width:200px">';
+        var inp = td.querySelector('input'); pickFor(inp, kind, idx); inp.focus(); try { inp.select(); } catch (e) { }
+      };
     });
     var nx = rowsFor('xuat').length, nn = rowsFor('nhap').length;
     m.foot.innerHTML = '<button class="mx-btn" data-c>Đóng</button>' +
@@ -26109,9 +26120,10 @@ MX.openExport = async function (maPhieu, opt) {
       catch (e) { T('Không cập nhật được: ' + e.message, 'err'); }
     };
   }
-  function download(kind) {
+  async function download(kind) {
     var rows = rowsFor(kind), miss = all().filter(function (r) { return !r.sku; }).length;
     if (miss && !confirm('Còn ' + miss + ' dòng chưa có mã Misa sẽ không nằm trong file. Vẫn tải?')) return;
+    try { await api('misaFreezePhieu', { maPhieu: maPhieu }); } catch (e) { /* vẫn cho tải file; lựa chọn đã được lưu từng dòng khi chọn */ }
     try {
       var blob = MX.buildXls(kind, rows, S.kho);
       MX.dl(blob, (kind === 'xuat' ? 'PhieuXuatKhoDieuChuyen_' : 'NhapKhoHangHoa_') + MX.safeName(maPhieu) + '.xls');
@@ -28448,5 +28460,557 @@ new MutationObserver(function () { try { if (!document.getElementById('mxTab')) 
 })();
 </script>
 
+
+<!-- ===== V759 · giờ tăng ca / công / nơi ăn ở / chi phí / link Maps / ảnh-video ===== -->
+<script id="bx759-patch">
+(function () {
+'use strict';
+if (window.BX759) return;
+/* ===== V759 · HÀM THUẦN (không phụ thuộc Apps Script / trình duyệt) — dùng chung cho máy chủ & giao diện, đã có kiểm thử ===== */
+var BX759_DEFAULT_CFG = {
+  giaCongBan: 1200000,          /* đ / công — máy bán */
+  giaCongThue: 1000000,         /* đ / công — máy thuê & hợp tác */
+  kmNguong: 100,                /* ≤ ngưỡng: giá gói */
+  diBase: 2000000,              /* đ / lượt (đi + về) cho 1–2 nhân sự, trong ngưỡng km */
+  diNsBase: 2,                  /* số nhân sự đã nằm trong giá gói */
+  diThemNs: 500000,             /* đ / nhân sự từ người thứ 3 */
+  buocKm: 50,                   /* mỗi "điểm tính" vượt ngưỡng = bao nhiêu km (chỉnh được: 10–50) */
+  diemKm: 500000,               /* đ / điểm tính */
+  luuTru: [{ max: 2, gia: 500000 }, { max: 4, gia: 1000000 }, { max: 6, gia: 1400000 }],   /* đ / ngày theo số nhân sự (ở nhà nghỉ) */
+  heSoTangCa: 1.5, heSoLe: 3, heSoCuoiTuan: 1.5, gioMotCong: 8,
+  holidays: []
+};
+function bx759Num(v) { var n = Number(String(v == null ? '' : v).replace(',', '.')); return isFinite(n) ? n : 0; }
+function bx759Iso(s) {
+  s = String(s == null ? '' : s).trim();
+  var m = s.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})/);
+  if (m) return m[1] + '-' + ('0' + m[2]).slice(-2) + '-' + ('0' + m[3]).slice(-2);
+  m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
+  if (m) return m[3] + '-' + ('0' + m[2]).slice(-2) + '-' + ('0' + m[1]).slice(-2);
+  return '';
+}
+function bx759AddDay(iso, n) { var d = new Date(iso + 'T00:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); }
+/* Chuẩn hoá danh sách ngày lễ: "2026-04-30", "30/04/2026", "2026-02-14..2026-02-22" (khoảng) → mảng ISO */
+function bx759ParseHolidays(list) {
+  var out = {}, arr = Array.isArray(list) ? list : String(list || '').split(/[\n;,]+/);
+  arr.forEach(function (x) {
+    x = String(x || '').trim(); if (!x) return;
+    var parts = x.split(/\s*(?:\.\.|→|->|đến|\s-\s)\s*/);
+    var a = bx759Iso(parts[0]), b = parts[1] ? bx759Iso(parts[1]) : a;
+    if (!a || !b || b < a) return;
+    for (var i = 0, d = a; d <= b && i < 30; i++, d = bx759AddDay(d, 1)) out[d] = 1;
+  });
+  return Object.keys(out).sort();
+}
+/* Công của MỘT nhân sự: mỗi ngày làm việc = 1 công (T7/CN = ×1,5; ngày lễ = ×3); giờ tăng ca / 8 × hệ số.
+   Không dùng giờ bắt đầu / kết thúc. holidays: mảng ISO (đã gồm các năm). */
+function bx759Cong(nd, nkt, otGio, heSoOT, holidays, cfg) {
+  cfg = cfg || BX759_DEFAULT_CFG;
+  var a = bx759Iso(nd), b = bx759Iso(nkt) || a;
+  if (!a) return { ok: false, soNgay: 0, ngayThuong: 0, ngayCuoiTuan: 0, ngayLe: 0, congNgay: 0, otGio: 0, heSoOT: 0, congOT: 0, cong: 0, gioLam: 0 };
+  if (b < a) b = a;
+  var hol = {}; (holidays || []).forEach(function (h) { hol[h] = 1; });
+  var thuong = 0, cuoituan = 0, le = 0, d = a, guard = 0;
+  while (d <= b && guard++ < 120) {
+    var dow = new Date(d + 'T00:00:00Z').getUTCDay();
+    if (hol[d]) le++; else if (dow === 0 || dow === 6) cuoituan++; else thuong++;
+    d = bx759AddDay(d, 1);
+  }
+  var ot = Math.max(0, bx759Num(otGio));
+  var hs = bx759Num(heSoOT) > 0 ? bx759Num(heSoOT) : (le > 0 ? cfg.heSoLe : cfg.heSoTangCa);
+  var congNgay = thuong * 1 + cuoituan * cfg.heSoCuoiTuan + le * cfg.heSoLe;
+  var congOT = ot / cfg.gioMotCong * hs;
+  var r2 = function (x) { return Math.round(x * 100) / 100; };
+  return { ok: true, soNgay: thuong + cuoituan + le, ngayThuong: thuong, ngayCuoiTuan: cuoituan, ngayLe: le, congNgay: r2(congNgay), otGio: ot, heSoOT: hs, congOT: r2(congOT),
+           cong: r2(congNgay + congOT), congRaw: congNgay + congOT, gioLam: (thuong + cuoituan + le) * cfg.gioMotCong + ot };
+}
+function bx759CountStaff(ktv1, ktv2) {
+  var n = String(ktv1 || '').trim() ? 1 : 0;
+  String(ktv2 || '').split(/[;,\n]+/).forEach(function (x) { if (x.trim()) n++; });
+  return Math.max(1, n);
+}
+/* loại hình máy → đơn giá công. Máy bán: giaCongBan; máy thuê / hợp tác (và các loại khác): giaCongThue */
+function bx759Fold(s) { return String(s == null ? '' : s).toLowerCase().replace(/đ/g, 'd').normalize('NFD').replace(/[̀-ͯ]/g, ''); }
+function bx759LoaiMay(lh) { var f = bx759Fold(lh); if (/\bban\b/.test(f)) return 'ban'; if (/thue|hop tac|\bht\b/.test(f)) return 'thue'; return f ? 'khac' : ''; }
+function bx759DonGiaCong(lh, cfg) { cfg = cfg || BX759_DEFAULT_CFG; return bx759LoaiMay(lh) === 'ban' ? cfg.giaCongBan : cfg.giaCongThue; }
+/* Chi phí đi lại cho MỘT lượt (đi + về): km ≤ ngưỡng → gói; vượt ngưỡng → + diemKm cho mỗi "điểm" (mỗi buocKm km vượt, làm tròn lên) */
+function bx759DiLai(km, nNs, cfg) {
+  cfg = cfg || BX759_DEFAULT_CFG;
+  km = bx759Num(km); nNs = Math.max(1, Math.round(bx759Num(nNs)) || 1);
+  if (!(km > 0)) return { tien: 0, diem: 0, themNs: 0, note: 'Chưa có số km' };
+  var themNs = Math.max(0, nNs - cfg.diNsBase) * cfg.diThemNs;
+  var diem = km > cfg.kmNguong ? Math.ceil((km - cfg.kmNguong) / Math.max(1, cfg.buocKm)) : 0;
+  return { tien: cfg.diBase + themNs + diem * cfg.diemKm, diem: diem, themNs: themNs, note: km + ' km' + (diem ? ' (+' + diem + ' điểm)' : '') };
+}
+/* Lưu trú nhà nghỉ: đ / ngày theo số nhân sự; trên 6 người: cộng dồn từng nhóm 6 */
+function bx759LuuTruNgay(nNs, cfg) {
+  cfg = cfg || BX759_DEFAULT_CFG;
+  var tiers = (cfg.luuTru || BX759_DEFAULT_CFG.luuTru).slice().sort(function (a, b) { return a.max - b.max; });
+  var top = tiers[tiers.length - 1], n = Math.max(1, Math.round(bx759Num(nNs)) || 1), tot = 0;
+  while (n > top.max) { tot += top.gia; n -= top.max; }
+  for (var i = 0; i < tiers.length; i++) if (n <= tiers[i].max) return tot + tiers[i].gia;
+  return tot + top.gia;
+}
+function bx759LuuTru(noiO, nNs, soNgay, cfg) {
+  if (noiO !== 'ngoai') return 0;
+  return bx759LuuTruNgay(nNs, cfg) * Math.max(0, bx759Num(soNgay));
+}
+/* Tổng hợp chi phí của một phiếu. km: số km tính phí (đã chọn xưởng gần nhất). */
+function bx759Cost(o, cfg) {
+  cfg = cfg || BX759_DEFAULT_CFG;
+  var cg = bx759Cong(o.nd, o.nkt, o.otGio, o.heSoOT, o.holidays, cfg), n = bx759CountStaff(o.ktv1, o.ktv2);
+  var donGia = bx759DonGiaCong(o.lh, cfg), nhanCong = Math.round(cg.congRaw * n * 100) / 100;
+  var dl = bx759DiLai(o.km, n, cfg), lt = bx759LuuTru(o.noiO, n, cg.soNgay, cfg);
+  var tienCong = Math.round(cg.congRaw * n * donGia);
+  return { cong: cg, soNhanSu: n, nhanCong: nhanCong, donGia: donGia, loaiMay: bx759LoaiMay(o.lh), tienCong: tienCong, tienDiLai: dl.tien, diLai: dl, tienLuuTru: lt, tong: tienCong + dl.tien + lt };
+}
+
+var DEF = BX759_DEFAULT_CFG;
+var BX = window.BX759 = { v: 'V759', C: JSON.parse(JSON.stringify(DEF)), canPrice: false, isAdmin: false, cfgOk: false, ext: {}, mediaBy: {}, links: null, dist: {}, uploading: 0,
+  form: { key: '', media: { truoc: [], sau: [] }, noiO: '' } };
+function $(id) { return document.getElementById(id); }
+function api(a, d) { return window.pvApi(a, d || {}); }
+function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+function val(id) { var e = $(id); return e ? String(e.value || '').trim() : ''; }
+function tt(m, t) { try { window.toast(m, t || ''); } catch (e) { } }
+function vnd(n) { return Math.round(Number(n) || 0).toLocaleString('vi-VN') + ' đ'; }
+function num2(n) { return (Math.round((Number(n) || 0) * 100) / 100).toLocaleString('vi-VN'); }
+function newKey() { return 'D' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+BX.form.key = newKey();
+
+/* ---------- cấu hình ---------- */
+BX.loadCfg = function (force) {
+  if (BX._p && !force) return BX._p;
+  BX._p = api('bdscCfgGet').then(function (r) {
+    BX.canPrice = !!r.canPrice; BX.isAdmin = !!r.isAdmin; BX.cfgRaw = r.cfg;
+    BX.C = Object.assign({}, JSON.parse(JSON.stringify(DEF)), r.cfg); BX.C.holidays = (r.cfg && r.cfg.holidays) || [];
+    BX.cfgOk = true; BX.defaultHolidays = r.defaultHolidays || '';
+    return r;
+  }).catch(function (e) { BX._p = null; throw e; });
+  return BX._p;
+};
+
+/* ---------- tính toán từ dữ liệu một phiếu ---------- */
+function hsManual(b) { return b && Number(b.heSoManual) > 0 ? b.heSoManual : ''; }
+BX.stateOf = function (rep) {
+  var b = rep.bx || {}, km = Number(b.kmTay) > 0 ? Number(b.kmTay) : (Number(b.km) > 0 ? Number(b.km) : ((BX.dist[rep.maMay] && BX.dist[rep.maMay].km) || 0));
+  return { nd: rep.nd, nkt: rep.nkt, otGio: b.otGio, heSoOT: hsManual(b), ktv1: rep.ktv1, ktv2: rep.ktv2, lh: rep.lh, noiO: b.noiO || '', km: km, holidays: BX.C.holidays };
+};
+BX.extOf = function (rep) { return bx759Cost(BX.stateOf(rep), BX.C); };
+
+/* ---------- ô nhập trên form ---------- */
+var CSS = '.bx-box{margin:6px 16px 14px;padding:11px 13px;border:1.5px solid var(--bd);border-radius:10px;background:#f8fafc}.bx-row{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px}' +
+  '.bx-chip{background:#fff;border:1px solid var(--bd);border-radius:8px;padding:6px 10px;min-width:104px}.bx-chip b{display:block;font-size:15px;color:#0d6e3f}.bx-chip span{font-size:10.5px;color:var(--mu)}' +
+  '.bx-chip.cost b{color:#b45309}.bx-lbl{font-size:11px;font-weight:800;color:var(--mu);text-transform:uppercase;margin:8px 0 5px}' +
+  '.bx-opt{display:flex;align-items:center;gap:7px;padding:7px 10px;border:1.5px solid var(--bd);border-radius:8px;background:#fff;font-size:13px;cursor:pointer}.bx-opt.on{border-color:#0d6e3f;background:#ecfdf5;font-weight:700}.bx-opt input{width:17px;height:17px;accent-color:#0d6e3f}' +
+  '.bx-warn{background:#fff7ed;border:1px solid #fdba74;color:#9a3412;border-radius:8px;padding:7px 10px;font-size:12px;margin-top:6px}.bx-ok{background:#ecfdf5;border:1px solid #86efac;color:#166534;border-radius:8px;padding:7px 10px;font-size:12px;margin-top:6px}' +
+  '.bx-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(118px,1fr));gap:8px;margin-bottom:9px}.bx-tile{position:relative;border:1.5px solid var(--bd);border-radius:9px;overflow:hidden;background:#0f172a;aspect-ratio:1/1;cursor:pointer}' +
+  '.bx-tile img{width:100%;height:100%;object-fit:cover;display:block}.bx-tile .bx-vid{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#fff;font-size:30px;text-shadow:0 1px 6px #000}' +
+  '.bx-tile .bx-nm{position:absolute;left:0;right:0;bottom:0;background:rgba(0,0,0,.55);color:#fff;font-size:9.5px;padding:2px 5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}' +
+  '.bx-tile .bx-x{position:absolute;top:3px;right:3px;background:rgba(220,38,38,.92);color:#fff;border:none;border-radius:50%;width:22px;height:22px;font-size:12px;cursor:pointer;line-height:22px;padding:0}' +
+  '.bx-tile .bx-pg{position:absolute;left:0;right:0;bottom:0;height:5px;background:#16a34a;transition:width .2s}.bx-tile.up{opacity:.85;cursor:progress}' +
+  '.bx-lb{position:fixed;inset:0;background:rgba(0,0,0,.86);z-index:100000;display:flex;align-items:center;justify-content:center;flex-direction:column;padding:12px}.bx-lb img{max-width:96vw;max-height:84vh;border-radius:6px}.bx-lb iframe{width:min(96vw,980px);height:min(78vh,560px);border:0;background:#000;border-radius:6px}.bx-lb .bx-c{color:#fff;margin-top:9px;font-size:12px}' +
+  '.bx-pick{display:inline-flex;align-items:center;gap:6px;cursor:pointer}.bx-vp{background:#f8fafc;border:1px solid var(--bd);border-radius:9px;padding:11px 13px}.bx-vp h4{margin:0 0 7px;font-size:12px;text-transform:uppercase;color:var(--mu)}' +
+  '.bx-mask{position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:99990;display:flex;align-items:flex-start;justify-content:center;overflow:auto;padding:20px 10px}.bx-modal{background:#fff;border-radius:12px;max-width:760px;width:100%;box-shadow:0 20px 50px rgba(0,0,0,.3)}' +
+  '.bx-modal .hd{padding:13px 16px;border-bottom:1px solid var(--bd);display:flex;justify-content:space-between;align-items:center;font-weight:800}.bx-modal .bd{padding:14px 16px}.bx-modal .ft{padding:11px 16px;border-top:1px solid var(--bd);display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}' +
+  '.bx-f2{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:9px;margin-bottom:10px}.bx-f2 label{font-size:11px;font-weight:700;color:var(--mu);display:block;margin-bottom:3px}.bx-f2 .inp{width:100%}.bx-tbl{width:100%;border-collapse:collapse;font-size:12px}.bx-tbl td,.bx-tbl th{border-bottom:1px solid var(--bd);padding:4px 6px;text-align:left}';
+var st = document.createElement('style'); st.id = 'bx759-css'; st.textContent = CSS; document.head.appendChild(st);
+
+function injectForm() {
+  var gkt = $('rf-gkt'); if (!gkt || $('rf-ot')) return;
+  var grid = gkt.closest('.fgrid'), slot = grid && grid.lastElementChild;
+  if (slot && !slot.children.length) {
+    slot.innerHTML = '<div class="il">⏱ Giờ tăng ca (tổng, mỗi người)</div><input class="inp" id="rf-ot" type="number" min="0" step="0.5" inputmode="decimal" placeholder="VD: 4 (để trống = 0)"><div class="ih">1 ngày = 8 giờ = 1 công (không tính theo giờ bắt đầu/kết thúc). Tăng ca ×1,5; T7/CN ×1,5; lễ ×3.</div>';
+  }
+  var sec = grid && grid.closest('.fsec'), ktvGrid = $('rf-ktv1') && $('rf-ktv1').closest('.fgrid');
+  if (ktvGrid && !$('bx-box')) {
+    var box = document.createElement('div'); box.id = 'bx-box'; box.className = 'bx-box';
+    box.innerHTML = '<div class="bx-lbl" style="margin-top:0">📊 Quy đổi công (tự tính)</div><div class="bx-row" id="bx-sum"></div>' +
+      '<div class="bx-row" style="align-items:center"><label style="font-size:12px;font-weight:700">Hệ số tăng ca:</label><select class="sel" id="bx-hs" style="width:auto"><option value="">Tự động (1,5 · lễ ×3)</option><option value="1.5">×1,5</option><option value="2">×2</option><option value="3">×3</option></select></div>' +
+      '<div class="bx-lbl">🏕 Khu vực ăn ở</div><div class="bx-row"><label class="bx-opt" id="bx-ot"><input type="checkbox" id="bx-o-trai"> Cách ly, ăn ở trong trại</label><label class="bx-opt" id="bx-on"><input type="checkbox" id="bx-o-ngoai"> Di chuyển ăn ở ngoài trại (nhà nghỉ)</label></div>' +
+      '<div class="bx-lbl">📍 Địa điểm trại &amp; quãng đường</div><div class="iw"><div class="il">Link Google Maps của trại (đồng bộ với web eGreen)</div><input class="inp" id="bx-link" type="text" placeholder="Dán link Google Maps của trại…"></div>' +
+      '<div id="bx-kminfo" class="ih" style="margin-top:6px"></div><div class="bx-row" style="align-items:center;margin-top:6px"><button type="button" class="btn bg-gr sm" id="bx-measure">📏 Đo / đo lại khoảng cách</button><label style="font-size:12px">Km nhập tay (nếu khác): <input class="inp" id="bx-kmtay" type="number" min="0" step="1" style="width:100px;display:inline-block"></label></div>' +
+      '<div id="bx-cost"></div>';
+    ktvGrid.parentNode.insertBefore(box, ktvGrid.nextSibling);
+  }
+  if (!$('bx-sec5')) {
+    var btnRow = document.querySelector('#pg-newrep button[onclick*="saveDraft"]'); btnRow = btnRow && btnRow.parentElement;
+    if (btnRow) {
+      [['5', 'truoc', 'Hình ảnh, video thực tế trước sửa chữa'], ['6', 'sau', 'Hình ảnh, video sau sửa chữa']].forEach(function (x) {
+        var d = document.createElement('div'); d.className = 'fsec'; d.id = x[0] === '5' ? 'bx-sec5' : 'bx-sec6';
+        d.innerHTML = '<div class="fsh"><div class="fsn">' + x[0] + '</div><div class="fst">' + x[2] + '</div></div><div style="padding:13px 16px"><div class="bx-grid" id="bx-g-' + x[1] + '"></div>' +
+          '<label class="btn bg-gr bx-pick" style="border:2px dashed var(--bd);padding:9px 14px">📁 Chọn ảnh / video từ thư viện<input type="file" accept="image/*,video/*" multiple hidden data-muc="' + x[1] + '"></label>' +
+          '<div class="ih" style="margin-top:6px">Chọn từ thư viện ảnh của máy (không quay/chụp trực tiếp). Ảnh được nén tự động; video tối đa 300 MB. Tệp lưu trên Drive và AI tra cứu được.</div></div>';
+        btnRow.parentNode.insertBefore(d, btnRow);
+      });
+      document.querySelectorAll('#pg-newrep input[type=file][data-muc]').forEach(function (inp) {
+        inp.addEventListener('change', function () { var f = Array.prototype.slice.call(inp.files || []); inp.value = ''; BX.addFiles(f, inp.dataset.muc, { id: BX.form.key, maMay: val('rf-mm'), draft: true }, BX.form.media[inp.dataset.muc], function () { BX.renderGrids(); }); });
+      });
+    }
+  }
+}
+/* ---------- tải ảnh / video ---------- */
+function blobToB64(blob) { return new Promise(function (res, rej) { var fr = new FileReader(); fr.onload = function () { res(String(fr.result).split(',')[1] || ''); }; fr.onerror = function () { rej(new Error('Không đọc được tệp')); }; fr.readAsDataURL(blob); }); }
+function shrinkImage(file) {
+  return new Promise(function (res) {
+    if (!/^image\/(jpeg|png|webp)/i.test(file.type) || file.size < 900 * 1024) return res(file);
+    var img = new Image(), url = URL.createObjectURL(file);
+    img.onload = function () {
+      try {
+        var max = 1920, w = img.naturalWidth, h = img.naturalHeight, k = Math.min(1, max / Math.max(w, h)), c = document.createElement('canvas'); c.width = Math.round(w * k); c.height = Math.round(h * k);
+        c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+        c.toBlob(function (b) { URL.revokeObjectURL(url); if (b && b.size < file.size) { b.name = file.name.replace(/\.\w+$/, '') + '.jpg'; res(new File([b], b.name, { type: 'image/jpeg' })); } else res(file); }, 'image/jpeg', 0.82);
+      } catch (e) { URL.revokeObjectURL(url); res(file); }
+    };
+    img.onerror = function () { URL.revokeObjectURL(url); res(file); };
+    img.src = url;
+  });
+}
+async function uploadOne(file, muc, ctx, onProg) {
+  var init = await api('bdscMediaInit', { name: file.name, mime: file.type || 'application/octet-stream', size: file.size, muc: muc, id: ctx.id, maMay: ctx.maMay, draft: !!ctx.draft });
+  var size = file.size, chunk = init.chunk || 3145728, pos = 0, last = null;
+  while (pos < size) {
+    var end = Math.min(size, pos + chunk), b64 = await blobToB64(file.slice(pos, end)), tries = 0, r = null;
+    while (true) {
+      try { r = await api('bdscMediaChunk', { uploadId: init.uploadId, start: pos, b64: b64 }); break; }
+      catch (e) { if (++tries >= 3) throw e; await new Promise(function (ok) { setTimeout(ok, 1200 * tries); }); }
+    }
+    pos = end; if (onProg) onProg(pos / size); last = r;
+  }
+  if (!last || !last.media) throw new Error('Drive chưa xác nhận tệp đã tải xong');
+  return last.media;
+}
+BX.addFiles = function (files, muc, ctx, list, done) {
+  files.forEach(function (f0) {
+    if (!/^(image|video)\//i.test(f0.type)) { tt('Bỏ qua ' + f0.name + ' — chỉ nhận ảnh hoặc video', 'warn'); return; }
+    if (f0.size > 300 * 1024 * 1024) { tt(f0.name + ' quá lớn (tối đa 300 MB)', 'warn'); return; }
+    var tile = { _id: 'u' + Math.random().toString(36).slice(2, 8), pending: true, ten: f0.name, loai: /^video/i.test(f0.type) ? 'video' : 'ảnh', pct: 0, muc: muc, _local: URL.createObjectURL(f0) };
+    list.push(tile); BX.uploading++; done && done();
+    shrinkImage(f0).then(function (f) { return uploadOne(f, muc, ctx, function (p) { tile.pct = p; var el = document.querySelector('[data-tp="' + tile._id + '"] .bx-pg'); if (el) el.style.width = Math.round(p * 100) + '%'; }); })
+      .then(function (m) { var i = list.indexOf(tile); if (i >= 0) list[i] = m; try { URL.revokeObjectURL(tile._local); } catch (e) { } tt('✅ Đã tải ' + m.ten, 'ok'); })
+      .catch(function (e) { var i = list.indexOf(tile); if (i >= 0) list.splice(i, 1); tt('❌ Không tải được ' + f0.name + ': ' + (e.message || e), 'err'); })
+      .then(function () { BX.uploading--; done && done(); });
+  });
+};
+function tileHtml(m, canDel) {
+  if (m.pending) return '<div class="bx-tile up" data-tp="' + m._id + '">' + (m.loai === 'video' ? '<div class="bx-vid">⏳</div>' : '<img src="' + esc(m._local) + '">') + '<div class="bx-nm">' + esc(m.ten) + '</div><div class="bx-pg" style="width:' + Math.round((m.pct || 0) * 100) + '%"></div></div>';
+  return '<div class="bx-tile" data-open="' + esc(m.mediaId) + '"><img src="' + esc(m.thumb) + '" loading="lazy" onerror="this.style.display=\'none\'">' + (m.loai === 'video' ? '<div class="bx-vid">▶</div>' : '') + '<div class="bx-nm">' + esc(m.ten) + '</div>' + (canDel ? '<button type="button" class="bx-x" data-del="' + esc(m.mediaId) + '" title="Xoá">✕</button>' : '') + '</div>';
+}
+BX.lightbox = function (m) {
+  var d = document.createElement('div'); d.className = 'bx-lb';
+  d.innerHTML = (m.loai === 'video' ? '<iframe src="' + esc(m.preview) + '" allow="autoplay; fullscreen" allowfullscreen></iframe>' : '<img src="' + esc(m.thumb.replace('sz=w1200', 'sz=w2000')) + '">') + '<div class="bx-c">' + esc(m.muc === 'sau' ? 'Sau sửa chữa' : 'Trước sửa chữa') + ' · ' + esc(m.ten) + ' · <a href="' + esc(m.view) + '" target="_blank" style="color:#86efac">Mở trên Drive</a> · bấm để đóng</div>';
+  d.onclick = function (e) { if (e.target.tagName !== 'A') d.remove(); };
+  document.body.appendChild(d);
+};
+function bindTiles(host, list, canDel, onChange) {
+  host.onclick = function (e) {
+    var del = e.target.closest && e.target.closest('[data-del]');
+    if (del) { e.stopPropagation(); if (!confirm('Xoá tệp này?')) return; var id = del.dataset.del; api('bdscMediaDelete', { mediaId: id }).then(function () { var i = list.findIndex(function (x) { return x.mediaId === id; }); if (i >= 0) list.splice(i, 1); onChange(); }).catch(function (er) { tt('Không xoá được: ' + er.message, 'err'); }); return; }
+    var t = e.target.closest && e.target.closest('[data-open]'); if (t) { var m = list.find(function (x) { return x.mediaId === t.dataset.open; }); if (m) BX.lightbox(m); }
+  };
+}
+BX.renderGrids = function () {
+  ['truoc', 'sau'].forEach(function (k) { var g = $('bx-g-' + k); if (!g) return; var L = BX.form.media[k]; g.innerHTML = L.map(function (m) { return tileHtml(m, true); }).join(''); bindTiles(g, L, true, BX.renderGrids); });
+};
+
+/* ---------- đo khoảng cách ---------- */
+function kmLine(d) {
+  if (!d) return '';
+  if (d.needWorkshop || d.needLink) return '<div class="bx-warn">⚠️ ' + esc(d.msg || 'Chưa đủ dữ liệu để đo khoảng cách.') + '</div>';
+  var h = (d.kmHN != null ? 'Hà Nội <b>' + num2(d.kmHN) + ' km</b>' : '') + (d.kmHN != null && d.kmBD != null ? ' · ' : '') + (d.kmBD != null ? 'Bình Dương <b>' + num2(d.kmBD) + ' km</b>' : '');
+  var s = '📏 ' + h + ' → tính phí <b>' + num2(d.km) + ' km</b> (xưởng ' + esc(d.xuong || '') + ') <span style="color:var(--mu)">· ' + esc(d.src || '') + (d.at ? ' · đo ' + esc(d.at) : '') + '</span>';
+  if (d.stale) s += '<div class="bx-warn">⚠️ ' + esc(d.msg) + ' <button type="button" class="btn bg-a sm" data-remeasure="1">Đo lại ngay</button></div>';
+  else if (d.msg) s += '<div class="bx-warn">' + esc(d.msg) + '</div>';
+  return s;
+}
+BX.measure = function (code, force) {
+  code = String(code || '').toUpperCase(); if (!code) return Promise.resolve();
+  var el = $('bx-kminfo'); if (el) el.innerHTML = '⏳ Đang lấy khoảng cách…';
+  return api('bdscDistance', { maMay: code, force: !!force }).then(function (d) { BX.dist[code] = d; if (val('rf-mm').toUpperCase() === code) { if ($('bx-kminfo')) $('bx-kminfo').innerHTML = kmLine(d); BX.refresh(); } return d; })
+    .catch(function (e) { if ($('bx-kminfo')) $('bx-kminfo').innerHTML = '<div class="bx-warn">Không đo được: ' + esc(e.message) + '</div>'; });
+};
+BX.loadLinks = function (fresh) {
+  if (BX.links && !fresh) return Promise.resolve(BX.links);
+  return api('bdscMachineLinks', { fresh: !!fresh }).then(function (r) { BX.links = r.links || {}; return BX.links; }).catch(function () { BX.links = BX.links || {}; return BX.links; });
+};
+BX.onMachine = function () {
+  var code = val('rf-mm').toUpperCase(), L = $('bx-link'); if (!L) return;
+  if (!code || !(typeof MACHINES !== 'undefined' ? MACHINES : []).some(function (m) { return String(m.maMay).toUpperCase() === code; })) { L.value = ''; if ($('bx-kminfo')) $('bx-kminfo').innerHTML = ''; BX.refresh(); return; }
+  BX.loadLinks().then(function (links) { L.value = links[code] || ''; return BX.measure(code, false); });
+};
+
+/* ---------- đọc form → tính → hiển thị ---------- */
+BX.formState = function () {
+  var code = val('rf-mm').toUpperCase(), d = BX.dist[code], kt = Number(val('bx-kmtay')) || 0;
+  return { nd: val('rf-nd'), nkt: val('rf-nkt'), otGio: val('rf-ot'), heSoOT: val('bx-hs'), ktv1: val('rf-ktv1'), ktv2: val('rf-ktv2'), lh: val('rf-lh'), noiO: BX.form.noiO || '', km: kt > 0 ? kt : ((d && d.km) || 0), holidays: BX.C.holidays };
+};
+BX.refresh = function () {
+  var box = $('bx-sum'); if (!box) return;
+  var s = BX.formState(), t = bx759Cost(s, BX.C), c = t.cong;
+  var chip = function (b, l, cls) { return '<div class="bx-chip ' + (cls || '') + '"><b>' + b + '</b><span>' + l + '</span></div>'; };
+  box.innerHTML = c.ok ? chip(c.soNgay + ' ngày', 'thường ' + c.ngayThuong + ' · T7/CN ' + c.ngayCuoiTuan + ' · lễ ' + c.ngayLe) + chip(num2(c.gioLam) + ' giờ', 'giờ làm việc / người (8h × ngày + tăng ca)') + chip(num2(c.cong) + ' công', 'công / người (tăng ca ×' + num2(c.heSoOT) + ')') + chip(t.soNhanSu + ' người', 'KTV trưởng + hỗ trợ') + chip(num2(t.nhanCong) + ' công', 'NHÂN CÔNG (tổng)')
+    : '<div class="ih">Chọn ngày bắt đầu / kết thúc để tính công.</div>';
+  var co = $('bx-cost');
+  if (co) {
+    if (BX.canPrice && c.ok) {
+      co.innerHTML = '<div class="bx-lbl">💰 Chi phí ước tính (chỉ vai trò được xem giá)</div><div class="bx-row">' + chip(vnd(t.tienCong), 'Nhân công · ' + num2(t.nhanCong) + ' công × ' + vnd(t.donGia), 'cost') + chip(vnd(t.tienDiLai), 'Đi lại · ' + esc(t.diLai.note || ''), 'cost') + chip(vnd(t.tienLuuTru), s.noiO === 'ngoai' ? 'Lưu trú nhà nghỉ · ' + c.soNgay + ' ngày' : (s.noiO === 'trai' ? 'Ăn ở trong trại — không tính' : 'Chưa chọn nơi ăn ở'), 'cost') + chip(vnd(t.tong), 'TỔNG', 'cost') + '</div>' + (t.loaiMay === 'khac' ? '<div class="bx-warn">Loại hình máy « ' + esc(s.lh) + ' » không nhận ra là bán / thuê / hợp tác — đang tính theo đơn giá máy thuê &amp; hợp tác.</div>' : '');
+    } else co.innerHTML = '';
+  }
+  var ot = $('bx-o-trai'), ng = $('bx-o-ngoai');
+  if (ot) { ot.checked = BX.form.noiO === 'trai'; ng.checked = BX.form.noiO === 'ngoai'; $('bx-ot').classList.toggle('on', ot.checked); $('bx-on').classList.toggle('on', ng.checked); }
+};
+BX.collect = function () {
+  var s = BX.formState(), t = bx759Cost(s, BX.C), kt = Number(val('bx-kmtay')) || 0, code = val('rf-mm').toUpperCase(), d = BX.dist[code];
+  return { otGio: Number(s.otGio) || 0, heSoManual: Number(s.heSoOT) || '', noiO: s.noiO, kmTay: kt, km: s.km || 0, xuong: kt > 0 ? 'Nhập tay' : (d && d.xuong) || '', cong: t.cong.cong, nhanCong: t.nhanCong, soNhanSu: t.soNhanSu };
+};
+BX.resetForm = function () {
+  BX.form = { key: newKey(), media: { truoc: [], sau: [] }, noiO: '' };
+  ['rf-ot', 'bx-kmtay', 'bx-link', 'bx-hs'].forEach(function (id) { var e = $(id); if (e) e.value = ''; });
+  var k = $('bx-kminfo'); if (k) k.innerHTML = '';
+  BX.renderGrids(); BX.refresh();
+};
+
+/* ---------- tài liệu in (PDF / Word / xem phiếu) ---------- */
+BX.docTime = function (rep) {
+  try {
+    var t = BX.extOf(rep), c = t.cong, b = rep.bx || {}; if (!c.ok) return '';
+    var f = function (x) { return String(Math.round(x * 100) / 100).replace('.', ','); }, on = b.noiO === 'trai' ? '☒' : '☐', off = b.noiO === 'ngoai' ? '☒' : '☐';
+    return '<p class="body-p">Số ngày làm việc: <b>' + c.soNgay + '</b> ngày' + (c.ngayCuoiTuan || c.ngayLe ? ' (thường ' + c.ngayThuong + ', T7/CN ' + c.ngayCuoiTuan + ', lễ ' + c.ngayLe + ')' : '') + ' &nbsp;·&nbsp; Giờ tăng ca: <b>' + f(c.otGio) + '</b> giờ/người &nbsp;·&nbsp; Giờ làm việc quy đổi: <b>' + f(c.gioLam) + '</b> giờ</p>' +
+      '<p class="body-p">Công quy đổi: <b>' + f(c.cong) + '</b> công/người &nbsp;·&nbsp; Số nhân sự: <b>' + t.soNhanSu + '</b> &nbsp;·&nbsp; Nhân công: <b>' + f(t.nhanCong) + '</b> công</p>' +
+      '<p class="body-p">Khu vực ăn ở: ' + on + ' Cách ly, ăn ở trong trại &nbsp;&nbsp; ' + off + ' Di chuyển ăn ở ngoài trại (nhà nghỉ)</p>';
+  } catch (e) { return ''; }
+};
+BX.docMedia = function (rep) {
+  try {
+    var L = rep.bxMedia || [], out = '';
+    [['truoc', '5. Hình ảnh, video thực tế trước sửa chữa'], ['sau', '6. Hình ảnh, video sau sửa chữa']].forEach(function (x) {
+      var items = L.filter(function (m) { return m.muc === x[0] && !m.pending; }); if (!items.length) return;
+      out += '<p class="sec">' + x[1] + '</p><table style="width:100%;border-collapse:collapse;table-layout:fixed;margin-bottom:6pt">';
+      for (var i = 0; i < items.length; i += 3) {
+        out += '<tr>';
+        for (var j = i; j < i + 3; j++) {
+          var m = items[j];
+          out += '<td style="border:1px solid #999;padding:3pt;vertical-align:top;text-align:center;width:33%">' + (m ? (m.loai === 'video' ? '<div style="font-size:11pt;padding:18pt 2pt">▶ Video<br><span style="font-size:9pt">' + esc(m.ten) + '</span><br><a href="' + esc(m.view) + '" style="font-size:9pt">' + esc(m.view) + '</a></div>' : '<img src="' + esc(m.thumb) + '" style="width:100%;max-height:150pt;object-fit:contain"><div style="font-size:9pt">' + esc(m.ten) + '</div>') : '') + '</td>';
+        }
+        out += '</tr>';
+      }
+      out += '</table>';
+    });
+    return out;
+  } catch (e) { return ''; }
+};
+var _ew = window.exportWord;
+if (typeof _ew === 'function') {
+  window.exportWord = function (id, mode) {
+    var self = this, args = arguments, rep = id ? (REPORTS.find(function (x) { return x.id === id; })) : null;
+    var imgs = ((rep ? rep.bxMedia : BX.form.media.truoc.concat(BX.form.media.sau)) || []).filter(function (m) { return !m.pending && m.loai !== 'video' && m.thumb; });
+    if (!imgs.length) return _ew.apply(self, args);
+    var pre = Promise.all(imgs.slice(0, 24).map(function (m) { return new Promise(function (ok) { var im = new Image(); im.onload = im.onerror = function () { ok(); }; im.src = m.thumb; }); }));
+    Promise.race([pre, new Promise(function (ok) { setTimeout(ok, 7000); })]).then(function () { _ew.apply(self, args); });
+  };
+}
+
+/* ---------- móc vào luồng nhập phiếu ---------- */
+function wrap(name, fn) { var o = window[name]; if (typeof o !== 'function') return; window[name] = fn(o); }
+wrap('collectReport', function (o) { return function () { var r = o.apply(this, arguments); try { r.bx = BX.collect(); r.bxMedia = BX.form.media.truoc.concat(BX.form.media.sau).filter(function (m) { return !m.pending; }); r.bxKey = BX.form.key; } catch (e) { console.warn('[BX759 collect]', e); } return r; }; });
+wrap('previewReport', function (o) { return function () { var r = o.apply(this, arguments); try { r.bx = BX.collect(); r.bxMedia = BX.form.media.truoc.concat(BX.form.media.sau).filter(function (m) { return !m.pending; }); } catch (e) { } return r; }; });
+wrap('initForm', function (o) { return function () { var r = o.apply(this, arguments); try { BX.resetForm(); } catch (e) { } return r; }; });
+wrap('calcTime', function (o) { return function () { var r = o.apply(this, arguments); try { BX.refresh(); } catch (e) { } return r; }; });
+wrap('submitReport', function (o) { return function () { if (BX.uploading > 0) { tt('⏳ Ảnh/video đang tải lên (' + BX.uploading + ' tệp) — chờ tải xong rồi bấm Lưu', 'warn'); return; } return o.apply(this, arguments); }; });
+wrap('saveDraft', function (o) { return function () { if (BX.uploading > 0) { tt('⏳ Ảnh/video đang tải lên — chờ tải xong rồi lưu nháp', 'warn'); return; } return o.apply(this, arguments); }; });
+BX.payloadOf = function (rep, b) {
+  b = b || rep.bx || {};
+  return { id: rep.id, maMay: rep.maMay, lh: rep.lh, ktv1: rep.ktv1, ktv2: rep.ktv2, nd: rep.nd, nkt: rep.nkt, otGio: b.otGio || 0, heSoOT: Number(b.heSoManual) || '', noiO: b.noiO || '', kmTay: b.kmTay || 0 };
+};
+BX.saveExt = function (rep, b) {
+  return api('bdscExtSave', { ext: BX.payloadOf(rep, b) }).then(function (r) {
+    var e = r.ext; BX.ext[rep.id] = e; rep.bx = BX.fromServer(e); try { window.save(); } catch (x) { } return e;
+  });
+};
+wrap('syncReportGS', function (o) {
+  return async function (rep) {
+    var res = await o.apply(this, arguments);
+    try {
+      if (rep && rep.id && rep.bx) {
+        await BX.saveExt(rep);
+        if (rep.bxKey && (rep.bxMedia || []).length) {
+          var at = await api('bdscMediaAttach', { draftKey: rep.bxKey, id: rep.id, maMay: rep.maMay }), nmap = {};
+          (at.renamed || []).forEach(function (x) { nmap[x.mediaId] = x.ten; });
+          rep.bxMedia.forEach(function (m) { m.id = rep.id; if (nmap[m.mediaId]) m.ten = nmap[m.mediaId]; }); BX.mediaBy[rep.id] = rep.bxMedia.slice(); try { window.save(); } catch (x) { }
+        }
+      }
+    } catch (e) { console.warn('[BX759 afterSync]', e); tt('⚠️ Đã lưu phiếu nhưng chưa ghi được giờ tăng ca / ảnh: ' + (e.message || e), 'warn'); }
+    return res;
+  };
+});
+BX.fromServer = function (e) {
+  var auto = bx759Cong(e.nd, e.nkt, e.otGio, '', BX.C.holidays, BX.C).heSoOT;
+  return { otGio: e.otGio, heSoManual: e.heSoOT && Math.abs(e.heSoOT - auto) > 1e-9 ? e.heSoOT : '', noiO: e.noiO, kmTay: e.kmTay, km: e.km, xuong: e.xuong, cong: e.cong, nhanCong: e.nhanCong, soNhanSu: e.soNhanSu, tong: e.tong, tienCong: e.tienCong, tienDiLai: e.tienDiLai, tienLuuTru: e.tienLuuTru };
+};
+BX.merge = function () {
+  var n = 0;
+  REPORTS.forEach(function (r) {
+    var e = BX.ext[r.id]; if (e) { r.bx = BX.fromServer(e); n++; }
+    var m = BX.mediaBy[r.id]; r.bxMedia = m ? m.slice() : (r.bxMedia && !BX.mediaLoaded ? r.bxMedia : []);
+  });
+  return n;
+};
+BX.loadAll = function () {
+  return BX.loadCfg().then(function () { return Promise.all([api('bdscExtGet', {}), api('bdscMediaList', {})]); }).then(function (a) {
+    BX.ext = a[0].rows || {}; BX.mediaBy = {}; (a[1].rows || []).forEach(function (m) { (BX.mediaBy[m.id] = BX.mediaBy[m.id] || []).push(m); }); BX.mediaLoaded = true;
+    BX.merge(); try { window.save(); } catch (e) { }
+    if (a[0].n === 0 && BX.isAdmin && !localStorage.getItem('bx759_recalc')) {
+      tt('🔄 Đang tính lại giờ làm việc / công cho các phiếu cũ…', 'info');
+      return api('bdscExtRecalcAll', {}).then(function (r) { localStorage.setItem('bx759_recalc', '1'); tt('✅ Đã tính lại công cho ' + r.total + ' phiếu', 'ok'); return BX.loadAll(); });
+    }
+  }).catch(function (e) { console.warn('[BX759 loadAll]', e.message); });
+};
+wrap('pullSheet5', function (o) { return async function () { var r = await o.apply(this, arguments); try { if (BX.mediaLoaded) { BX.merge(); try { window.save(); } catch (e) { } } else await BX.loadAll(); if (typeof window.renderRepList === 'function') window.renderRepList(); } catch (e) { } return r; }; });
+
+/* ---------- panel trong « Xem phiếu » (sửa giờ tăng ca / ăn ở + ảnh/video của phiếu cũ) ---------- */
+BX.renderViewPanel = function (id) {
+  var rep = REPORTS.find(function (x) { return x.id === id; }); var vb = $('viewBody'); if (!rep || !vb) return;
+  var host = vb.firstElementChild || vb, old = $('bx-vp'); if (old) old.remove();
+  var can = typeof canEdit === 'function' ? !!canEdit(rep) : false, b = rep.bx || {}, t = BX.extOf(rep), c = t.cong, f = function (x) { return num2(x); };
+  rep.bxMedia = rep.bxMedia || [];
+  var d = document.createElement('div'); d.id = 'bx-vp'; d.className = 'bx-vp';
+  var costHtml = BX.canPrice && c.ok ? '<div class="bx-row" style="margin-top:6px">' + [['Nhân công', t.tienCong], ['Đi lại', t.tienDiLai], ['Lưu trú', t.tienLuuTru], ['TỔNG', t.tong]].map(function (x) { return '<div class="bx-chip cost"><b>' + vnd(x[1]) + '</b><span>' + x[0] + '</span></div>'; }).join('') + '</div>' : '';
+  d.innerHTML = '<h4>⏱ Giờ tăng ca · Công · Nơi ăn ở</h4>' +
+    '<div class="bx-row">' + (c.ok ? ['<b>' + c.soNgay + '</b> ngày (thường ' + c.ngayThuong + ' · T7/CN ' + c.ngayCuoiTuan + ' · lễ ' + c.ngayLe + ')', '<b>' + f(c.gioLam) + '</b> giờ làm việc/người', '<b>' + f(c.cong) + '</b> công/người', '<b>' + t.soNhanSu + '</b> nhân sự', '<b>' + f(t.nhanCong) + '</b> nhân công'].map(function (x) { return '<div class="bx-chip"><span style="font-size:12px;color:#0f172a">' + x + '</span></div>'; }).join('') : '<span class="ih">Phiếu thiếu ngày bắt đầu / kết thúc.</span>') + '</div>' + costHtml +
+    '<div class="bx-f2" style="margin-top:8px"><div><label>Giờ tăng ca (mỗi người)</label><input class="inp" id="bxv-ot" type="number" min="0" step="0.5" value="' + (b.otGio || '') + '"' + (can ? '' : ' disabled') + '></div>' +
+    '<div><label>Hệ số tăng ca</label><select class="sel" id="bxv-hs"' + (can ? '' : ' disabled') + '>' + [['', 'Tự động'], ['1.5', '×1,5'], ['2', '×2'], ['3', '×3']].map(function (o) { return '<option value="' + o[0] + '"' + (String(b.heSoManual || '') === o[0] ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') + '</select></div>' +
+    '<div><label>Km nhập tay (nếu khác)</label><input class="inp" id="bxv-km" type="number" min="0" value="' + (b.kmTay || '') + '"' + (can ? '' : ' disabled') + '></div></div>' +
+    '<div class="bx-row"><label class="bx-opt' + (b.noiO === 'trai' ? ' on' : '') + '"><input type="checkbox" id="bxv-o1"' + (b.noiO === 'trai' ? ' checked' : '') + (can ? '' : ' disabled') + '> Cách ly, ăn ở trong trại</label><label class="bx-opt' + (b.noiO === 'ngoai' ? ' on' : '') + '"><input type="checkbox" id="bxv-o2"' + (b.noiO === 'ngoai' ? ' checked' : '') + (can ? '' : ' disabled') + '> Di chuyển ăn ở ngoài trại (nhà nghỉ)</label></div>' +
+    (can ? '<div style="display:flex;justify-content:flex-end"><button class="btn bg-g sm" id="bxv-save">💾 Lưu giờ tăng ca &amp; nơi ăn ở</button></div>' : '') +
+    '<h4 style="margin-top:12px">🖼 5. Ảnh / video thực tế trước sửa chữa</h4><div class="bx-grid" id="bxv-g-truoc"></div>' + (can ? '<label class="btn bg-gr sm bx-pick">📁 Thêm từ thư viện<input type="file" accept="image/*,video/*" multiple hidden data-muc="truoc"></label>' : '') +
+    '<h4 style="margin-top:12px">🖼 6. Ảnh / video sau sửa chữa</h4><div class="bx-grid" id="bxv-g-sau"></div>' + (can ? '<label class="btn bg-gr sm bx-pick">📁 Thêm từ thư viện<input type="file" accept="image/*,video/*" multiple hidden data-muc="sau"></label>' : '');
+  host.appendChild(d);
+  var draw = function () {
+    ['truoc', 'sau'].forEach(function (k) {
+      var g = $('bxv-g-' + k); if (!g) return; var L = rep.bxMedia.filter(function (m) { return m.muc === k || (m.pending && m.muc === k); });
+      g.innerHTML = L.length ? L.map(function (m) { return tileHtml(m, can); }).join('') : '<div class="ih" style="grid-column:1/-1">Chưa có.</div>';
+      bindTiles(g, rep.bxMedia, can, function () { BX.mediaBy[rep.id] = rep.bxMedia.filter(function (m) { return !m.pending; }); try { window.save(); } catch (e) { } draw(); });
+    });
+  };
+  draw();
+  d.querySelectorAll('input[type=file][data-muc]').forEach(function (inp) {
+    inp.addEventListener('change', function () { var fs = Array.prototype.slice.call(inp.files || []); inp.value = ''; BX.addFiles(fs, inp.dataset.muc, { id: rep.id, maMay: rep.maMay }, rep.bxMedia, function () { BX.mediaBy[rep.id] = rep.bxMedia.filter(function (m) { return !m.pending; }); draw(); }); });
+  });
+  var o1 = $('bxv-o1'), o2 = $('bxv-o2');
+  if (o1) { o1.onchange = function () { if (o1.checked) o2.checked = false; }; o2.onchange = function () { if (o2.checked) o1.checked = false; }; }
+  var sv = $('bxv-save');
+  if (sv) sv.onclick = function () {
+    var nb = { otGio: Number(val('bxv-ot')) || 0, heSoManual: Number(val('bxv-hs')) || '', noiO: o1.checked ? 'trai' : (o2.checked ? 'ngoai' : ''), kmTay: Number(val('bxv-km')) || 0 };
+    sv.disabled = true; sv.textContent = 'Đang lưu…';
+    BX.saveExt(rep, nb).then(function () { tt('✅ Đã lưu giờ tăng ca / nơi ăn ở', 'ok'); window.viewRep(rep.id); }).catch(function (e) { sv.disabled = false; sv.textContent = '💾 Lưu'; tt('❌ Không lưu được: ' + e.message, 'err'); });
+  };
+};
+wrap('viewRep', function (o) { return function (id) { var r = o.apply(this, arguments); try { BX.renderViewPanel(id); } catch (e) { console.warn('[BX759 view]', e); } return r; }; });
+
+/* ---------- cửa sổ « Quy ước công & chi phí » ---------- */
+BX.openSettings = async function () {
+  try { await BX.loadCfg(true); } catch (e) { tt('Không tải được cấu hình: ' + e.message, 'err'); return; }
+  var C = BX.C, adm = BX.isAdmin, ro = adm ? '' : ' disabled', cp = BX.canPrice;
+  var inp = function (k, lab, step) { return '<div><label>' + lab + '</label><input class="inp" data-k="' + k + '" type="number" min="0" step="' + (step || 1) + '" value="' + (C[k] != null ? C[k] : '') + '"' + ro + '></div>'; };
+  var ws = C.workshops || { hn: {}, bd: {} };
+  var m = document.createElement('div'); m.className = 'bx-mask';
+  m.innerHTML = '<div class="bx-modal"><div class="hd"><span>⚙ Quy ước công &amp; chi phí BDSC</span><button class="btn bg-gr sm" data-x>✕</button></div><div class="bd">' +
+    (adm ? '' : '<div class="bx-warn" style="margin:0 0 10px">Chỉ QTV được sửa quy ước. Bạn chỉ xem được các hệ số công / ngày lễ.</div>') +
+    '<div class="bx-lbl" style="margin-top:0">Hệ số công</div><div class="bx-f2">' + inp('gioMotCong', 'Giờ / công', 1) + inp('heSoTangCa', 'Hệ số giờ tăng ca', 0.1) + inp('heSoCuoiTuan', 'Hệ số T7 / CN', 0.1) + inp('heSoLe', 'Hệ số ngày lễ', 0.1) + '</div>' +
+    (cp ? '<div class="bx-lbl">Đơn giá nhân công (đ / công)</div><div class="bx-f2">' + inp('giaCongBan', 'Máy bán', 10000) + inp('giaCongThue', 'Máy thuê &amp; hợp tác', 10000) + '</div>' +
+      '<div class="bx-lbl">Đi lại (mỗi lượt đi + về, tính từ xưởng Hà Nội / Bình Dương gần hơn)</div><div class="bx-f2">' + inp('kmNguong', 'Ngưỡng km của giá gói', 1) + inp('diBase', 'Giá gói (đ)', 10000) + inp('diNsBase', 'Số nhân sự trong giá gói', 1) + inp('diThemNs', 'Thêm / nhân sự từ người kế tiếp (đ)', 10000) + inp('buocKm', '1 « điểm tính » = … km vượt ngưỡng (10–50)', 1) + inp('diemKm', 'Đơn giá / điểm tính (đ)', 10000) + '</div>' +
+      '<div class="bx-lbl">Nhà nghỉ (đ / ngày, theo số nhân sự)</div><div class="bx-f2" id="bxs-lt">' + (C.luuTru || []).map(function (x, i) { return '<div><label>Đến ' + x.max + ' người</label><input class="inp" data-lt="' + i + '" type="number" min="0" step="10000" value="' + x.gia + '"' + ro + '></div>'; }).join('') + '</div>' : '<div class="ih">Đơn giá &amp; chi phí chỉ hiển thị cho vai trò được xem giá.</div>') +
+    '<div class="bx-lbl">Vị trí xưởng (link Google Maps — đo khoảng cách từ đây)</div><div class="bx-f2"><div><label>Xưởng Hà Nội — link Maps</label><input class="inp" id="bxs-hnl" value="' + esc(ws.hn.link || '') + '"' + ro + '></div><div><label>Xưởng Hà Nội — địa chỉ</label><input class="inp" id="bxs-hna" value="' + esc(ws.hn.addr || '') + '"' + ro + '></div>' +
+    '<div><label>Xưởng Bình Dương — link Maps</label><input class="inp" id="bxs-bdl" value="' + esc(ws.bd.link || '') + '"' + ro + '></div><div><label>Xưởng Bình Dương — địa chỉ</label><input class="inp" id="bxs-bda" value="' + esc(ws.bd.addr || '') + '"' + ro + '></div></div>' +
+    '<div class="bx-lbl">Ngày lễ (mỗi dòng 1 ngày hoặc khoảng: 2026-04-30 · 30/04/2026 · 2026-02-16..2026-02-20)</div><textarea class="ta" id="bxs-hol" style="width:100%;min-height:120px;font-family:monospace;font-size:12px"' + ro + '>' + esc(C.holidaysText || BX.defaultHolidays || '') + '</textarea>' +
+    '<div class="ih">Ngày lễ mặc định gồm 1/1, 30/4, 1/5, 2/9 hằng năm và Tết / Giỗ Tổ các năm 2023–2027 — hãy đối chiếu thông báo nghỉ lễ chính thức rồi sửa nếu cần.</div>' +
+    (adm ? '<div class="bx-lbl">Thao tác hàng loạt</div><div class="bx-row"><button class="btn bg-a sm" id="bxs-recalc">🔄 Tính lại công cho TẤT CẢ phiếu cũ</button><button class="btn bg-a sm" id="bxs-dist">📏 Đo khoảng cách các máy đã có link</button></div><div id="bxs-msg" class="ih"></div>' : '') +
+    '<div class="bx-lbl">Link Google Maps theo mã máy (đồng bộ web eGreen)</div><div class="bx-row"><button class="btn bg-gr sm" id="bxs-links">📍 Mở bảng nhập link Maps cho tất cả mã máy</button></div></div>' +
+    '<div class="ft"><button class="btn bg-gr" data-x>Đóng</button>' + (adm ? '<button class="btn bg-g" id="bxs-save">💾 Lưu quy ước</button>' : '') + '</div></div>';
+  document.body.appendChild(m);
+  m.querySelectorAll('[data-x]').forEach(function (b) { b.onclick = function () { m.remove(); }; });
+  var msg = function (t) { var e = $('bxs-msg'); if (e) e.innerHTML = t; };
+  if ($('bxs-save')) $('bxs-save').onclick = function () {
+    var cfg = { workshops: { hn: { link: val('bxs-hnl'), addr: val('bxs-hna') }, bd: { link: val('bxs-bdl'), addr: val('bxs-bda') } }, holidaysText: $('bxs-hol').value };
+    m.querySelectorAll('input[data-k]').forEach(function (e) { cfg[e.dataset.k] = Number(e.value); });
+    var lt = []; m.querySelectorAll('input[data-lt]').forEach(function (e, i) { lt.push({ max: C.luuTru[i].max, gia: Number(e.value) }); }); if (lt.length) cfg.luuTru = lt;
+    this.disabled = true;
+    api('bdscCfgSave', { cfg: cfg }).then(function (r) { return BX.loadCfg(true).then(function () { tt('✅ Đã lưu quy ước' + (r.workshopsChanged ? ' — vị trí xưởng đã đổi: các máy sẽ hiện cảnh báo « cần đo lại »' : ''), 'ok'); m.remove(); BX.dist = {}; BX.refresh(); }); }).catch(function (e) { tt('❌ ' + e.message, 'err'); $('bxs-save').disabled = false; });
+  };
+  if ($('bxs-recalc')) $('bxs-recalc').onclick = function () { if (!confirm('Tính lại công cho tất cả phiếu cũ? (giữ nguyên giờ tăng ca / nơi ăn ở đã nhập)')) return; msg('⏳ Đang tính…'); api('bdscExtRecalcAll', {}).then(function (r) { msg('✅ Đã xử lý ' + r.total + ' phiếu, thay đổi ' + r.changed + ' phiếu.'); return BX.loadAll(); }).catch(function (e) { msg('❌ ' + esc(e.message)); }); };
+  if ($('bxs-dist')) $('bxs-dist').onclick = function () { msg('⏳ Đang đo (tối đa 25 máy / lượt)…'); api('bdscDistanceBatch', {}).then(function (r) { msg('✅ Đã xử lý ' + r.processed + ' / ' + r.totalWithLink + ' máy có link. Bấm lại để đo tiếp phần còn lại.'); }).catch(function (e) { msg('❌ ' + esc(e.message)); }); };
+  $('bxs-links').onclick = function () { m.remove(); BX.openLinks(); };
+};
+BX.openLinks = async function () {
+  var links = await BX.loadLinks(true), list = (typeof MACHINES !== 'undefined' ? MACHINES : []).filter(function (x) { return x.maMay; });
+  var m = document.createElement('div'); m.className = 'bx-mask';
+  m.innerHTML = '<div class="bx-modal" style="max-width:920px"><div class="hd"><span>📍 Link Google Maps theo mã máy</span><button class="btn bg-gr sm" data-x>✕</button></div><div class="bd"><input class="inp" id="bxl-q" placeholder="🔍 Lọc theo mã máy / trại" style="width:100%;margin-bottom:8px"><div style="max-height:56vh;overflow:auto"><table class="bx-tbl"><thead><tr><th>Mã máy</th><th>Trại</th><th>Link Google Maps</th></tr></thead><tbody id="bxl-b"></tbody></table></div><div class="ih" style="margin-top:6px">Link được ghi vào cột « Link Maps » của danh sách máy trên web eGreen (dùng chung) — chỉ dòng bạn sửa mới được lưu.</div></div><div class="ft"><span id="bxl-n" class="ih"></span><button class="btn bg-gr" data-x>Đóng</button><button class="btn bg-g" id="bxl-s">💾 Lưu các link đã sửa</button></div></div>';
+  document.body.appendChild(m);
+  m.querySelectorAll('[data-x]').forEach(function (b) { b.onclick = function () { m.remove(); }; });
+  var draw = function () {
+    var q = (val('bxl-q') || '').toLowerCase(), h = '';
+    list.filter(function (x) { return !q || (x.maMay + ' ' + (x.tt || '')).toLowerCase().indexOf(q) >= 0; }).slice(0, 400).forEach(function (x) { h += '<tr><td><b>' + esc(x.maMay) + '</b></td><td>' + esc(x.tt || '') + '</td><td><input class="inp" data-c="' + esc(x.maMay) + '" value="' + esc(links[String(x.maMay).toUpperCase()] || '') + '" style="width:100%"></td></tr>'; });
+    $('bxl-b').innerHTML = h || '<tr><td colspan="3" class="ih">Không có máy.</td></tr>';
+    $('bxl-n').textContent = (links ? Object.keys(links).length : 0) + ' / ' + list.length + ' máy đã có link';
+  };
+  draw(); $('bxl-q').oninput = draw;
+  var edits = {};
+  m.addEventListener('input', function (e) { var c = e.target.dataset && e.target.dataset.c; if (c) edits[c] = e.target.value.trim(); });
+  $('bxl-s').onclick = function () {
+    var items = Object.keys(edits).map(function (c) { return { code: c, link: edits[c] }; }); if (!items.length) { tt('Chưa sửa link nào', 'info'); return; }
+    this.disabled = true; var btn = this;
+    api('bdscMachineLinkSave', { items: items }).then(function (r) {
+      var bad = (r.results || []).filter(function (x) { return !x.ok; });
+      tt(bad.length ? '⚠️ Lưu ' + r.saved + ' link, lỗi ' + bad.length + ': ' + bad[0].code + ' – ' + (bad[0].msg || bad[0].eg || '') : '✅ Đã lưu ' + r.saved + ' link Maps (đồng bộ web eGreen)', bad.length ? 'warn' : 'ok');
+      items.forEach(function (it) { links[it.code.toUpperCase()] = it.link; if (!it.link) delete links[it.code.toUpperCase()]; BX.dist[it.code.toUpperCase()] = null; }); edits = {}; btn.disabled = false; draw();
+    }).catch(function (e) { btn.disabled = false; tt('❌ ' + e.message, 'err'); });
+  };
+};
+function addMenuButtons() {
+  var ph = document.querySelector('#pg-replist .ph'); if (ph && !$('bx-open-set')) {
+    var b = document.createElement('button'); b.id = 'bx-open-set'; b.className = 'btn bg-gr sm'; b.style.marginTop = '8px'; b.textContent = '⚙ Quy ước công & chi phí · Link Maps'; b.onclick = BX.openSettings; ph.appendChild(b);
+  }
+}
+
+/* ---------- sự kiện & khởi động ---------- */
+function wire() {
+  var ot = $('rf-ot'); if (!ot || ot.__bx) return; ot.__bx = 1;
+  ['input', 'change'].forEach(function (ev) {
+    ot.addEventListener(ev, BX.refresh); $('bx-hs').addEventListener(ev, BX.refresh); $('bx-kmtay').addEventListener(ev, BX.refresh);
+    ['rf-nd', 'rf-nkt'].forEach(function (id) { $(id).addEventListener(ev, BX.refresh); });
+  });
+  var o1 = $('bx-o-trai'), o2 = $('bx-o-ngoai');
+  o1.addEventListener('change', function () { BX.form.noiO = o1.checked ? 'trai' : ''; BX.refresh(); });
+  o2.addEventListener('change', function () { BX.form.noiO = o2.checked ? 'ngoai' : ''; BX.refresh(); });
+  $('bx-measure').onclick = function () { BX.measure(val('rf-mm'), true); };
+  $('bx-kminfo').addEventListener('click', function (e) { if (e.target.dataset && e.target.dataset.remeasure) BX.measure(val('rf-mm'), true); });
+  $('bx-link').addEventListener('change', function () {
+    var code = val('rf-mm').toUpperCase(), link = this.value.trim(); if (!code) { tt('Chọn mã máy trước', 'warn'); return; }
+    api('bdscMachineLinkSave', { code: code, link: link }).then(function (r) {
+      var x = (r.results || [])[0] || {}; if (!x.ok) { tt('⚠️ ' + (x.msg || x.eg || 'Chưa lưu được link'), 'warn'); return; }
+      BX.links = BX.links || {}; if (link) BX.links[code] = link; else delete BX.links[code]; tt('✅ Đã lưu link Maps cho ' + code + ' (đồng bộ web eGreen)', 'ok'); if (link) BX.measure(code, true);
+    }).catch(function (e) { tt('❌ ' + e.message, 'err'); });
+  });
+  var lastMM = null, lastKtv = null;
+  setInterval(function () {
+    var pg = $('pg-newrep'); if (!pg || !pg.offsetParent) return;
+    var mm = val('rf-mm') + '|' + val('rf-lh'), kt = val('rf-ktv1') + '|' + val('rf-ktv2');
+    if (mm !== lastMM) { lastMM = mm; BX.onMachine(); }
+    if (kt !== lastKtv) { lastKtv = kt; BX.refresh(); }
+  }, 900);
+}
+function boot() {
+  injectForm(); wire(); addMenuButtons(); BX.renderGrids(); BX.refresh();
+  var tries = 0, iv = setInterval(function () {
+    tries++; if (tries > 4000) clearInterval(iv);
+    if (typeof CU !== 'undefined' && CU && window.PV && PV.token) {
+      clearInterval(iv); BX.loadAll().then(function () { BX.refresh(); });
+    }
+  }, 1500);
+}
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot); else boot();
+})();
+
+</script>
 </body>
 </html>
