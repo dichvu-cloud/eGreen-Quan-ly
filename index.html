@@ -29441,7 +29441,7 @@ function renderOut() {
   var tot = { nhanCong: 0, diLai: 0, vatTu: 0, nhap: 0, tong: 0 }, rows = '', soMay = {};
   d.machines.forEach(function (m) { var C = calcM(m), k = kOf(m); soMay[m.ma] = 1; ['nhanCong', 'diLai', 'vatTu', 'nhap', 'tong'].forEach(function (x) { tot[x] += C.T[x]; });
     rows += '<tr><td><b>' + esc(m.ma) + '</b></td><td class="c">' + esc(thangText(m.thang)) + '</td><td>' + esc(m.farm) + '</td><td class="c">' + m.phieu.length + '<div class="cr-s">' + esc(m.phieu.map(function (p) { return p.id; }).join(', ')) + '</div></td><td class="r">' + vnd(C.T.nhanCong) + '</td><td class="r">' + vnd(C.T.diLai) + '</td><td class="r">' + vnd(C.T.vatTu) + '</td><td class="r">' + vnd(C.T.nhap) + '</td><td class="r"><b>' + vnd(C.T.tong) + '</b></td>' +
-      '<td class="nw"><button class="cr-btn sm pri" data-v="' + esc(k) + '">👁 Xem &amp; sửa</button> <button class="cr-btn sm" data-w="' + esc(k) + '">📄 Word</button></td></tr>'; });
+      '<td class="nw"><button class="cr-btn sm pri" data-crv="' + esc(k) + '">👁 Xem &amp; sửa</button> <button class="cr-btn sm" data-crw="' + esc(k) + '">📄 Word</button></td></tr>'; });
   var g = d.gaps || {}, gp = [];
   if ((g.khongMa || []).length) gp.push(g.khongMa.length + ' vật tư đã dùng nhưng CHƯA có mã Misa (dùng giá web nếu có): ' + g.khongMa.slice(0, 6).map(function (x) { return esc(x.ten); }).join('; ') + '.');
   if ((g.khongGia || []).length) gp.push(g.khongGia.length + ' vật tư CHƯA có giá ở cả Misa lẫn web: ' + g.khongGia.slice(0, 6).map(function (x) { return esc(x.ten); }).join('; ') + '.');
@@ -29454,8 +29454,8 @@ function renderOut() {
     (gp.length ? '<div class="cr-warn"><b>Lưu ý dữ liệu:</b><br>' + gp.join('<br>') + '</div>' : '') +
     '<div class="cr-card"><div class="cr-h">Mỗi mã máy · mỗi tháng một báo cáo <span class="cr-s">— kỳ tháng ' + esc(thangText(d.fromMonth)) + (d.toMonth !== d.fromMonth ? ' → ' + esc(thangText(d.toMonth)) : '') + ' · tạo ' + esc(d.generatedAt) + '</span><span style="flex:1"></span><button class="cr-btn" id="cr-wall">📄 Xuất Word tất cả</button></div>' +
     (d.machines.length ? '<div class="cr-scroll"><table class="cr-tbl"><thead><tr><th>Mã máy</th><th class="c">Tháng</th><th>Trại</th><th>Phiếu BDSC</th><th class="r">Nhân công</th><th class="r">Đi lại + ăn ở</th><th class="r">Vật tư dùng</th><th class="r">Vật tư nhập</th><th class="r">Tổng</th><th></th></tr></thead><tbody>' + rows + '</tbody></table></div>' : '<div class="cr-s" style="padding:10px">Không có máy nào có phiếu BDSC trong kỳ này.</div>') + '</div>';
-  out.querySelectorAll('[data-v]').forEach(function (b) { b.onclick = function () { openMachine(b.dataset.v); }; });
-  out.querySelectorAll('[data-w]').forEach(function (b) { b.onclick = function () { var m = d.machines.filter(function (x) { return kOf(x) === b.dataset.w; })[0]; if (m) downloadWord(m); }; });
+  out.querySelectorAll('[data-crv]').forEach(function (b) { b.onclick = function () { openMachine(b.getAttribute('data-crv')); }; });
+  out.querySelectorAll('[data-crw]').forEach(function (b) { b.onclick = function () { var m = d.machines.filter(function (x) { return kOf(x) === b.getAttribute('data-crw'); })[0]; if (m) downloadWord(m); }; });
   var wa = $('cr-wall'); if (wa) wa.onclick = function () { if (!d.machines.length) return; if (d.machines.length > 3 && !confirm('Tải ' + d.machines.length + ' file Word (mỗi máy · mỗi tháng một file)?')) return; d.machines.forEach(function (m, i) { setTimeout(function () { downloadWord(m); }, i * 700); }); };
 }
 function runReport() {
