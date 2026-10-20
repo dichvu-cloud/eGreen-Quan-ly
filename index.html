@@ -28729,7 +28729,7 @@ function kmLine(d) {
   if (d.needWorkshop || d.needLink) return '<div class="bx-warn">⚠️ ' + esc(d.msg || 'Chưa đủ dữ liệu để đo khoảng cách.') + '</div>';
   var h = (d.kmHN != null ? 'Hà Nội <b>' + num2(d.kmHN) + ' km</b>' : '') + (d.kmHN != null && d.kmBD != null ? ' · ' : '') + (d.kmBD != null ? 'Bình Dương <b>' + num2(d.kmBD) + ' km</b>' : '');
   var s = '📏 ' + h + ' → tính phí <b>' + num2(d.km) + ' km</b> (xưởng ' + esc(d.xuong || '') + ') <span style="color:var(--mu)">· ' + esc(d.src || '') + (d.at ? ' · đo ' + esc(d.at) : '') + '</span>';
-  if (d.stale) s += '<div class="bx-warn">⚠️ ' + esc(d.msg) + ' <button type="button" class="btn bg-a sm" data-remeasure="1">Đo lại ngay</button></div>';
+  if (d.stale || d.retry) s += '<div class="bx-warn">⚠️ ' + esc(d.msg) + ' <button type="button" class="btn bg-a sm" data-remeasure="1">Đo lại ngay</button></div>';
   else if (d.msg) s += '<div class="bx-warn">' + esc(d.msg) + '</div>';
   return s;
 }
@@ -29267,10 +29267,20 @@ function mountWorkshopBox() {
   box.innerHTML = '<div class="bx7-ws-h">📍 Vị trí xưởng — link Google Maps <span>(dùng để tính khoảng cách đi lại từ xưởng gần nhất tới trại)</span></div>' +
     '<div class="bx7-ws-g"><label>Xưởng Hà Nội<input class="inp" id="bx7-hn" placeholder="Dán link Google Maps của Xưởng Hà Nội…" value="' + esc(ws.hn && ws.hn.link || '') + '"></label>' +
     '<label>Xưởng Bình Dương<input class="inp" id="bx7-bd" placeholder="Dán link Google Maps của Xưởng Bình Dương…" value="' + esc(ws.bd && ws.bd.link || '') + '"></label>' +
-    '<button class="btn bg-g" id="bx7-save">💾 Lưu link xưởng</button></div><div class="bx7-ws-m" id="bx7-msg"></div>';
+    '<div style="display:flex;flex-direction:column;gap:6px"><button class="btn bg-g" id="bx7-save">💾 Lưu link xưởng</button><button class="btn bg-gr sm" id="bx7-chk" type="button">🔍 Kiểm tra link xưởng</button></div></div><div class="bx7-ws-m" id="bx7-msg"></div><div id="bx7-chkout"></div>';
   if (ph) ph.insertAdjacentElement('afterend', box); else pg.insertBefore(box, pg.firstChild);
   var msg = function (t, c) { var e = $('bx7-msg'); if (e) { e.innerHTML = t; e.style.color = c || '#475569'; } };
   var st = function () { var a = !!(ws.hn && ws.hn.link), b = !!(ws.bd && ws.bd.link); msg(a && b ? '✅ Đã có link của cả 2 xưởng.' : '⚠️ Chưa nhập ' + (!a && !b ? 'link cả 2 xưởng' : !a ? 'link Xưởng Hà Nội' : 'link Xưởng Bình Dương') + ' — chưa tính được quãng đường đi lại.', a && b ? '#166534' : '#b45309'); }; st();
+  $('bx7-chk').onclick = function () {
+    var b = this, o = $('bx7-chkout'); b.disabled = true; b.textContent = '⏳ Đang kiểm tra…'; o.innerHTML = '';
+    api('bdscWorkshopCheck', { hn: ($('bx7-hn').value || '').trim(), bd: ($('bx7-bd').value || '').trim() }).then(function (r) {
+      b.disabled = false; b.textContent = '🔍 Kiểm tra link xưởng';
+      o.innerHTML = (r.rows || []).map(function (x) {
+        return '<div class="' + (x.ok ? 'bx-ok' : 'bx-warn') + '" style="margin-top:6px"><b>' + esc(x.name) + ':</b> ' + (x.ok ? '✅ ' : '⚠️ ') + esc(x.msg) + (x.ok ? ' Vị trí: ' + x.lat + ', ' + x.lng + (x.place ? ' · ' + esc(x.place) : '') : '') +
+          (!x.ok && !x.empty && x.hops && x.hops.length ? '<div class="ih" style="word-break:break-all">Link chuyển tới: ' + x.hops.map(function (h) { return esc((h.code || h.err || '') + ' ' + h.url); }).join(' → ') + '</div>' : '') + '</div>';
+      }).join('');
+    }).catch(function (e) { b.disabled = false; b.textContent = '🔍 Kiểm tra link xưởng'; o.innerHTML = '<div class="bx-warn">❌ ' + esc(e.message || e) + '</div>'; });
+  };
   $('bx7-save').onclick = function () {
     var hn = ($('bx7-hn').value || '').trim(), bd = ($('bx7-bd').value || '').trim(), btn = this;
     var bad = [hn, bd].filter(function (x) { return x && !/^https?:\/\//i.test(x); });
