@@ -21467,10 +21467,10 @@ function showEditBDSCModal74(r){
         '</div>'+
 
         '<div class="v74f-grid c4">'+
-          '<div class="v74f-iw"><label class="v74f-il">Ngày BĐ</label><input class="v74f-inp" id="v74f_nd" type="date" value="'+esc(r.nd||'')+'"></div>'+
-          '<div class="v74f-iw"><label class="v74f-il">Giờ BĐ</label><input class="v74f-inp" id="v74f_gbd" type="time" value="'+esc(r.gbd||'')+'"></div>'+
-          '<div class="v74f-iw"><label class="v74f-il">Ngày KT</label><input class="v74f-inp" id="v74f_nkt" type="date" value="'+esc(r.nkt||'')+'"></div>'+
-          '<div class="v74f-iw"><label class="v74f-il">Giờ KT</label><input class="v74f-inp" id="v74f_gkt" type="time" value="'+esc(r.gkt||'')+'"></div>'+
+          '<div class="v74f-iw"><label class="v74f-il">Ngày BĐ</label><input class="v74f-inp" id="v74f_nd" type="date" value="'+esc(window.__bx760Iso(r.nd))+'"></div>'+
+          '<div class="v74f-iw"><label class="v74f-il">Giờ BĐ</label><input class="v74f-inp" id="v74f_gbd" type="time" value="'+esc(window.__bx760Hm(r.gbd))+'"></div>'+
+          '<div class="v74f-iw"><label class="v74f-il">Ngày KT</label><input class="v74f-inp" id="v74f_nkt" type="date" value="'+esc(window.__bx760Iso(r.nkt))+'"></div>'+
+          '<div class="v74f-iw"><label class="v74f-il">Giờ KT</label><input class="v74f-inp" id="v74f_gkt" type="time" value="'+esc(window.__bx760Hm(r.gkt))+'"></div>'+
         '</div>'+
 
         '<div class="v74f-grid c2">'+
@@ -28568,7 +28568,7 @@ function bx759Cost(o, cfg) {
 
 var DEF = BX759_DEFAULT_CFG;
 var BX = window.BX759 = { v: 'V759', C: JSON.parse(JSON.stringify(DEF)), canPrice: false, isAdmin: false, cfgOk: false, ext: {}, mediaBy: {}, links: null, dist: {}, uploading: 0,
-  form: { key: '', media: { truoc: [], sau: [] }, noiO: '' } };
+  form: { key: '', media: { truoc: [], sau: [] }, noiO: '', xuong: '' } };
 function $(id) { return document.getElementById(id); }
 function api(a, d) { return window.pvApi(a, d || {}); }
 function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
@@ -28630,6 +28630,7 @@ function injectForm() {
     box.innerHTML = '<div class="bx-lbl" style="margin-top:0">📊 Quy đổi công (tự tính)</div><div class="bx-row" id="bx-sum"></div>' +
       '<div class="bx-row" style="align-items:center"><label style="font-size:12px;font-weight:700">Hệ số tăng ca:</label><select class="sel" id="bx-hs" style="width:auto"><option value="">Tự động (1,5 · lễ ×3)</option><option value="1.5">×1,5</option><option value="2">×2</option><option value="3">×3</option></select></div>' +
       '<div class="bx-lbl">🏕 Khu vực ăn ở</div><div class="bx-row"><label class="bx-opt" id="bx-ot"><input type="checkbox" id="bx-o-trai"> Cách ly, ăn ở trong trại</label><label class="bx-opt" id="bx-on"><input type="checkbox" id="bx-o-ngoai"> Di chuyển ăn ở ngoài trại (nhà nghỉ)</label></div>' +
+      '<div class="bx-lbl">🏭 Xưởng xuất phát (tính quãng đường đi lại)</div><div class="bx-row" id="bx-xw"><label class="bx-opt on" data-x=""><input type="radio" name="bx-xuong" value="" checked> Tự động (xưởng gần hơn)</label><label class="bx-opt" data-x="hn"><input type="radio" name="bx-xuong" value="hn"> Xưởng Hà Nội</label><label class="bx-opt" data-x="bd"><input type="radio" name="bx-xuong" value="bd"> Xưởng Bình Dương</label></div><div id="bx-xmsg"></div>' +
       '<div class="bx-lbl">📍 Địa điểm trại &amp; quãng đường</div><div class="iw"><div class="il">Link Google Maps của trại (đồng bộ với web eGreen)</div><input class="inp" id="bx-link" type="text" placeholder="Dán link Google Maps của trại…"></div>' +
       '<div id="bx-kminfo" class="ih" style="margin-top:6px"></div><div class="bx-row" style="align-items:center;margin-top:6px"><button type="button" class="btn bg-gr sm" id="bx-measure">📏 Đo / đo lại khoảng cách</button><label style="font-size:12px">Km nhập tay (nếu khác): <input class="inp" id="bx-kmtay" type="number" min="0" step="1" style="width:100px;display:inline-block"></label></div>' +
       '<div id="bx-cost"></div>';
@@ -28716,6 +28717,13 @@ BX.renderGrids = function () {
 };
 
 /* ---------- đo khoảng cách ---------- */
+function kmPick(d, x) {
+  if (!d) return { km: 0, xuong: '', miss: false };
+  if (x === 'hn' && d.kmHN > 0) return { km: d.kmHN, xuong: 'Hà Nội', miss: false };
+  if (x === 'bd' && d.kmBD > 0) return { km: d.kmBD, xuong: 'Bình Dương', miss: false };
+  return { km: d.km || 0, xuong: d.xuong || '', miss: !!x };
+}
+BX.kmPick = kmPick;
 function kmLine(d) {
   if (!d) return '';
   if (d.needWorkshop || d.needLink) return '<div class="bx-warn">⚠️ ' + esc(d.msg || 'Chưa đủ dữ liệu để đo khoảng cách.') + '</div>';
@@ -28744,7 +28752,7 @@ BX.onMachine = function () {
 /* ---------- đọc form → tính → hiển thị ---------- */
 BX.formState = function () {
   var code = val('rf-mm').toUpperCase(), d = BX.dist[code], kt = Number(val('bx-kmtay')) || 0;
-  return { nd: val('rf-nd'), nkt: val('rf-nkt'), otGio: val('rf-ot'), heSoOT: val('bx-hs'), ktv1: val('rf-ktv1'), ktv2: val('rf-ktv2'), lh: val('rf-lh'), noiO: BX.form.noiO || '', km: kt > 0 ? kt : ((d && d.km) || 0), holidays: BX.C.holidays };
+  return { nd: val('rf-nd'), nkt: val('rf-nkt'), otGio: val('rf-ot'), heSoOT: val('bx-hs'), ktv1: val('rf-ktv1'), ktv2: val('rf-ktv2'), lh: val('rf-lh'), noiO: BX.form.noiO || '', km: kt > 0 ? kt : kmPick(d, BX.form.xuong).km, holidays: BX.C.holidays };
 };
 BX.refresh = function () {
   var box = $('bx-sum'); if (!box) return;
@@ -28759,14 +28767,20 @@ BX.refresh = function () {
     } else co.innerHTML = '';
   }
   var ot = $('bx-o-trai'), ng = $('bx-o-ngoai');
+  var xw = $('bx-xw'); if (xw) {
+    var xv = BX.form.xuong || '';
+    xw.querySelectorAll('input[type=radio]').forEach(function (r) { r.checked = r.value === xv; r.parentNode.classList.toggle('on', r.checked); });
+    var dd = BX.dist[val('rf-mm').toUpperCase()], pk = kmPick(dd, xv), xm = $('bx-xmsg');
+    if (xm) xm.innerHTML = xv && dd && pk.miss && !(dd.needWorkshop || dd.needLink) ? '<div class="bx-warn">⚠️ Chưa có số km từ xưởng ' + (xv === 'hn' ? 'Hà Nội' : 'Bình Dương') + ' (chưa nhập link Google Maps của xưởng này ở trang Tổng quan, hoặc chưa đo lại) — tạm tính theo xưởng gần nhất.</div>' : (xv && dd && !pk.miss ? '<div class="bx-ok">Đang tính quãng đường từ xưởng <b>' + pk.xuong + '</b>: <b>' + num2(pk.km) + ' km</b>.</div>' : '');
+  }
   if (ot) { ot.checked = BX.form.noiO === 'trai'; ng.checked = BX.form.noiO === 'ngoai'; $('bx-ot').classList.toggle('on', ot.checked); $('bx-on').classList.toggle('on', ng.checked); }
 };
 BX.collect = function () {
   var s = BX.formState(), t = bx759Cost(s, BX.C), kt = Number(val('bx-kmtay')) || 0, code = val('rf-mm').toUpperCase(), d = BX.dist[code];
-  return { otGio: Number(s.otGio) || 0, heSoManual: Number(s.heSoOT) || '', noiO: s.noiO, kmTay: kt, km: s.km || 0, xuong: kt > 0 ? 'Nhập tay' : (d && d.xuong) || '', cong: t.cong.cong, nhanCong: t.nhanCong, soNhanSu: t.soNhanSu };
+  return { otGio: Number(s.otGio) || 0, heSoManual: Number(s.heSoOT) || '', noiO: s.noiO, kmTay: kt, km: s.km || 0, xuong: kt > 0 ? 'Nhập tay' : kmPick(d, BX.form.xuong).xuong, xuongChon: BX.form.xuong || '', cong: t.cong.cong, nhanCong: t.nhanCong, soNhanSu: t.soNhanSu };
 };
 BX.resetForm = function () {
-  BX.form = { key: newKey(), media: { truoc: [], sau: [] }, noiO: '' };
+  BX.form = { key: newKey(), media: { truoc: [], sau: [] }, noiO: '', xuong: '' };
   ['rf-ot', 'bx-kmtay', 'bx-link', 'bx-hs'].forEach(function (id) { var e = $(id); if (e) e.value = ''; });
   var k = $('bx-kminfo'); if (k) k.innerHTML = '';
   BX.renderGrids(); BX.refresh();
@@ -28822,7 +28836,7 @@ wrap('submitReport', function (o) { return function () { if (BX.uploading > 0) {
 wrap('saveDraft', function (o) { return function () { if (BX.uploading > 0) { tt('⏳ Ảnh/video đang tải lên — chờ tải xong rồi lưu nháp', 'warn'); return; } return o.apply(this, arguments); }; });
 BX.payloadOf = function (rep, b) {
   b = b || rep.bx || {};
-  return { id: rep.id, maMay: rep.maMay, lh: rep.lh, ktv1: rep.ktv1, ktv2: rep.ktv2, nd: rep.nd, nkt: rep.nkt, otGio: b.otGio || 0, heSoOT: Number(b.heSoManual) || '', noiO: b.noiO || '', kmTay: b.kmTay || 0 };
+  return { id: rep.id, maMay: rep.maMay, lh: rep.lh, ktv1: rep.ktv1, ktv2: rep.ktv2, nd: rep.nd, nkt: rep.nkt, otGio: b.otGio || 0, heSoOT: Number(b.heSoManual) || '', noiO: b.noiO || '', kmTay: b.kmTay || 0, xuongChon: b.xuongChon || '' };
 };
 BX.saveExt = function (rep, b) {
   return api('bdscExtSave', { ext: BX.payloadOf(rep, b) }).then(function (r) {
@@ -28847,7 +28861,7 @@ wrap('syncReportGS', function (o) {
 });
 BX.fromServer = function (e) {
   var auto = bx759Cong(e.nd, e.nkt, e.otGio, '', BX.C.holidays, BX.C).heSoOT;
-  return { otGio: e.otGio, heSoManual: e.heSoOT && Math.abs(e.heSoOT - auto) > 1e-9 ? e.heSoOT : '', noiO: e.noiO, kmTay: e.kmTay, km: e.km, xuong: e.xuong, cong: e.cong, nhanCong: e.nhanCong, soNhanSu: e.soNhanSu, tong: e.tong, tienCong: e.tienCong, tienDiLai: e.tienDiLai, tienLuuTru: e.tienLuuTru };
+  return { otGio: e.otGio, heSoManual: e.heSoOT && Math.abs(e.heSoOT - auto) > 1e-9 ? e.heSoOT : '', noiO: e.noiO, kmTay: e.kmTay, km: e.km, xuong: e.xuong, xuongChon: e.xuongChon || '', cong: e.cong, nhanCong: e.nhanCong, soNhanSu: e.soNhanSu, tong: e.tong, tienCong: e.tienCong, tienDiLai: e.tienDiLai, tienLuuTru: e.tienLuuTru };
 };
 BX.merge = function () {
   var n = 0;
@@ -28881,7 +28895,8 @@ BX.renderViewPanel = function (id) {
     '<div class="bx-row">' + (c.ok ? ['<b>' + c.soNgay + '</b> ngày (thường ' + c.ngayThuong + ' · T7/CN ' + c.ngayCuoiTuan + ' · lễ ' + c.ngayLe + ')', '<b>' + f(c.gioLam) + '</b> giờ làm việc/người', '<b>' + f(c.cong) + '</b> công/người', '<b>' + t.soNhanSu + '</b> nhân sự', '<b>' + f(t.nhanCong) + '</b> nhân công'].map(function (x) { return '<div class="bx-chip"><span style="font-size:12px;color:#0f172a">' + x + '</span></div>'; }).join('') : '<span class="ih">Phiếu thiếu ngày bắt đầu / kết thúc.</span>') + '</div>' + costHtml +
     '<div class="bx-f2" style="margin-top:8px"><div><label>Giờ tăng ca (mỗi người)</label><input class="inp" id="bxv-ot" type="number" min="0" step="0.5" value="' + (b.otGio || '') + '"' + (can ? '' : ' disabled') + '></div>' +
     '<div><label>Hệ số tăng ca</label><select class="sel" id="bxv-hs"' + (can ? '' : ' disabled') + '>' + [['', 'Tự động'], ['1.5', '×1,5'], ['2', '×2'], ['3', '×3']].map(function (o) { return '<option value="' + o[0] + '"' + (String(b.heSoManual || '') === o[0] ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') + '</select></div>' +
-    '<div><label>Km nhập tay (nếu khác)</label><input class="inp" id="bxv-km" type="number" min="0" value="' + (b.kmTay || '') + '"' + (can ? '' : ' disabled') + '></div></div>' +
+    '<div><label>Km nhập tay (nếu khác)</label><input class="inp" id="bxv-km" type="number" min="0" value="' + (b.kmTay || '') + '"' + (can ? '' : ' disabled') + '></div>' +
+    '<div><label>Xưởng xuất phát</label><select class="sel" id="bxv-xw"' + (can ? '' : ' disabled') + '>' + [['', 'Tự động (xưởng gần hơn)'], ['hn', 'Xưởng Hà Nội'], ['bd', 'Xưởng Bình Dương']].map(function (o) { return '<option value="' + o[0] + '"' + (String(b.xuongChon || '') === o[0] ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') + '</select></div></div>' +
     '<div class="bx-row"><label class="bx-opt' + (b.noiO === 'trai' ? ' on' : '') + '"><input type="checkbox" id="bxv-o1"' + (b.noiO === 'trai' ? ' checked' : '') + (can ? '' : ' disabled') + '> Cách ly, ăn ở trong trại</label><label class="bx-opt' + (b.noiO === 'ngoai' ? ' on' : '') + '"><input type="checkbox" id="bxv-o2"' + (b.noiO === 'ngoai' ? ' checked' : '') + (can ? '' : ' disabled') + '> Di chuyển ăn ở ngoài trại (nhà nghỉ)</label></div>' +
     (can ? '<div style="display:flex;justify-content:flex-end"><button class="btn bg-g sm" id="bxv-save">💾 Lưu giờ tăng ca &amp; nơi ăn ở</button></div>' : '') +
     '<h4 style="margin-top:12px">🖼 5. Ảnh / video thực tế trước sửa chữa</h4><div class="bx-grid" id="bxv-g-truoc"></div>' + (can ? '<label class="btn bg-gr sm bx-pick">📁 Thêm từ thư viện<input type="file" accept="image/*,video/*" multiple hidden data-muc="truoc"></label>' : '') +
@@ -28902,7 +28917,7 @@ BX.renderViewPanel = function (id) {
   if (o1) { o1.onchange = function () { if (o1.checked) o2.checked = false; }; o2.onchange = function () { if (o2.checked) o1.checked = false; }; }
   var sv = $('bxv-save');
   if (sv) sv.onclick = function () {
-    var nb = { otGio: Number(val('bxv-ot')) || 0, heSoManual: Number(val('bxv-hs')) || '', noiO: o1.checked ? 'trai' : (o2.checked ? 'ngoai' : ''), kmTay: Number(val('bxv-km')) || 0 };
+    var nb = { otGio: Number(val('bxv-ot')) || 0, heSoManual: Number(val('bxv-hs')) || '', noiO: o1.checked ? 'trai' : (o2.checked ? 'ngoai' : ''), kmTay: Number(val('bxv-km')) || 0, xuongChon: val('bxv-xw') || '' };
     sv.disabled = true; sv.textContent = 'Đang lưu…';
     BX.saveExt(rep, nb).then(function () { tt('✅ Đã lưu giờ tăng ca / nơi ăn ở', 'ok'); window.viewRep(rep.id); }).catch(function (e) { sv.disabled = false; sv.textContent = '💾 Lưu'; tt('❌ Không lưu được: ' + e.message, 'err'); });
   };
@@ -28984,6 +28999,7 @@ function wire() {
   var o1 = $('bx-o-trai'), o2 = $('bx-o-ngoai');
   o1.addEventListener('change', function () { BX.form.noiO = o1.checked ? 'trai' : ''; BX.refresh(); });
   o2.addEventListener('change', function () { BX.form.noiO = o2.checked ? 'ngoai' : ''; BX.refresh(); });
+  if ($('bx-xw')) $('bx-xw').addEventListener('change', function (e) { if (e.target && e.target.name === 'bx-xuong') { BX.form.xuong = e.target.value || ''; BX.refresh(); } });
   $('bx-measure').onclick = function () { BX.measure(val('rf-mm'), true); };
   $('bx-kminfo').addEventListener('click', function (e) { if (e.target.dataset && e.target.dataset.remeasure) BX.measure(val('rf-mm'), true); });
   $('bx-link').addEventListener('change', function () {
@@ -29039,6 +29055,21 @@ function toIso(s) {
   m = s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})/); if (m) return m[3] + '-' + pad2(m[2]) + '-' + pad2(m[1]);
   return '';
 }
+/* Ngày/giờ lưu trong Sheet có thể là dd/mm/yyyy, yyyy-mm-dd, chuỗi ISO có múi giờ (…T17:00:00.000Z) hoặc Date — luôn đổi về dạng ô <input type=date/time> cần. */
+function parseAny(s) {
+  if (s instanceof Date) return isFinite(s.getTime()) ? s : null;
+  s = String(s == null ? '' : s).trim(); if (!s) return null;
+  if (/^\d{4}-\d{2}-\d{2}T.*(Z|[+-]\d{2}:?\d{2})$/.test(s) || /^[A-Z][a-z]{2} [A-Z][a-z]{2} \d{1,2} \d{4}/.test(s)) { var d = new Date(s); return isFinite(d.getTime()) ? d : null; }
+  return null;
+}
+window.__bx760Iso = function (s) {
+  var d = parseAny(s); if (d) return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate());
+  return toIso(s);
+};
+window.__bx760Hm = function (s) {
+  var d = parseAny(s); if (d) return pad2(d.getHours()) + ':' + pad2(d.getMinutes());
+  return toHm(s);
+};
 function toHm(s) { var m = String(s == null ? '' : s).match(/(\d{1,2}):(\d{2})/); return m ? pad2(m[1]) + ':' + m[2] : ''; }
 function todayIso() { var d = new Date(); return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()); }
 function addDays(iso, n) { var d = new Date(iso + 'T00:00:00'); d.setDate(d.getDate() + n); return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()); }
@@ -29167,6 +29198,7 @@ B7.fillForm = function (rep) {
   var b = rep.bx || {}, e0 = BX.ext && BX.ext[rep.id]; if (!rep.bx && e0) b = BX.fromServer(e0);
   set('rf-ot', b.otGio || ''); set('bx-hs', b.heSoManual ? String(b.heSoManual) : ''); set('bx-kmtay', b.kmTay || '');
   BX.form.noiO = b.noiO || '';
+  BX.form.xuong = b.xuongChon || '';
   var ml = (rep.bxMedia || (BX.mediaBy && BX.mediaBy[rep.id]) || []).filter(function (m) { return !m.pending; });
   BX.form.media = { truoc: ml.filter(function (m) { return m.muc === 'truoc'; }), sau: ml.filter(function (m) { return m.muc === 'sau'; }) };
   try { BX.renderGrids(); } catch (e) { }
