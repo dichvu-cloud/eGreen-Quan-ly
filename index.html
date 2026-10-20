@@ -23820,6 +23820,19 @@ console.log('[V750-fix] ✅ Approver sync fix loaded');
   .cb-ft textarea{font-size:16px} /* 16px: iOS không tự phóng to khi bấm vào ô nhập */
 }
 @media (prefers-reduced-motion:reduce){#cbFab,.cb-dots i{transition:none;animation:none}.cb-body{scroll-behavior:auto}}
+/* V758 · chế độ ảnh */
+.cb-imgs{flex:none;display:none;gap:8px;padding:8px 10px 0;background:#fff;border-top:1px solid var(--bd,#e2e8f0);flex-wrap:wrap;align-items:center}
+.cb-imgs.on{display:flex}
+.cb-imgs .cb-ith{position:relative;width:58px;height:58px;border-radius:9px;overflow:hidden;border:1.5px solid #86efac;background:#f0fdf4}
+.cb-imgs .cb-ith img{width:100%;height:100%;object-fit:cover;display:block}
+.cb-imgs .cb-ith button{position:absolute;top:1px;right:1px;width:18px;height:18px;border-radius:50%;border:0;background:rgba(15,23,42,.75);color:#fff;font-size:11px;line-height:1;cursor:pointer;padding:0}
+.cb-imgs .cb-ihint{font-size:11px;color:#475569;flex:1;min-width:140px;line-height:1.35}
+.cb-att{flex:none;width:36px;height:36px;border-radius:10px;border:1.5px solid var(--bd,#e2e8f0);background:#fff;cursor:pointer;font-size:17px;line-height:1;padding:0}
+.cb-att:hover{border-color:#16a05e;background:#f0fdf4}
+.cb-att:disabled{opacity:.5;cursor:default}
+.cb-u .cb-th{display:inline-block;width:92px;height:92px;object-fit:cover;border-radius:9px;margin:0 6px 6px 0;border:2px solid rgba(255,255,255,.55)}
+.cb-u .cb-imgn{display:block;font-size:11.5px;opacity:.9;margin-bottom:4px}
+#cbPanel.cb-drop{outline:3px dashed #16a05e;outline-offset:-6px}
 </style>
 
 <script id="cbJs">
@@ -23845,7 +23858,7 @@ console.log('[V750-fix] ✅ Approver sync fix loaded');
   var KEEP_MEM = 3;                  // trí nhớ phiên: giữ và gửi lại bản ghi (mem) của N câu trả lời gần nhất — để câu sau kế thừa / chỉnh sửa được câu trước
   var MEM_TTL = 6 * 3600 * 1000;     // bản ghi quá 6 giờ thì bỏ (máy chủ cũng bỏ)
   var ST = { open: false, busy: false, msgs: [], owner: '', loadedFor: '', info: null, infoAt: 0,
-             codesRe: null, codesN: 0, t0: 0, timer: 0, wasReady: false, gone: 0, waitLbl: '' };
+             codesRe: null, codesN: 0, t0: 0, timer: 0, wasReady: false, gone: 0, waitLbl: '', imgs: [] };
 
   function $(id){ return document.getElementById(id); }
   function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function (c){
@@ -23902,7 +23915,7 @@ console.log('[V750-fix] ✅ Approver sync fix loaded');
     var copyLeft = KEEP_COPY, repLeft = dropAllHeavy ? 0 : KEEP_REP, copyAll = dropAllHeavy ? 0 : KEEP_COPY;
     var memLeft = KEEP_MEM, memRepSeen = false;
     return ST.msgs.slice(-MAXKEEP).reverse().map(function (m){
-      if (m.role !== 'assistant') return m;
+      if (m.role !== 'assistant') return m.thumbs ? Object.assign({}, m, { thumbs: null }) : m;
       var o = m;
       if (m.mem){
         if (memLeft > 0){
@@ -24644,7 +24657,9 @@ console.log('[V750-fix] ✅ Approver sync fix loaded');
       + '<button class="cb-ib" id="cbClose" type="button" title="Đóng" aria-label="Đóng">✕</button></div>'
       + '<div class="cb-warn" id="cbWarn"></div>'
       + '<div class="cb-body" id="cbBody" aria-live="polite"></div>'
-      + '<div class="cb-ft"><textarea id="cbIn" rows="1" maxlength="1000" placeholder="Hỏi về máy, sản lượng, bảo dưỡng, vật tư… (gõ &quot;giúp&quot; để xem mẫu câu; &quot;tạo báo cáo …&quot; để lập file)" aria-label="Câu hỏi"></textarea>'
+      + '<div class="cb-imgs" id="cbImgs"></div>'
+      + '<div class="cb-ft"><button class="cb-att" id="cbAtt" type="button" title="Chọn file ảnh từ máy (cũng có thể dán ảnh Ctrl+V hoặc kéo thả ảnh thẳng vào ô chat)" aria-label="Chọn file ảnh">📎</button><input type="file" id="cbFile" accept="image/*" multiple style="display:none">'
+      + '<textarea id="cbIn" rows="1" maxlength="1000" placeholder="Hỏi về máy, sản lượng, bảo dưỡng, vật tư… (gõ &quot;giúp&quot; để xem mẫu câu; &quot;tạo báo cáo …&quot; để lập file) — dán (Ctrl+V) hoặc kéo thả ảnh vào đây để AI đọc" aria-label="Câu hỏi"></textarea>'
       + '<button class="cb-send" id="cbSend" type="button">Gửi</button></div>';
     document.body.appendChild(fab);
     document.body.appendChild(p);
@@ -24653,10 +24668,22 @@ console.log('[V750-fix] ✅ Approver sync fix loaded');
     szLoad(); szBind(p); szApply();
     $('cbClear').onclick = function (){
       if (ST.busy) return;
-      ST.msgs = []; save(); render();
+      ST.msgs = []; ST.imgs = []; paintImgs(); save(); render();
     };
     $('cbSend').onclick = function (){ submit(); };
+    var ta0 = $('cbIn');
+    $('cbAtt').onclick = function (){ if (!ST.busy) $('cbFile').click(); };
+    $('cbFile').onchange = function (){ addImgs(this.files); this.value = ''; };
+    ta0.addEventListener('dragover', function (e){ if (e.dataTransfer && Array.prototype.indexOf.call(e.dataTransfer.types || [], 'Files') >= 0){ e.preventDefault(); p.classList.add('cb-drop'); } });
+    p.addEventListener('dragover', function (e){ if (e.dataTransfer && Array.prototype.indexOf.call(e.dataTransfer.types || [], 'Files') >= 0){ e.preventDefault(); p.classList.add('cb-drop'); } });
+    p.addEventListener('dragleave', function (e){ if (e.target === p) p.classList.remove('cb-drop'); });
+    p.addEventListener('drop', function (e){ p.classList.remove('cb-drop'); if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length){ e.preventDefault(); addImgs(e.dataTransfer.files); } });
     var ta = $('cbIn');
+    ta.addEventListener('paste', function (e){
+      var its = (e.clipboardData && e.clipboardData.items) || [], fs = [];
+      for (var i = 0; i < its.length; i++) if (its[i].kind === 'file' && /^image\//.test(its[i].type)) { var f = its[i].getAsFile(); if (f) fs.push(f); }
+      if (fs.length){ e.preventDefault(); addImgs(fs); }
+    });
     ta.addEventListener('input', grow);
     ta.addEventListener('keydown', function (e){
       /* Gõ tiếng Việt bằng Telex/VNI: Enter có thể là phím CHỐT từ (đang compose). Gửi lúc đó là gửi nửa chữ. */
@@ -24891,8 +24918,58 @@ console.log('[V750-fix] ✅ Approver sync fix loaded');
   function submit(){
     var ta = $('cbIn'); if (!ta) return;
     var q = ta.value.trim();
-    if (!q) return;
-    if (ask(q)){ ta.value = ''; grow(); }
+    if (!q && !ST.imgs.length) return;
+    var im = ST.imgs.slice();
+    if (ask(q, im.length ? { images: im } : undefined)){ ta.value = ''; ST.imgs = []; paintImgs(); grow(); }
+  }
+
+  /* ---- V758 · ẢNH: thu nhỏ ngay trên máy (cạnh dài ≤ 1600px, JPEG) rồi gửi cùng câu hỏi; máy chủ không lưu ảnh ---- */
+  var IMG_MAX = 3;
+  function msgToast(t){ try { if (typeof toast === 'function') return toast(t, 'warn'); } catch (e){} try { alert(t); } catch (e2){} }
+  function shrink(file, maxSide, q){
+    return new Promise(function (ok, bad){
+      var fr = new FileReader();
+      fr.onerror = function (){ bad(new Error('Không đọc được file ảnh.')); };
+      fr.onload = function (){
+        var im = new Image();
+        im.onerror = function (){ bad(new Error('Định dạng ảnh không đọc được (dùng JPG / PNG / WebP).')); };
+        im.onload = function (){
+          var w = im.naturalWidth || im.width, h = im.naturalHeight || im.height, k = Math.min(1, maxSide / Math.max(w, h));
+          var cv = document.createElement('canvas'); cv.width = Math.max(1, Math.round(w * k)); cv.height = Math.max(1, Math.round(h * k));
+          var cx = cv.getContext('2d'); cx.fillStyle = '#fff'; cx.fillRect(0, 0, cv.width, cv.height); cx.drawImage(im, 0, 0, cv.width, cv.height);
+          ok(cv.toDataURL('image/jpeg', q));
+        };
+        im.src = fr.result;
+      };
+      fr.readAsDataURL(file);
+    });
+  }
+  function addImgs(files){
+    var list = Array.prototype.filter.call(files || [], function (f){ return f && /^image\//.test(f.type); });
+    if (!list.length) return;
+    var room = IMG_MAX - ST.imgs.length;
+    if (room <= 0){ msgToast('Tối đa ' + IMG_MAX + ' ảnh mỗi câu hỏi.'); return; }
+    if (list.length > room){ msgToast('Chỉ lấy ' + room + ' ảnh đầu (tối đa ' + IMG_MAX + ').'); list = list.slice(0, room); }
+    list.reduce(function (p, f){
+      return p.then(function (){
+        return shrink(f, 1600, 0.82).then(function (u){ return u.length > 3300000 ? shrink(f, 1100, 0.7) : u; })
+          .then(function (u){ return shrink(f, 150, 0.7).then(function (t){ ST.imgs.push({ url: u, thumb: t }); paintImgs(); }); });
+      }).catch(function (e){ msgToast((e && e.message) || 'Không thêm được ảnh.'); });
+    }, Promise.resolve());
+  }
+  function paintImgs(){
+    var box = $('cbImgs'); if (!box) return;
+    if (!ST.imgs.length){ box.className = 'cb-imgs'; box.innerHTML = ''; return; }
+    box.className = 'cb-imgs on';
+    box.innerHTML = ST.imgs.map(function (x, i){ return '<span class="cb-ith"><img alt="Ảnh ' + (i + 1) + '" src="' + x.thumb + '"><button type="button" data-rmimg="' + i + '" aria-label="Bỏ ảnh">✕</button></span>'; }).join('')
+      + '<span class="cb-ihint">AI sẽ đọc ảnh, tự tra dữ liệu trong web rồi trả lời. Ảnh gửi tới dịch vụ AI, không lưu lại.</span>';
+    Array.prototype.forEach.call(box.querySelectorAll('[data-rmimg]'), function (b){ b.onclick = function (){ ST.imgs.splice(Number(b.getAttribute('data-rmimg')), 1); paintImgs(); }; });
+  }
+  function callImg(body, imgs){
+    var req = { token: token(), question: body.question, history: body.history, images: imgs.map(function (x){ return x.url; }) };
+    if (body.fresh) req.fresh = true;
+    return bdApi('chatAsk', req).then(function (r){ if (r && r.ok !== false && r.answer && !r.engine) r.engine = 'gpt'; return r; })
+      .catch(function (e){ return { ok: false, error: 'Không gửi được ảnh: ' + ((e && e.message) || 'lỗi kết nối') + '. Ảnh lớn có thể bị chặn — thử ảnh nhỏ hơn.' }; });
   }
 
   /** Nút "Phân tích sâu": đưa lại đúng câu hỏi vừa rồi cho AI (kèm kết quả bot quy tắc đã tra) — không đổi nội dung câu hỏi. */
@@ -24926,6 +25003,8 @@ console.log('[V750-fix] ✅ Approver sync fix loaded');
   function ask(q, opt){
     opt = opt || {};
     q = String(q || '').trim();
+    var imgs = (opt.images && opt.images.length) ? opt.images : null;
+    if (!q && imgs) q = 'Hãy đọc ảnh này, cho biết đây là gì và tra dữ liệu hệ thống liên quan.';
     if (!q || ST.busy || !ready()) return false;
     if (ST.loadedFor !== who()) load();
     var upto = opt.histUpTo != null ? opt.histUpTo : ST.msgs.length;
@@ -24933,12 +25012,13 @@ console.log('[V750-fix] ✅ Approver sync fix loaded');
     var hist = opt.fresh ? [] : prior.slice(-SEND_HIST).map(function (m){ return { role: m.role, content: m.content }; });
     var mems = opt.fresh ? [] : memsOf(prior);
     var um = { role: 'user', content: q };
+    if (imgs){ um.imgN = imgs.length; um.thumbs = imgs.map(function (x){ return x.thumb; }); }
     if (opt.deep) um.deep = true;
     if (opt.fresh) um.fresh = true;
     ST.msgs.push(um);
     save();
     ST.busy = true; ST.t0 = Date.now();
-    ST.waitLbl = opt.deep ? 'AI đang phân tích sâu…' : ((ST.info && ST.info.aiReady) ? 'AI đang trả lời…' : 'Đang tra cứu dữ liệu…');
+    ST.waitLbl = imgs ? 'AI đang đọc ảnh và tra dữ liệu…' : (opt.deep ? 'AI đang phân tích sâu…' : ((ST.info && ST.info.aiReady) ? 'AI đang trả lời…' : 'Đang tra cứu dữ liệu…'));
     render(); tick();
     ST.timer = setInterval(tick, 1000);
 
@@ -24946,7 +25026,7 @@ console.log('[V750-fix] ✅ Approver sync fix loaded');
     if (mems.length) body.mem = mems;
     if (opt.deep) body.deep = true;
     if (opt.fresh) body.fresh = true;
-    call(body).then(function (d){
+    (imgs ? callImg(body, imgs) : call(body)).then(function (d){
       if (d && d.ok && d.answer){
         ST.msgs.push({
           role: 'assistant', content: String(d.answer), tools: d.tools || [], sources: d.sources || [], ms: d.ms || 0,
@@ -25070,7 +25150,7 @@ console.log('[V750-fix] ✅ Approver sync fix loaded');
     ST.msgs.forEach(function (m, i){ if (m.role === 'assistant' && !m.err) lastAns = i; });
     ST.msgs.forEach(function (m, i){
       if (m.role === 'user'){
-        h += '<div class="cb-m cb-u"><div class="cb-b">' + esc(m.content) + '</div>' + (m.deep ? '<div class="cb-meta cb-tag">🔎 phân tích sâu</div>' : '') + (m.fresh ? '<div class="cb-meta cb-tag">↺ hỏi mới, không kế thừa</div>' : '') + '</div>';
+        h += '<div class="cb-m cb-u"><div class="cb-b">' + (m.thumbs && m.thumbs.length ? m.thumbs.map(function (u){ return '<img class="cb-th" alt="" src="' + u + '">'; }).join('') : (m.imgN ? '<span class="cb-imgn">🖼 ' + m.imgN + ' ảnh đính kèm</span>' : '')) + esc(m.content) + '</div>' + (m.deep ? '<div class="cb-meta cb-tag">🔎 phân tích sâu</div>' : '') + (m.fresh ? '<div class="cb-meta cb-tag">↺ hỏi mới, không kế thừa</div>' : '') + '</div>';
       } else {
         h += '<div class="cb-m cb-a' + (m.err ? ' cb-err' : '') + '"><div class="cb-b">' + (m.err ? '<p>' + esc(m.content) + '</p>' : md(m.content)) + '</div>';
         if (!m.err){
@@ -25580,43 +25660,9 @@ MX.proposeNew = async function (o) {
 
 /* ---------- tra Misa theo danh sách vật tư (tên, mã, tồn thực tế) ---------- */
 MX.overview = function (maPhieu, kho, items) { return api('misaStockOverview', { maPhieu: maPhieu || '', kho: kho || '', items: items }); };
-/* V757: kho chọn mã Misa và/hoặc điền « Loại » cho vật tư của MỘT mã máy → server nhớ đúng máy đó:
-   mã Misa → quy đổi theo máy; loại → ghi Sheet 12 (nếu có cột trùng, ô còn trống) hoặc lưu lịch sử. Tên gõ tay không ghép được cột nào → AI hỗ trợ ghép. */
-function askMachine(list, ten) {
-  return new Promise(function (resolve) {
-    var done = false;
-    var m = MX.modal('Vật tư « ' + ten + ' » dùng cho máy nào?', '<div class="mx-info">Phiếu có nhiều máy nên hệ thống cần biết đúng máy để nhớ (không áp cho máy khác).</div><div class="mx-row">' + list.map(function (c) { return '<button type="button" class="mx-btn pri" data-m="' + E(c) + '">' + E(c) + '</button>'; }).join(' ') + '</div>', { onClose: function () { if (!done) { done = true; resolve(''); } } });
-    [].forEach.call(m.body.querySelectorAll('[data-m]'), function (b) { b.onclick = function () { done = true; resolve(b.getAttribute('data-m')); m.close(); }; });
-  });
-}
-async function learnLine(o, opt) {
-  opt = opt || {};
-  try {
-    var r = await api('learnLine', o);
-    if (r && r.skipped === 'khong-biet-may') {
-      if (!o.maMay && o.machines && o.machines.length > 1 && !opt.noAsk) {
-        var mm = await askMachine(o.machines, o.tenVatTu);
-        if (mm) { o.maMay = mm; return learnLine(o, opt); }
-      } else if (!opt.quiet) toastX('Chưa nhớ được vì chưa biết vật tư này dùng cho máy nào — hãy chọn máy cho dòng ở phiếu.', 'warn');
-      return r;
-    }
-    var msg = [];
-    if (r && r.pick && (r.pick.learned || r.pick.promoted)) msg.push('mã Misa « ' + (o.tenMisa || o.sku) + ' »');
-    if (r && r.loai) {
-      var s12 = r.sheet12 || {};
-      msg.push('loại « ' + r.loai + ' »' + (s12.st === 'da-ghi' ? ' (đã ghi vào Sheet 12, cột « ' + s12.col + ' »)' : s12.st === 'khac' ? ' (Sheet 12 đang là « ' + s12.cur + ' » nên chỉ lưu lịch sử)' : s12.st === 'trung' ? '' : ' (Sheet 12 chưa có cột trùng → lưu lịch sử)'));
-    }
-    if (msg.length) toastX('🧠 Đã nhớ cho máy ' + r.machine + ': ' + msg.join(' · ') + (r.canon && r.canon !== o.tenVatTu ? ' — hiểu là « ' + r.canon + ' »' : ''), 'ok');
-    try {
-      if (window.EG756Sync) window.EG756Sync.markDirty(['conv']);
-      if (window.EG755) { if (EG755.loadVariants) EG755.loadVariants(true); if (EG755.loadMem) EG755.loadMem(true); if (r && r.sheet12 && r.sheet12.st === 'da-ghi' && EG755.loadVT12) EG755.loadVT12(true); }
-    } catch (e) { }
-    return r;
-  } catch (e) { if (!opt.quiet) toastX('Không nhớ được: ' + e.message, 'err'); }
-}
-MX.learnLine = learnLine;
-MX.machinesOf = function (ph) { return String((ph && (ph.danhSachMaMay || ph.maMay)) || '').split(/\s*[;,\/|]\s*/).map(function (x) { return x.trim(); }).filter(Boolean); };
-MX.learnPick = function (o) { return learnLine(o, { quiet: true }); };
+/* V756: kho chọn mã Misa cho vật tư của một máy → server tự lưu quy đổi theo máy (và nâng lên loại / động cơ khi ≥ 2 máy cùng chọn). Im lặng, không chặn thao tác. */
+function learnPick(o) { try { Promise.resolve(api('misaLearnPick', o)).then(function (r) { if (r && (r.learned || r.promoted || r.mapped)) { try { if (window.EG756Sync) window.EG756Sync.markDirty(['conv']); if (window.EG755 && EG755.loadVariants) EG755.loadVariants(true); } catch (e) { } } }).catch(function () { }); } catch (e) { } }
+MX.learnPick = learnPick;
 
 /* theo dõi hoàn thành phiếu: bắt lệnh completePhieu thành công để mở hộp xuất file Misa */
 (function () {
@@ -25682,17 +25728,6 @@ MX.augmentXuat = function (root, ph) {
     ['ton', 'cam', 'cho', 'tt'].forEach(function (k) { var td = document.createElement('td'); td.className = 'mx-td'; td.dataset.mx = k; td.innerHTML = '<span class="mx-num" style="color:#94a3b8">…</span>'; tr.insertBefore(td, ref); });
     var tdb = document.createElement('td'); tdb.className = 'mx-td'; tdb.dataset.mx = 'buy'; tr.appendChild(tdb);
     var host = tr.cells[1]; ensureHidden(tr, 'maMisa', host); ensureHidden(tr, 'tenMisa', host);
-    /* V757: ô « Loại » cho kho điền / sửa; khi đổi → nhớ theo mã máy (Sheet 12 hoặc lịch sử) */
-    var li = tr.querySelector('input[data-k="loaiVatTu"]');
-    if (li) {
-      li.readOnly = false; li.removeAttribute('readonly'); li.removeAttribute('tabindex'); li.classList.remove('v65-ro'); li.placeholder = 'Loại…'; li.style.minWidth = '90px'; li.autocomplete = 'off';
-      var dl = document.createElement('datalist'); dl.id = 'mxloai_' + Math.random().toString(36).slice(2, 8); li.setAttribute('list', dl.id); li.parentNode.appendChild(dl);
-      li.addEventListener('focus', function () { try { var o = (window.EG755 && EG755.loaiOptions) ? EG755.loaiOptions(fld(tr, 'tenVatTu')) : []; dl.innerHTML = o.map(function (v) { return '<option value="' + E(v) + '">'; }).join(''); } catch (e) { } });
-      li.addEventListener('change', function () {
-        var v = li.value.trim(); setFld(tr, 'loaiVatTuDaChon', v); li.dataset.user = '1';
-        if (v) learnLine({ tenVatTu: fld(tr, 'tenVatTu'), cum: fld(tr, 'cumLinhKien'), loai: v, maPhieu: ph.maPhieu, machines: MX.machinesOf(ph) });
-      });
-    }
     var ml = document.createElement('span'); ml.className = 'mx-misa-line'; ml.dataset.mx = 'line'; host.appendChild(ml);
   });
   var wrap = tbl.closest('.pv17-scroll') || tbl;
@@ -25746,7 +25781,6 @@ function paintShort(tr, S) {
 }
 function paint(tr, d, S) {
   tr.__d = d;
-  if (d.loai) { var lo = tr.querySelector('input[data-k="loaiVatTu"]'); if (lo && !lo.value.trim() && !lo.dataset.user) { lo.value = d.loai; setFld(tr, 'loaiVatTuDaChon', d.loai); lo.title = d.loaiVia === 'nho' ? 'Loại đã nhớ cho máy này' : 'Loại lấy từ Sheet 12 theo mã máy'; } }
   var line = $('[data-mx="line"]', tr), c = function (k) { return $('[data-mx="' + k + '"]', tr); };
   if (d.sku) {
     setFld(tr, 'maMisa', d.sku); setFld(tr, 'tenMisa', d.tenMisa);
@@ -25805,8 +25839,7 @@ MX.refreshXuat = async function (tbl, force) {
 function linkRow(tbl, tr, rec) {
   setFld(tr, 'maMisa', rec.sku); setFld(tr, 'tenMisa', rec.ten);
   /* V756: kho chọn mã → hệ thống tự HỌC theo máy/loại/động cơ (mọi vai trò có quyền xuất), không còn ghi ánh xạ 1:1 cứng */
-  var ph0 = (tbl.__S && tbl.__S.ph) || {};
-  MX.learnLine({ tenVatTu: fld(tr, 'tenVatTuGoc') || fld(tr, 'tenVatTu'), cum: fld(tr, 'cumLinhKien'), sku: rec.sku, tenMisa: rec.ten, loai: fld(tr, 'loaiVatTu'), maPhieu: ph0.maPhieu || '', maMay: fld(tr, 'maMayXacMinh'), machines: MX.machinesOf(ph0) });
+  MX.learnPick({ tenVatTu: fld(tr, 'tenVatTuGoc') || fld(tr, 'tenVatTu'), cum: fld(tr, 'cumLinhKien'), sku: rec.sku, maPhieu: (tbl.__S && tbl.__S.ph && tbl.__S.ph.maPhieu) || '', maMay: fld(tr, 'maMayXacMinh') });
   MX.refreshXuat(tbl);
 }
 function chooseRow(tbl, tr) {
@@ -25924,7 +25957,7 @@ MX.augmentComplete = function (root, phieu, items) {
     if (!keepName || tr.dataset.origin !== 'goc') { var nm = tr.querySelector('input[data-k="tenVatTu"]'); if (nm && tr.dataset.origin !== 'goc') { nm.__mxMute = true; nm.value = rec.ten; nm.dispatchEvent(new Event('input', { bubbles: true })); nm.__mxMute = false; } }
     if (tr.dataset.origin !== 'goc') { setFld(tr, 'maVatTu', rec.sku); var dv = tr.querySelector('[data-k="donViTinh"]'); if (dv && rec.dvt) dv.value = rec.dvt; setFld(tr, 'tenVatTuGoc', rec.ten); }
     paintLine(tr);
-    MX.learnLine({ tenVatTu: fld(tr, 'tenVatTuGoc') || fld(tr, 'tenVatTu'), cum: fld(tr, 'cumLinhKien'), sku: rec.sku, tenMisa: rec.ten, loai: fld(tr, 'loaiVatTu'), maPhieu: (phieu && phieu.maPhieu) || '', maMay: fld(tr, 'maMayXacMinh'), machines: MX.machinesOf(phieu) }, { quiet: true });   /* V756: tự học */
+    MX.learnPick({ tenVatTu: fld(tr, 'tenVatTuGoc') || fld(tr, 'tenVatTu'), cum: fld(tr, 'cumLinhKien'), sku: rec.sku, maPhieu: (phieu && phieu.maPhieu) || '', maMay: fld(tr, 'maMayXacMinh') });   /* V756: tự học */
   }
   /* ô « vật tư phát sinh » gõ tên → gợi ý từ Misa */
   tbl.addEventListener('focusin', function (e) {
@@ -26155,12 +26188,47 @@ function detect(kind, rows) {
     var s = 0; (rows[r] || []).forEach(function (c) { Object.keys(syn).forEach(function (k) { if (scoreHead(c, syn[k]) >= 2) s++; }); });
     if (s > bestScore) { bestScore = s; bestRow = r; }
   }
-  var head = (rows[bestRow] || []).map(function (c) { return String(c == null ? '' : c).trim(); }), used = {}, map = {};
+  var rowTxt = function (r) { return (rows[r] || []).map(function (c) { return String(c == null ? '' : c).trim(); }); };
+  var head = rowTxt(bestRow), headRow = bestRow;
+  /* V758: báo cáo Misa « Tổng hợp nhập xuất tồn kho » có TIÊU ĐỀ 2 DÒNG: dòng trên = nhóm (Tồn đầu kỳ / Nhập / Xuất / Tồn cuối kỳ), dòng dưới = Số lượng · Giá trị.
+     Ghép nhóm + cột con thành « Tồn cuối kỳ Số lượng » để KHÔNG lấy nhầm cột « Số lượng » của Tồn đầu kỳ. */
+  var GRP = /ton dau|ton cuoi|nhap trong|xuat trong|nhap kho|xuat kho|so du|dau ky|cuoi ky/, SUB = /^(so luong|gia tri|thanh tien|sl|so tien)$/;
+  var subLike = function (arr) { return arr.filter(function (c) { return SUB.test(F(c)); }).length; };
+  var grpLike = function (arr) { return arr.filter(function (c) { return GRP.test(F(c)); }).length; };
+  var merge = function (top, sub) {
+    var out = [], grp = '', n = Math.max(top.length, sub.length);
+    for (var i = 0; i < n; i++) {
+      var t = top[i] || '', u = sub[i] || '';
+      if (t) grp = GRP.test(F(t)) ? t : '';
+      out.push((u ? ((grp ? grp + ' ' : '') + u) : t).replace(/\s+/g, ' ').trim());
+    }
+    return out;
+  };
+  if (bestRow > 0 && subLike(head) >= 2 && grpLike(rowTxt(bestRow - 1)) >= 2) { head = merge(rowTxt(bestRow - 1), head); }                 /* đang đứng ở dòng con */
+  else if (rows[bestRow + 1] && grpLike(head) >= 2 && subLike(rowTxt(bestRow + 1)) >= 2) { head = merge(head, rowTxt(bestRow + 1)); headRow = bestRow + 1; }   /* đang đứng ở dòng nhóm */
+  var used = {}, map = {};
   Object.keys(syn).forEach(function (k) {
     var bi = -1, bs = 0; head.forEach(function (c, i) { if (used[i]) return; var s = scoreHead(c, syn[k]); if (s > bs) { bs = s; bi = i; } });
     if (bi >= 0) { map[k] = bi; used[bi] = 1; }
   });
-  return { headRow: bestRow, head: head, map: map };
+  /* V758: nhiều cột « Số lượng » → ưu tiên cột có chữ « cuối kỳ »; cột đầu kỳ / nhập / xuất trong kỳ chỉ để cảnh báo */
+  var warn = '';
+  if (kind === 'ton') {
+    var BAD = /dau ky|nhap|xuat|phat sinh/, okc = function (i) { return /cuoi ky|cuoi/.test(F(head[i])); };
+    ['ton', 'giaTri'].forEach(function (k) {
+      if (map[k] === undefined) return;
+      var cur = map[k];
+      if (okc(cur) || !BAD.test(F(head[cur]))) return;
+      var alt = -1; head.forEach(function (c, i) { if (alt < 0 && okc(i) && (k === 'ton' ? /so luong|sl|ton/.test(F(c)) : /gia tri|thanh tien/.test(F(c)))) alt = i; });
+      if (alt >= 0) { map[k] = alt; } else if (k === 'ton') warn = 'Cột số lượng đang chọn là « ' + head[cur] + ' » — KHÔNG phải Tồn cuối kỳ. Hãy chọn đúng cột « Tồn cuối kỳ · Số lượng ».';
+    });
+  }
+  /* V758: tên kho/cửa hàng thường nằm ở dòng tiêu đề báo cáo (« Cửa hàng: KHO HN ») */
+  var kho = '';
+  for (var rr = 0; rr < Math.min(headRow, 12) && !kho; rr++) {
+    rowTxt(rr).forEach(function (c) { if (kho) return; var m = c.match(/(?:cửa hàng|chi nhánh|kho)\s*[:：]\s*(.+)$/i); if (m && m[1].trim().length <= 60) kho = m[1].trim(); });
+  }
+  return { headRow: headRow, head: head, map: map, warn: warn, khoGuess: kho };
 }
 function cellVal(v) {
   if (v instanceof Date) return isoDay(v);
@@ -26188,9 +26256,11 @@ function previewUi(body, S) {
     return '<label>' + LABEL[k] + (REQ[S.kind].indexOf(k) >= 0 ? ' *' : '') + '<select data-f="' + k + '"><option value="-1">(bỏ qua)</option>' + S.head.map(function (c, i) { return '<option value="' + i + '" ' + (S.map[k] === i ? 'selected' : '') + '>' + E((i + 1) + '. ' + c) + '</option>'; }).join('') + '</select></label>';
   }).join('') + '</div>';
   if (S.kind !== 'hang') h += '<div class="mx-row"><label>Kho mặc định cho dòng không có cột Kho</label><input type="text" id="mxImpKho" placeholder="vd: Kho Hà Nội"></div>';
-  h += '<div class="mx-row"><label><input type="radio" name="mxMode" value="replace" checked> Thay toàn bộ dữ liệu cũ</label><label><input type="radio" name="mxMode" value="append"> Nối thêm vào dữ liệu cũ</label></div>';
+  if (S.kind === 'ton') h += '<div class="mx-row"><label><input type="radio" name="mxMode" value="replaceKho" checked> Thay dữ liệu CỦA KHO trong file (giữ nguyên kho khác) — nên dùng</label><label><input type="radio" name="mxMode" value="replace"> Thay toàn bộ tồn kho</label><label><input type="radio" name="mxMode" value="append"> Nối thêm</label></div><div id="mxTonWarn"></div>';
+  else h += '<div class="mx-row"><label><input type="radio" name="mxMode" value="replace" checked> Thay toàn bộ dữ liệu cũ</label><label><input type="radio" name="mxMode" value="append"> Nối thêm vào dữ liệu cũ</label></div>';
   h += '<div class="mx-scroll"><table class="mx-tbl" id="mxPrev"></table></div><div class="mx-prog" id="mxProg" style="display:none"><i></i></div><div class="mx-row"><button class="mx-btn pri" id="mxDoImp">⬆ Nạp vào hệ thống</button><span id="mxImpMsg" style="font-size:12px"></span></div></div>';
   body.innerHTML = h;
+  if (S.kind !== 'hang' && S.khoGuess && $('#mxImpKho', body) && !$('#mxImpKho', body).value && S.map.kho === undefined) $('#mxImpKho', body).value = S.khoGuess;
   function collect() {
     var map = {}; $$('select[data-f]', body).forEach(function (s) { var v = +s.value; if (v >= 0) map[s.dataset.f] = v; });
     var defKho = ($('#mxImpKho', body) || {}).value || '', out = [];
@@ -26208,16 +26278,25 @@ function previewUi(body, S) {
     $('#mxPrev', body).innerHTML = '<thead><tr>' + keys.map(function (k) { return '<th>' + LABEL[k] + '</th>'; }).join('') + '</tr></thead><tbody>' + c.rows.slice(0, 6).map(function (o) { return '<tr>' + keys.map(function (k) { return '<td>' + E(o[k]) + '</td>'; }).join('') + '</tr>'; }).join('') + '</tbody>';
     var miss = REQ[S.kind].filter(function (k) { return c.map[k] === undefined; });
     var b = $('#mxDoImp', body); b.disabled = !!miss.length || !c.rows.length;
+    var tw = $('#mxTonWarn', body);
+    if (tw) {
+      var lab = c.map.ton !== undefined ? String(S.head[c.map.ton] || '') : '', bad = S.kind === 'ton' && lab && /dau ky|nhap|xuat|phat sinh/.test(F(lab)) && !/cuoi/.test(F(lab));
+      tw.innerHTML = bad ? '<div class="mx-err">⚠ Cột « Số lượng tồn » đang trỏ tới « ' + E(lab) + ' » — không phải Tồn cuối kỳ. Chọn lại cột đúng rồi mới nạp.</div>' : (S.kind === 'ton' && lab ? '<div class="mx-info">Cột tồn lấy từ: <b>' + E(lab) + '</b>' + (S.khoGuess ? ' · Kho trong tiêu đề báo cáo: <b>' + E(S.khoGuess) + '</b>' : '') + '</div>' : '');
+      if (bad) b.disabled = true;
+    }
     $('#mxImpMsg', body).innerHTML = miss.length ? '<span style="color:#b91c1c">Thiếu cột bắt buộc: ' + miss.map(function (k) { return LABEL[k]; }).join(', ') + '</span>' : '<span style="color:#166534">' + fmt(c.rows.length) + ' dòng hợp lệ</span>';
   }
   $$('select[data-f]', body).forEach(function (s) { s.onchange = prev; }); var dk = $('#mxImpKho', body); if (dk) dk.oninput = prev; prev();
   $('#mxDoImp', body).onclick = async function () {
     var c = collect(), btn = this, mode = ($('input[name=mxMode]:checked', body) || {}).value || 'replace', CH = 400, total = Math.ceil(c.rows.length / CH) || 1;
+    var khos = []; if (S.kind === 'ton') c.rows.forEach(function (o) { var k = String(o.kho == null ? '' : o.kho).trim(); if (k && khos.indexOf(k) < 0) khos.push(k); });
+    if (mode === 'replaceKho' && !khos.length) { T('Chưa có tên kho — điền ô « Kho mặc định » (vd KHO HN) hoặc chọn cột Kho.', 'err'); return; }
+    if (mode === 'replaceKho' && !confirm('Thay tồn của kho: ' + khos.join(', ') + ' bằng ' + fmt(c.rows.length) + ' dòng trong file? (Kho khác giữ nguyên)')) return;
     if (mode === 'replace' && !confirm('Thay toàn bộ dữ liệu « ' + KINDS[S.kind] + ' » hiện có bằng ' + fmt(c.rows.length) + ' dòng trong file?')) return;
     busy(btn, true, 'Đang nạp…'); var prog = $('#mxProg', body); prog.style.display = 'block';
     try {
       for (var i = 0; i < total; i++) {
-        await api('misaImportRows', { kind: S.kind, mode: mode, seq: i, total: total, source: 'excel', rows: c.rows.slice(i * CH, (i + 1) * CH) });
+        await api('misaImportRows', { kind: S.kind, mode: mode, khos: khos, seq: i, total: total, source: 'excel', rows: c.rows.slice(i * CH, (i + 1) * CH) });
         $('i', prog).style.width = Math.round((i + 1) / total * 100) + '%';
       }
       T('✅ Đã nạp ' + fmt(c.rows.length) + ' dòng « ' + KINDS[S.kind] + ' »', 'ok');
@@ -26684,7 +26763,7 @@ body.eg-no-xuat #ni-xuatVatTu,body.eg-no-hoanthanh #ni-hoanThanhPhieu{display:no
 (function () {
 'use strict';
 if (window.EG755) return;
-var EG = window.EG755 = { ver: 'V757-nho-theo-may-1' };
+var EG = window.EG755 = { ver: 'V756-sync-ho-hang-1' };
 
 /* ───────────── tiện ích ───────────── */
 function cu() { try { return CU; } catch (e) { return window.CU; } }
@@ -26848,7 +26927,7 @@ function installGuards() {
   var lastU = '';
   every(function () {
     var u = cu() ? (cu().u + '|' + (cu().pvToken || '')) : '';
-    if (u && u !== lastU) { lastU = u; EG.refreshRole(); EG.loadVT12(); EG.loadVariants(); EG.loadMem(); }
+    if (u && u !== lastU) { lastU = u; EG.refreshRole(); EG.loadVT12(); EG.loadVariants(); }
     if (!u) lastU = '';
     installGuards(); applyRoleUI();
   }, 1000);
@@ -26987,35 +27066,7 @@ function itemIndex(name) {
   itemMemo[key] = best; return best;
 }
 EG.matchHeader = matchHeader;
-/* V757: loại kho/KTV đã chọn cho (vật tư, máy) — lưu ở sheet « 21. Nhớ vật tư theo máy », ưu tiên hơn Sheet 12 */
-var MEM = { by: {}, loaded: false, loading: false };
-EG.loadMem = async function (force) {
-  if (!cu() || !cu().pvToken || typeof window.pvApi !== 'function') return;
-  if (MEM.loading || (MEM.loaded && !force)) return;
-  MEM.loading = true;
-  try {
-    var r = await window.pvApi('loaiMemList', {}), by = {};
-    ((r && r.rows) || []).forEach(function (o) { if (o.loai) by[tokKey(o.ten) + '|' + N(o.maMay)] = o.loai; });
-    MEM.by = by; MEM.loaded = true; idxCache.sig = ''; EG.enhanceAll && EG.enhanceAll();
-  } catch (e) { console.warn('[eg757] loadMem', e); }
-  finally { MEM.loading = false; }
-};
-EG.loaiMemFor = function (name, ma) {
-  if (!ma || !MEM.loaded) return '';
-  var v = MEM.by[tokKey(name) + '|' + N(ma)]; if (v) return v;
-  var i = itemIndex(name), C = window.VT12_CACHE;
-  if (i >= 0 && C && C.items && C.items[i]) { v = MEM.by[tokKey(C.items[i].name) + '|' + N(ma)]; if (v) return v; }
-  return '';
-};
-/* các loại thường gặp của một vật tư (từ Sheet 12) — gợi ý khi kho điền « Loại » */
-EG.loaiOptions = function (name) {
-  var C = window.VT12_CACHE, i = itemIndex(name), seen = {}, out = [];
-  if (i >= 0 && C && C.rows) C.rows.forEach(function (r) { var v = String(((r.values || [])[i] || {}).chungLoai || '').trim(); if (v && !seen[N(v)]) { seen[N(v)] = 1; out.push(v); } });
-  Object.keys(MEM.by).forEach(function (k) { if (k.indexOf(tokKey(name) + '|') === 0) { var v = MEM.by[k]; if (v && !seen[N(v)]) { seen[N(v)] = 1; out.push(v); } } });
-  return out;
-};
 EG.loaiFor = function (name, ma) {
-  var m = EG.loaiMemFor(name, ma); if (m) return m;
   var X = vt12(); if (!X || !ma) return '';
   var row = X.byM[N(ma)]; if (!row) return '';
   var i = itemIndex(name); if (i < 0) return '';
@@ -27496,7 +27547,7 @@ var LOADERS = {
   pvlist: function () { return call('pvBDSCRefreshHistory_', true); },
   conv: function () {
     var E = window.EG755; if (!E) return Promise.resolve();
-    return Promise.all([E.loadVT12 ? E.loadVT12(true) : 0, E.loadVariants ? E.loadVariants(true) : 0, E.loadMem ? E.loadMem(true) : 0]).then(function () { if (E.resetResolved) E.resetResolved(); if (window.EGPartMode) window.EGPartMode.refresh(); });
+    return Promise.all([E.loadVT12 ? E.loadVT12(true) : 0, E.loadVariants ? E.loadVariants(true) : 0]).then(function () { if (E.resetResolved) E.resetResolved(); if (window.EGPartMode) window.EGPartMode.refresh(); });
   },
   misa: function () { var MX = window.MX754; if (!MX || !MX.loadCatalog) return Promise.resolve(); MX._cp = null; return MX.loadCatalog(false); }
 };
@@ -27793,6 +27844,380 @@ function paintBars() {
 }
 
 EG.start();
+})();
+</script>
+
+<style id="eg758-css">
+/* ===== V758 ===== */
+.mx-modal.e8-xl{max-width:min(1360px,97vw)}
+.mx-modal.e8-xl .mx-mb{padding:14px 18px}
+.e8-head{display:grid;grid-template-columns:minmax(210px,1fr) 3fr;gap:12px;align-items:stretch;margin-bottom:14px}
+.e8-hid{background:linear-gradient(135deg,#083d24,#0d6e3f 70%,#148f50);color:#fff;border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:4px;justify-content:center}
+.e8-hid small{font-size:10.5px;letter-spacing:.6px;opacity:.85;text-transform:uppercase}
+.e8-hid b{font-size:20px;letter-spacing:.3px}
+.e8-hid .e8-st{align-self:flex-start;background:rgba(255,255,255,.2);border-radius:999px;padding:2px 10px;font-size:11.5px;font-weight:700}
+.e8-meta{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:8px}
+.e8-meta>div{border:1px solid #e2e8f0;border-radius:10px;padding:8px 11px;background:#fff;min-width:0}
+.e8-meta>div.hot{border-color:#16a05e;background:#f0fdf4}
+.e8-meta small{display:block;font-size:10.5px;color:#64748b;text-transform:uppercase;letter-spacing:.4px;margin-bottom:2px}
+.e8-meta b{font-size:14px;color:#0f172a;word-break:break-word}
+.e8-sec{margin:0 0 16px;border:1px solid #dbe3ec;border-radius:12px;overflow:hidden;background:#fff;break-inside:avoid}
+.e8-sh{display:flex;align-items:center;gap:10px;padding:8px 12px;background:#f1f5f9;border-bottom:1px solid #dbe3ec}
+.e8-sh b{font-size:14px}
+.e8-sh .e8-cnt{margin-left:auto;font-size:11.5px;color:#64748b}
+.e8-code{font-weight:800;font-size:11.5px;letter-spacing:.8px;color:#fff;border-radius:6px;padding:3px 9px;background:#0d6e3f}
+.e8-c-why{background:#b45309}.e8-c-who{background:#1d4ed8}.e8-c-when{background:#7c3aed}.e8-c-where{background:#0e7490}.e8-c-how{background:#be123c}
+.e8-scroll{overflow:auto;max-width:100%}
+.e8-tbl{border-collapse:collapse;width:100%;font-size:13.5px;min-width:640px}
+.e8-tbl th{position:sticky;top:0;background:#fafbfc;text-align:left;font-size:11.5px;text-transform:uppercase;letter-spacing:.3px;color:#475569;padding:8px 10px;border-bottom:1.5px solid #cbd5e1;white-space:nowrap}
+.e8-tbl td{padding:8px 10px;border-bottom:1px solid #eef2f6;vertical-align:top;line-height:1.45}
+.e8-tbl tbody tr:nth-child(even) td{background:#fbfcfd}
+.e8-tbl tbody tr:hover td{background:#f0fdf4}
+.e8-tbl .r{text-align:right;font-variant-numeric:tabular-nums}.e8-tbl .c{text-align:center}
+.e8-tbl td.e8-b{font-weight:800;color:#0f172a}
+.e8-tbl tr.e8-tot td{background:#ecfdf5!important;font-weight:800;border-top:2px solid #16a05e}
+.e8-sku{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;background:#ecfdf5;color:#065f46;border-radius:5px;padding:1px 6px;white-space:nowrap}
+.e8-na{color:#94a3b8;font-style:italic}
+.e8-form td input[type=text],.e8-form td input[type=number]{width:100%;border:1.5px solid #cbd5e1;border-radius:7px;padding:6px 8px;font-size:13.5px;box-sizing:border-box}
+.e8-form td input.q{width:96px;text-align:right}
+.e8-form td input:focus{outline:none;border-color:#16a05e}
+.e8-form .e8-rm{border:0;background:#fee2e2;color:#b91c1c;border-radius:7px;width:28px;height:28px;cursor:pointer;font-weight:800}
+.e8-tools{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;margin:0 0 12px}
+.e8-tools label{font-size:12.5px;font-weight:700;color:#334155}
+.e8-tools input[type=date],.e8-tools input[type=text]{border:1.5px solid #cbd5e1;border-radius:7px;padding:6px 9px;font-size:13px}
+.e8-diag-note{border-left:4px solid #f59e0b;background:#fffbeb;padding:7px 11px;margin:6px 0;font-size:12.5px;border-radius:0 8px 8px 0}
+.e8-diag-ok{border-left-color:#16a34a;background:#f0fdf4}
+.e8-age{font-weight:700}
+.e8-age.old{color:#b91c1c}
+.e8-age.mid{color:#b45309}
+.e8-raw{white-space:pre-wrap;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11px;background:#0f172a;color:#e2e8f0;border-radius:8px;padding:9px;max-height:220px;overflow:auto}
+
+.e8-one{min-width:1240px;font-size:12px}
+.e8-one th,.e8-one td{padding:5px 6px}
+.e8-one th{white-space:normal;font-size:10.5px;line-height:1.25;vertical-align:bottom}
+.e8-one td:nth-child(3){min-width:150px}
+.e8-one td:nth-child(9),.e8-one td:nth-child(11),.e8-one td:nth-child(18){min-width:140px}
+.e8-one th.e8-gh{text-align:center;font-size:12px;letter-spacing:.6px;color:#fff;border-bottom:0;padding:7px 8px}
+.e8-gc{font-weight:800;letter-spacing:1px}
+.e8-tbl th.e8-g-0{background:#475569}.e8-tbl th.e8-g-what{background:#0d6e3f}.e8-tbl th.e8-g-why{background:#b45309}.e8-tbl th.e8-g-who{background:#1d4ed8}.e8-tbl th.e8-g-when{background:#7c3aed}.e8-tbl th.e8-g-where{background:#0e7490}.e8-tbl th.e8-g-how{background:#be123c}
+.e8-one .e8-gb{border-left:2px solid #94a3b8}
+.e8-one td:nth-child(3){min-width:170px}
+@media(max-width:820px){.e8-head{grid-template-columns:1fr}.mx-modal.e8-xl .mx-mb{padding:10px}.e8-tbl{font-size:12.5px}}
+</style>
+<script id="eg758-js">
+/* ===== V758 · (1) gợi ý tên Misa ở MỌI ô tên vật tư · (2) Đề xuất mua 6 bảng + Excel · (3) tồn kho: tuổi dữ liệu, đối chiếu trực tiếp, chẩn đoán ===== */
+(function () {
+'use strict';
+if (window.__eg758) return; window.__eg758 = true;
+var MX = window.MX754; if (!MX) return;
+var E = MX.E, fmt = MX.fmt, money = MX.money, api = MX.api, T = MX.toast, F = (window.MISA754 || {}).fold || function (s) { return String(s || '').toLowerCase(); };
+function $(s, r) { return (r || document).querySelector(s); }
+function $$(s, r) { return [].slice.call((r || document).querySelectorAll(s)); }
+function num(v) { var n = parseFloat(String(v == null ? '' : v).replace(/\s/g, '').replace(',', '.')); return isNaN(n) ? 0 : n; }
+var E8 = window.EG758 = { ver: 'V758' };
+
+/* ------------------------------------------------------------------ 1) GỢI Ý TÊN MISA Ở MỌI Ô TÊN VẬT TƯ */
+/* Gắn lười khi ô được bấm vào (focusin) → không cần quét DOM, ô sinh sau (modal, dòng thêm) vẫn được gắn. Ô đã có MX.suggest riêng (__mxSg) bỏ qua. */
+var NAME_SEL = 'input[data-k="tenVatTu"], input.pv68-material-input, input.pv69-material-input, input[id^="np-"], input[data-misa-name]';
+function eligible(inp) {
+  if (!inp || inp.tagName !== 'INPUT' || inp.__mxSg || inp.disabled || inp.readOnly) return false;
+  var t = (inp.getAttribute('type') || 'text').toLowerCase();
+  if (t !== 'text' && t !== 'search') return false;
+  if (inp.closest('#mx-sg, .mx-pick-in')) return false;
+  return true;
+}
+function rowOf(inp) { return inp.closest('tr') || inp.closest('.pv-row') || inp.closest('[data-row]') || null; }
+function rowField(row, k) { return row ? row.querySelector('[data-k="' + k + '"]') : null; }
+function setRowHidden(row, k, v) {
+  if (!row) return;
+  var el = rowField(row, k);
+  if (!el) { el = document.createElement('input'); el.type = 'hidden'; el.setAttribute('data-k', k); (row.cells && row.cells[1] ? row.cells[1] : row).appendChild(el); }
+  el.value = v == null ? '' : v;
+}
+function fire(el, ev) { try { el.dispatchEvent(new Event(ev, { bubbles: true })); } catch (e) { } }
+function attachName(inp) {
+  var cat = MX.cat;
+  if (cat && !cat.noData && inp.getAttribute('list')) { inp.setAttribute('data-list-was', inp.getAttribute('list')); inp.removeAttribute('list'); }   /* một danh sách gợi ý thôi: của Misa */
+  MX.suggest(inp, {
+    title: 'Gợi ý từ danh mục Misa — bấm để chọn',
+    context: function () { var c = rowField(rowOf(inp), 'cumLinhKien'); return c ? c.value : ''; },
+    onPick: function (rec) {
+      var row = rowOf(inp), keep = row && row.dataset && row.dataset.origin === 'goc';      /* dòng gốc của phiếu: giữ tên web, chỉ gắn mã Misa */
+      if (!keep) { inp.__mxMute = true; inp.value = rec.ten; fire(inp, 'input'); fire(inp, 'change'); inp.__mxMute = false; }
+      setRowHidden(row, 'maMisa', rec.sku); setRowHidden(row, 'tenMisa', rec.ten);
+      var dv = rowField(row, 'donViTinh'); if (dv && !String(dv.value || '').trim() && rec.dvt) { dv.value = rec.dvt; fire(dv, 'change'); }
+      try { MX.learnPick && row && MX.learnPick({ tenVatTu: inp.value, cum: (rowField(row, 'cumLinhKien') || {}).value || '', sku: rec.sku, maPhieu: '', maMay: (rowField(row, 'maMayXacMinh') || {}).value || '' }); } catch (e) { }
+    }
+  });
+}
+document.addEventListener('focusin', function (e) {
+  var t = e.target;
+  try { if (t && t.matches && t.matches(NAME_SEL) && eligible(t)) { MX.loadCatalog().then(function () { if (!t.__mxSg) attachName(t); }, function () { if (!t.__mxSg) attachName(t); }); } } catch (er) { }
+}, true);
+
+/* ------------------------------------------------------------------ 2) ĐỀ XUẤT MUA — 6 BẢNG */
+function cellHtml(c, v) {
+  if (v === '' || v === null || v === undefined) return c.k === 'sku' ? '' : '<span class="e8-na">—</span>';
+  if (c.m && typeof v === 'number') return money(v);
+  if (c.a === 'r' && typeof v === 'number') return fmt(v);
+  if (c.k === 'sku' && v !== '(chưa có mã)') return '<span class="e8-sku">' + E(v) + '</span>';
+  if (c.k === 'sku') return '<span class="e8-na">' + E(v) + '</span>';
+  return E(v);
+}
+function tableHtml(t) {
+  var first = {}, seen = {};
+  t.cols.forEach(function (c, i) { var g = c.g || ''; if (!seen[g]) { seen[g] = 1; first[i] = 1; } });
+  var gh = t.groups.filter(function (x) { return x.span > 0; }).map(function (x) {
+    return '<th colspan="' + x.span + '" class="e8-gh e8-gb e8-g-' + (x.key || '0') + '">' + (x.code ? '<span class="e8-gc">' + E(x.code) + '</span> ' + E(x.title) : '') + '</th>';
+  }).join('');
+  var th = t.cols.map(function (c, i) { return '<th class="' + (c.a || '') + (first[i] ? ' e8-gb' : '') + '">' + E(c.t) + '</th>'; }).join('');
+  var tb = t.rows.map(function (r) { return '<tr>' + t.cols.map(function (c, i) { return '<td class="' + (c.a || '') + (c.b ? ' e8-b' : '') + (first[i] ? ' e8-gb' : '') + '">' + cellHtml(c, r[i]) + '</td>'; }).join('') + '</tr>'; }).join('');
+  if (t.total) {
+    var span = t.total.col, rest = t.cols.length - span - 1;
+    tb += '<tr class="e8-tot"><td colspan="' + span + '" class="r">' + E(t.total.label) + '</td><td class="r">' + money(t.total.value) + '</td>' + (rest > 0 ? '<td colspan="' + rest + '"></td>' : '') + '</tr>';
+  }
+  return '<section class="e8-sec"><div class="e8-sh"><b>Bảng đề xuất mua vật tư</b><span class="e8-cnt">' + t.rows.length + ' vật tư · mỗi hàng một vật tư, mỗi nhóm cột trả lời một câu hỏi</span></div><div class="e8-scroll"><table class="e8-tbl e8-one"><thead><tr>' + gh + '</tr><tr>' + th + '</tr></thead><tbody>' + tb + '</tbody></table></div></section>';
+}
+function headHtml(p) {
+  var cell = function (lab, val, hot) { return '<div class="' + (hot ? 'hot' : '') + '"><small>' + E(lab) + '</small><b>' + (val ? E(val) : '<span class="e8-na">—</span>') + '</b></div>'; };
+  var ct = p.ph ? [p.ph.dsTrai, p.ph.dsMay].filter(Boolean).join(' · ') : p.congTrinh;
+  return '<div class="e8-head"><div class="e8-hid"><small>Đề xuất mua vật tư</small><b>' + E(p.id) + '</b><span class="e8-st">' + E(p.trangThai || 'Mới') + '</span></div><div class="e8-meta">' +
+    cell('Tài khoản lập đề xuất', p.taiKhoan, true) + cell('Người đề xuất mua (đội trưởng)', p.doiTruong || p.nguoiDeXuat, false) + cell('Ngày lập', p.ngay) + cell('Phiếu vật tư', p.maPhieu) + cell('Giao về kho', p.kho) + cell('Công trình / máy', ct) + cell('Cần có hàng trước', p.canTruoc) +
+    '</div></div>';
+}
+E8.proposalHtml = function (p) { return headHtml(p) + (p.table ? tableHtml(p.table) : '<div class="mx-warn">Đề xuất này chưa có dữ liệu bảng — cập nhật máy chủ lên V758.</div>'); };
+
+/* Excel: một trang « Tổng hợp » xếp 6 bảng nối nhau + 6 trang riêng từng bảng (để lọc / sắp xếp). */
+E8.exportXlsx = function (p) {
+  var X = window.XLSX; if (!X) { T('Thư viện Excel chưa tải xong — thử lại sau vài giây', 'warn'); return; }
+  var t = p.table; if (!t) { T('Đề xuất chưa có dữ liệu bảng', 'err'); return; }
+  var n = t.cols.length;
+  var aoa = [['ĐỀ XUẤT MUA VẬT TƯ — ' + p.id], [],
+    ['Tài khoản lập đề xuất', p.taiKhoan, '', 'Ngày lập', p.ngay],
+    ['Người đề xuất mua (đội trưởng)', p.doiTruong || p.nguoiDeXuat, '', 'Trạng thái', p.trangThai],
+    ['Phiếu vật tư', p.maPhieu, '', 'Giao về kho', p.kho],
+    ['Công trình / máy', p.ph ? [p.ph.dsTrai, p.ph.dsMay].filter(Boolean).join(' · ') : p.congTrinh, '', 'Cần có hàng trước', p.canTruoc], []];
+  var gRow = aoa.length, merges = [{ s: { r: 0, c: 0 }, e: { r: 0, c: Math.min(n - 1, 8) } }], c0 = 0, grow = [];
+  t.groups.forEach(function (g) { if (!g.span) return; for (var i = 0; i < g.span; i++) grow.push(i === 0 ? (g.code ? g.code + ' — ' + g.title : '') : ''); if (g.span > 1) merges.push({ s: { r: gRow, c: c0 }, e: { r: gRow, c: c0 + g.span - 1 } }); c0 += g.span; });
+  aoa.push(grow); aoa.push(t.cols.map(function (c) { return c.t; }));
+  var money = [];
+  t.rows.forEach(function (r) { aoa.push(r.slice()); t.cols.forEach(function (c, ci) { if (c.m && typeof r[ci] === 'number') money.push([aoa.length - 1, ci]); }); });
+  if (t.total) { var tr = t.cols.map(function () { return ''; }); tr[t.total.col - 1] = t.total.label; tr[t.total.col] = t.total.value; aoa.push(tr); money.push([aoa.length - 1, t.total.col]); }
+  var w = []; aoa.slice(gRow + 1).forEach(function (row) { row.forEach(function (v, i) { var l = v == null ? 0 : String(v).length; w[i] = Math.min(46, Math.max(w[i] || 8, l + 2)); }); });
+  var ws = X.utils.aoa_to_sheet(aoa); ws['!cols'] = w.map(function (x) { return { wch: x }; }); ws['!merges'] = merges;
+  money.forEach(function (m) { var ref = X.utils.encode_cell({ r: m[0], c: m[1] }); if (ws[ref]) ws[ref].z = '#,##0'; });
+  ws['!pageSetup'] = { orientation: 'landscape', paperSize: 9, fitToWidth: 1, fitToHeight: 0 };
+  var wb = X.utils.book_new(); X.utils.book_append_sheet(wb, ws, 'Đề xuất mua');
+  X.writeFile(wb, 'DeXuatMua_' + String(p.id).replace(/[^\w\-]/g, '_') + '.xlsx');
+  T('✅ Đã xuất Excel ' + p.id, 'ok');
+};
+
+E8.printProposal = function (p, ori) {
+  ori = ori === 'portrait' ? 'portrait' : 'landscape';
+  var w = window.open('', '_blank'); if (!w) { T('Trình duyệt chặn cửa sổ in — cho phép popup rồi thử lại', 'warn'); return; }
+  var css = $('#eg758-css').textContent;
+  w.document.write('<!DOCTYPE html><html><head><meta charset="utf-8"><title>Đề xuất mua ' + E(p.id) + '</title><style>' + css + '@page{size:A4 ' + ori + ';margin:8mm}body{font-family:"Be Vietnam Pro",Arial,sans-serif;color:#0f172a;margin:0}*{-webkit-print-color-adjust:exact;print-color-adjust:exact}.e8-tbl{min-width:0!important;width:100%;font-size:' + (ori === 'portrait' ? '8' : '9.5') + 'px;table-layout:auto}.e8-tbl th,.e8-tbl td{padding:3px 4px}.e8-one td,.e8-one th{min-width:0!important;padding:3px 3px!important}.e8-one th{font-size:7.5px!important}.e8-sec{overflow:visible!important}.e8-scroll{overflow:visible}.e8-one{font-size:' + (ori === 'portrait' ? '7' : '8.5') + 'px!important}.e8-head{margin-bottom:8px}.e8-hid b{font-size:15px}.e8-meta b{font-size:11.5px}.sign{display:flex;justify-content:space-around;margin-top:14px;font-size:12px;text-align:center}.sign div{min-width:150px}.sign i{display:block;height:48px}</style></head><body>' +
+    E8.proposalHtml(p) + '<div class="sign"><div><b>Người lập (tài khoản)</b><br>' + E(p.taiKhoan) + '<i></i></div><div><b>Đội trưởng đề xuất</b><br>' + E(p.doiTruong || p.nguoiDeXuat) + '<i></i></div><div><b>Kho xác nhận</b><i></i></div><div><b>Người duyệt</b><i></i></div></div></body></html>');
+  w.document.close(); setTimeout(function () { w.focus(); w.print(); }, 450);
+};
+
+function proposalFooter(m, p) {
+  m.foot.innerHTML = '<button class="mx-btn" data-c>Đóng</button><button class="mx-btn" data-cp>📋 Sao chép</button><button class="mx-btn" data-xl>📊 Xuất Excel</button><select class="mx-btn" data-ori title="Hướng giấy khi in / lưu PDF"><option value="landscape">Giấy A4 ngang</option><option value="portrait">Giấy A4 dọc</option></select><button class="mx-btn" data-pr>🖨 In / PDF</button><a class="mx-btn" data-ml style="text-decoration:none">✉ Email</a>';
+  m.foot.querySelector('[data-c]').onclick = m.close;
+  m.foot.querySelector('[data-cp]').onclick = function () { MX.copy(p.text); };
+  m.foot.querySelector('[data-xl]').onclick = function () { E8.exportXlsx(p); };
+  m.foot.querySelector('[data-pr]').onclick = function () { E8.printProposal(p, m.foot.querySelector('[data-ori]').value); };
+  m.foot.querySelector('[data-ml]').href = 'mailto:?subject=' + encodeURIComponent('Đề xuất mua vật tư ' + p.id) + '&body=' + encodeURIComponent(String(p.text || '').slice(0, 1800));
+}
+E8.showProposal = function (p, m) {
+  if (!m) m = MX.modal('Đề xuất mua vật tư ' + p.id, '', { footer: true, wide: true });
+  m.el.querySelector('.mx-modal').classList.add('e8-xl');
+  m.body.innerHTML = E8.proposalHtml(p);
+  proposalFooter(m, p);
+  return m;
+};
+
+/* Form lập đề xuất: bảng chỉnh được (đổi vật tư bằng gợi ý Misa, sửa SL mua, bỏ dòng, thêm dòng). */
+MX.openBuy = function (o) {
+  o = o || {};
+  var rows = (o.items || []).map(function (x) { return Object.assign({}, x, { slCan: num(x.slCan), slMua: x.slMua === '' || x.slMua == null ? '' : num(x.slMua) }); });
+  var m = MX.modal('🛒 Đề xuất mua vật tư' + (o.maPhieu ? ' — phiếu ' + o.maPhieu : ''), '', { footer: true, wide: true });
+  m.el.querySelector('.mx-modal').classList.add('e8-xl');
+  var body = m.body;
+  body.innerHTML = '<div class="mx-info">Hệ thống chọn <b>nhà cung cấp</b> và <b>đơn giá nhập</b> tối ưu từ lịch sử nhập Misa, rồi lập đề xuất thành <b>một bảng</b>: mỗi hàng một vật tư, mỗi nhóm cột trả lời một câu hỏi <b>WHAT · WHY · WHO · WHEN · WHERE · HOW</b>. ' +
+    (o.maPhieu ? '<b>Người đề xuất mua</b> sẽ là đội trưởng lập phiếu ' + E(o.maPhieu) + '; tài khoản của bạn được ghi là người lập đề xuất.' : 'Không gắn phiếu nên người đề xuất mua là tài khoản của bạn.') + '</div>' +
+    '<div class="e8-tools"><label>Giao về kho: <b>' + E(o.kho || '(theo khu vực phiếu)') + '</b></label><label>Cần có hàng trước <input type="date" id="e8_date"></label><label style="flex:1;min-width:220px">Ghi chú <input type="text" id="e8_note" style="width:100%;box-sizing:border-box" placeholder="vd: cần gấp, yêu cầu hóa đơn…"></label></div>' +
+    '<section class="e8-sec e8-form"><div class="e8-sh"><span class="e8-code">WHAT</span><b>Danh sách vật tư cần mua</b><span class="e8-cnt" id="e8_cnt"></span></div><div class="e8-scroll"><table class="e8-tbl"><thead><tr><th class="c">STT</th><th>Mã Misa</th><th style="min-width:300px">Tên vật tư (gõ để đổi theo Misa)</th><th>ĐVT</th><th class="r">SL cần</th><th class="r">Tồn thực tế</th><th class="r">Thiếu</th><th class="r">SL mua</th><th></th></tr></thead><tbody id="e8_tb"></tbody></table></div></section>' +
+    '<div class="e8-tools"><button type="button" class="mx-btn" id="e8_add">➕ Thêm vật tư</button></div>';
+  var tb = $('#e8_tb', body);
+  function thieu(r) { return r.tonThucTe === '' || r.tonThucTe == null ? '' : Math.max(0, Math.round((num(r.slCan) - num(r.tonThucTe)) * 1000) / 1000); }
+  function paint() {
+    tb.innerHTML = rows.map(function (r, i) {
+      var th = thieu(r);
+      return '<tr data-i="' + i + '"><td class="c">' + (i + 1) + '</td><td data-sku>' + (r.maMisa ? '<span class="e8-sku">' + E(r.maMisa) + '</span>' : '<span class="e8-na">chưa có mã</span>') + '</td><td><input type="text" data-nm value="' + E(r.tenVatTu || '') + '" placeholder="Gõ tên vật tư…"></td><td>' + E(r.dvt || '') + '</td>' +
+        '<td class="r"><input type="number" class="q" min="0" step="any" data-can value="' + E(r.slCan === 0 ? '' : r.slCan) + '"></td><td class="r">' + (r.tonThucTe === '' || r.tonThucTe == null ? '—' : fmt(r.tonThucTe)) + '</td><td class="r">' + (th === '' ? '—' : fmt(th)) + '</td>' +
+        '<td class="r"><input type="number" class="q" min="0" step="any" data-mua value="' + E(r.slMua === '' ? (th === '' ? r.slCan : th) : r.slMua) + '"></td><td><button type="button" class="e8-rm" data-rm title="Bỏ dòng">✕</button></td></tr>';
+    }).join('') || '<tr><td colspan="9" class="c e8-na">Chưa có vật tư — bấm « Thêm vật tư ».</td></tr>';
+    $('#e8_cnt', body).textContent = rows.length + ' dòng';
+    $$('input[data-nm]', tb).forEach(function (inp) {
+      var i = +inp.closest('tr').dataset.i;
+      MX.suggest(inp, { title: 'Chọn hàng trên Misa', context: function () { return rows[i].cumLinhKien || ''; }, onPick: function (rec) {
+        var r = rows[i]; r.tenVatTu = rec.ten; r.maMisa = rec.sku; r.dvt = rec.dvt || r.dvt; inp.__mxMute = true; inp.value = rec.ten; inp.__mxMute = false;
+        var tr = inp.closest('tr'); tr.cells[1].innerHTML = '<span class="e8-sku">' + E(rec.sku) + '</span>'; tr.cells[3].textContent = rec.dvt || r.dvt || '';
+      } });
+      inp.addEventListener('input', function () { if (inp.__mxMute) return; rows[i].tenVatTu = inp.value; });
+    });
+  }
+  body.addEventListener('input', function (e) {
+    var tr = e.target.closest('tr[data-i]'); if (!tr) return; var r = rows[+tr.dataset.i];
+    if (e.target.hasAttribute('data-can')) { r.slCan = num(e.target.value); var th = thieu(r); tr.cells[6].textContent = th === '' ? '—' : fmt(th); }
+    else if (e.target.hasAttribute('data-mua')) r.slMua = num(e.target.value);
+  });
+  body.addEventListener('click', function (e) {
+    var rm = e.target.closest('[data-rm]'); if (rm) { rows.splice(+rm.closest('tr').dataset.i, 1); paint(); }
+  });
+  $('#e8_add', body).onclick = function () { rows.push({ tenVatTu: '', cumLinhKien: '', maVatTu: '', maMisa: '', dvt: '', slCan: 0, tonThucTe: '', slMua: '' }); paint(); var ins = $$('input[data-nm]', tb); if (ins.length) ins[ins.length - 1].focus(); };
+  paint();
+  m.foot.innerHTML = '<button class="mx-btn" data-c>Đóng</button><button class="mx-btn pri" data-ok>Tạo đề xuất mua</button>';
+  m.foot.querySelector('[data-c]').onclick = m.close;
+  var ok = m.foot.querySelector('[data-ok]');
+  ok.onclick = async function () {
+    var its = rows.map(function (r) { var th = thieu(r), mua = r.slMua === '' ? (th === '' ? num(r.slCan) : th) : num(r.slMua); return Object.assign({}, r, { slCan: num(r.slCan) || mua, slMua: mua }); }).filter(function (r) { return String(r.tenVatTu || '').trim() && r.slMua > 0; });
+    if (!its.length) { T('Cần ít nhất một vật tư có tên và SL mua > 0', 'err'); return; }
+    ok.disabled = true; ok.textContent = 'Đang lập…';
+    try {
+      var r = await api('misaCreatePurchaseProposal', { maPhieu: o.maPhieu, kho: o.kho, canTruoc: ($('#e8_date', body) || {}).value || '', ghiChu: ($('#e8_note', body) || {}).value || '', items: its });
+      T('✅ Đã lưu đề xuất ' + r.proposal.id, 'ok');
+      E8.showProposal(r.proposal, m);
+    } catch (er) { T('Không lập được đề xuất: ' + er.message, 'err'); ok.disabled = false; ok.textContent = 'Tạo đề xuất mua'; }
+  };
+};
+
+/* Tab « Mã mới & Đề xuất mua »: nút « Xem 5W1H » mở giao diện 6 bảng (chặn trình xem chữ cũ) */
+document.addEventListener('click', async function (e) {
+  var b = e.target.closest && e.target.closest('[data-v]'); if (!b || !b.closest('#mxTab')) return;
+  e.stopPropagation(); e.preventDefault();
+  var id = b.getAttribute('data-v'); b.disabled = true;
+  try { var r = await api('misaListPurchaseProposals', { id: id }); if (r.proposals && r.proposals[0]) E8.showProposal(r.proposals[0]); else T('Không thấy đề xuất ' + id, 'err'); }
+  catch (er) { T(er.message, 'err'); }
+  b.disabled = false;
+}, true);
+/* thêm nút « Excel » cạnh « Xem 5W1H » */
+function addExcelBtns() {
+  $$('#mxTab [data-v]').forEach(function (b) {
+    if (b.__e8) return; b.__e8 = 1;
+    var x = document.createElement('button'); x.type = 'button'; x.className = 'mx-btn sm'; x.textContent = '📊 Excel'; x.setAttribute('data-e8x', b.getAttribute('data-v'));
+    b.parentNode.insertBefore(x, b.nextSibling);
+  });
+}
+document.addEventListener('click', async function (e) {
+  var b = e.target.closest && e.target.closest('[data-e8x]'); if (!b) return;
+  e.stopPropagation(); b.disabled = true;
+  try { var r = await api('misaListPurchaseProposals', { id: b.getAttribute('data-e8x') }); if (r.proposals && r.proposals[0]) E8.exportXlsx(r.proposals[0]); } catch (er) { T(er.message, 'err'); }
+  b.disabled = false;
+}, true);
+
+/* ------------------------------------------------------------------ 3) TỒN KHO: tuổi dữ liệu · đối chiếu trực tiếp · chẩn đoán */
+function ageText(min) {
+  if (min == null) return '';
+  var cls = min > 360 ? 'old' : (min > 60 ? 'mid' : ''), t = min < 1 ? 'vừa xong' : (min < 90 ? min + ' phút trước' : (min < 2880 ? Math.round(min / 6) / 10 + ' giờ trước' : Math.round(min / 144) / 10 + ' ngày trước'));
+  return '<span class="e8-age ' + cls + '">cập nhật ' + t + '</span>';
+}
+function enhanceXuat(tbl) {
+  var S = tbl && tbl.__S, bar = $('.mx-bar'); if (!S || !S.data || !bar) return;
+  var r = S.data, stat = $('#mx_stat', bar);
+  if (stat && !r.noData) {
+    var extra = [ageText(r.ageMin)];
+    if (r.tonSource) extra.push('nguồn: ' + E(r.tonSource === 'api' ? 'API Misa' : r.tonSource === 'excel' ? 'file Excel' : r.tonSource));
+    if (r.khoFixed) extra.push('<span style="color:#166534">đã gộp tên kho viết khác nhau (' + r.khoFixed + ' dòng)</span>');
+    stat.innerHTML += ' · ' + extra.filter(Boolean).join(' · ');
+  }
+  if (!$('#e8_live', bar)) {
+    var live = document.createElement('button'); live.type = 'button'; live.className = 'mx-btn'; live.id = 'e8_live'; live.textContent = '⚡ Đối chiếu Misa trực tiếp'; live.title = 'Đọc số tồn của các vật tư đang hiện ngay trên Misa, lệch thì cập nhật';
+    live.onclick = function () { liveCheck(tbl, live); };
+    var rl = $('#mx_reload', bar); (rl ? rl.parentNode : bar).insertBefore(live, rl ? rl.nextSibling : null);
+    if (MX.isAdmin()) {
+      var dg = document.createElement('button'); dg.type = 'button'; dg.className = 'mx-btn'; dg.id = 'e8_diag'; dg.textContent = '🔍 Chẩn đoán tồn'; dg.onclick = function () { var first = (S.data.rows || []).filter(function (d) { return d.sku; })[0]; E8.diag(first ? first.sku : ''); };
+      live.parentNode.insertBefore(dg, live.nextSibling);
+    }
+  }
+}
+async function liveCheck(tbl, btn) {
+  var S = tbl.__S, skus = []; $$('tr', tbl).forEach(function (tr) { if (tr.__d && tr.__d.sku && skus.indexOf(tr.__d.sku) < 0) skus.push(tr.__d.sku); });
+  if (!skus.length) { T('Chưa có vật tư nào gắn mã Misa để đối chiếu', 'warn'); return; }
+  var old = btn.textContent; btn.disabled = true; btn.textContent = 'Đang đọc Misa…';
+  try {
+    var r = await api('misaStockLive', { skus: skus });
+    if (!r.ok) { T(r.error || 'Không đối chiếu được', 'err'); }
+    else if (r.changed && r.changed.length) {
+      var m = MX.modal('⚡ Đã cập nhật số tồn theo Misa thật', '<div class="mx-ok">Đã sửa ' + r.changed.length + ' mã lệch so với bản lưu trên web:</div><div class="e8-scroll"><table class="e8-tbl"><thead><tr><th>Mã</th><th>Tên</th><th>Kho</th><th class="r">Web cũ</th><th class="r">Misa thật</th></tr></thead><tbody>' +
+        r.changed.map(function (c) { return c.lech.map(function (l) { return '<tr><td><span class="e8-sku">' + E(c.sku) + '</span></td><td>' + E(c.ten) + '</td><td>' + E(l.kho) + '</td><td class="r">' + fmt(l.web) + '</td><td class="r"><b>' + fmt(l.misa) + '</b></td></tr>'; }).join(''); }).join('') + '</tbody></table></div>', { footer: true });
+      m.foot.innerHTML = '<button class="mx-btn pri" data-c>Đóng</button>'; m.foot.querySelector('[data-c]').onclick = m.close;
+      await MX.loadCatalog(true).catch(function () { });
+    } else T('✅ ' + r.checked + ' mã khớp với Misa thật' + (r.notFound && r.notFound.length ? ' (không thấy trên Misa: ' + r.notFound.join(', ') + ')' : ''), 'ok');
+    await MX.refreshXuat(tbl);
+  } catch (er) { T('Lỗi: ' + er.message, 'err'); }
+  btn.disabled = false; btn.textContent = old;
+}
+(function wrapRefresh() {
+  var _r = MX.refreshXuat; if (typeof _r !== 'function' || _r.__e8) return;
+  MX.refreshXuat = async function (tbl) { var res = await _r.apply(this, arguments); try { enhanceXuat(tbl); } catch (e) { } return res; };
+  MX.refreshXuat.__e8 = 1;
+})();
+
+E8.diag = function (q0) {
+  if (!MX.isAdmin()) { T('Chỉ QTV dùng được chẩn đoán tồn kho', 'warn'); return; }
+  var m = MX.modal('🔍 Chẩn đoán tồn kho Misa ↔ web', '<div class="e8-tools"><label>Mã SKU hoặc tên vật tư <input type="text" id="e8_dq" style="min-width:280px" value="' + E(q0 || '') + '" placeholder="vd: 2GMM-NIS-PD6T hoặc gioăng mặt máy PD6T"></label><button class="mx-btn pri" id="e8_d1">Kiểm tra bản lưu trên web</button><button class="mx-btn" id="e8_d2">Đối chiếu trực tiếp Misa</button><button class="mx-btn warn" id="e8_d3">Đối chiếu &amp; cập nhật theo Misa</button></div><div id="e8_dr" class="mx-info">Nhập mã rồi bấm kiểm tra. « Đối chiếu trực tiếp » cần kết nối API Misa và có thể mất 10–45 giây.</div>', { wide: true, footer: true });
+  m.el.querySelector('.mx-modal').classList.add('e8-xl');
+  m.foot.innerHTML = '<button class="mx-btn pri" data-c>Đóng</button>'; m.foot.querySelector('[data-c]').onclick = m.close;
+  async function run(live, apply) {
+    var q = ($('#e8_dq', m.body).value || '').trim(), host = $('#e8_dr', m.body); if (!q) return;
+    host.className = 'mx-info'; host.textContent = live ? 'Đang đọc Misa thật…' : 'Đang kiểm tra…';
+    try {
+      var r = await api('misaStockDiag', { q: q, live: live, apply: apply }), h = '';
+      h += '<div class="mx-row" style="gap:14px;flex-wrap:wrap"><span>Nguồn tồn: <b>' + E(r.source || '?') + '</b></span>' + ageText(r.ageHours == null ? null : Math.round(r.ageHours * 60)) + '<span>Danh sách kho: <b>' + E((r.khoList || []).join(' · ') || '—') + '</b></span><span>Kho mặc định: <b>' + E(r.khoMacDinh || '—') + '</b></span></div>';
+      (r.notes || []).forEach(function (n) { h += '<div class="e8-diag-note">' + E(n) + '</div>'; });
+      if (r.liveError) h += '<div class="e8-diag-note">' + E(r.liveError) + '</div>';
+      if (r.applied) h += '<div class="e8-diag-note e8-diag-ok">Đã cập nhật ' + r.applied.skus + ' mã (' + r.applied.rows + ' dòng tồn) theo Misa. Mở lại màn Xuất để thấy số mới.</div>';
+      else if (r.canApply) h += '<div class="e8-diag-note">Có ' + r.canApply + ' mã lệch — bấm « Đối chiếu &amp; cập nhật theo Misa » để sửa.</div>';
+      (r.rows || []).forEach(function (o) {
+        h += '<section class="e8-sec" style="margin-top:12px"><div class="e8-sh"><span class="e8-sku">' + E(o.sku) + '</span><b>' + E(o.ten) + '</b><span class="e8-cnt">' + E(o.dvt || '') + (o.ngung ? ' · NGỪNG KD' : '') + '</span></div><div style="padding:8px 12px"><b>Trên web (sheet « 14. Tồn kho »):</b> ' +
+          (o.tonTrongSheet.length ? '<div class="e8-scroll"><table class="e8-tbl" style="min-width:0"><thead><tr><th>Kho</th><th class="r">Tồn</th></tr></thead><tbody>' + o.tonTrongSheet.map(function (x) { return '<tr><td>' + E(x.kho) + '</td><td class="r">' + fmt(x.ton) + '</td></tr>'; }).join('') + '</tbody></table></div>' : '<span class="e8-na">không có dòng nào → web hiện 0</span>');
+        if (o.live) {
+          if (!o.live.found) h += '<div class="e8-diag-note">Không tìm thấy mã này trên Misa (API).</div>';
+          else {
+            h += '<div style="margin-top:8px"><b>Trên Misa (API):</b>' + (o.live.lech.length ? ' <span style="color:#b91c1c;font-weight:700">LỆCH ' + o.live.lech.length + ' kho</span>' : ' <span style="color:#166534;font-weight:700">khớp</span>') + '<div class="e8-scroll"><table class="e8-tbl" style="min-width:0"><thead><tr><th>Kho (Misa)</th><th class="r">Tồn</th></tr></thead><tbody>' + o.live.inventories.map(function (x) { return '<tr><td>' + E(x.kho) + '</td><td class="r"><b>' + fmt(x.ton) + '</b></td></tr>'; }).join('') + '</tbody></table></div>';
+            if (o.live.lech.length) h += '<div class="e8-diag-note">' + o.live.lech.map(function (l) { return E(l.kho) + ': web ' + fmt(l.web) + ' ≠ Misa ' + fmt(l.misa); }).join(' · ') + '</div>';
+            h += '<details style="margin-top:6px"><summary style="cursor:pointer;font-size:12px">Dữ liệu gốc Misa trả về (để kiểm tra tên trường)</summary><div class="e8-raw">' + E(JSON.stringify(o.live.rawInventories, null, 1)) + '</div></details></div>';
+          }
+        }
+        if (o.trungTen && o.trungTen.length) h += '<div class="e8-diag-note">Trùng tên với mã: ' + E(o.trungTen.join(', ')) + '</div>';
+        h += '</div></section>';
+      });
+      if (!(r.rows || []).length) h += '<div class="e8-diag-note">Không thấy vật tư nào khớp « ' + E(q) + ' » trong danh mục Misa đã nạp.</div>';
+      if (r.liveScan) h += '<div style="font-size:11.5px;color:#64748b;margin-top:6px">Đã quét ' + fmt(r.liveScan.scanned) + (r.liveScan.total ? '/' + fmt(r.liveScan.total) : '') + ' mặt hàng trên Misa' + (r.liveScan.timedOut ? ' (dừng vì hết giờ)' : '') + '.</div>';
+      host.className = ''; host.innerHTML = h;
+      if (apply) { await MX.loadCatalog(true).catch(function () { }); }
+    } catch (er) { host.className = 'mx-err'; host.textContent = 'Lỗi: ' + er.message; }
+  }
+  $('#e8_d1', m.body).onclick = function () { run(false, false); };
+  $('#e8_d2', m.body).onclick = function () { run(true, false); };
+  $('#e8_d3', m.body).onclick = function () { run(true, true); };
+  $('#e8_dq', m.body).addEventListener('keydown', function (e) { if (e.key === 'Enter') run(false, false); });
+  if (q0) run(false, false);
+};
+
+/* thẻ « Chẩn đoán tồn kho » + tuổi dữ liệu ở tab Tổng quan Misa (QTV) */
+function decorateOverview() {
+  var tab = $('#mxTab'); if (!tab || $('#e8_ovcard', tab) || !tab.querySelector('.mx-grid') || !MX.isAdmin()) return;
+  var d = document.createElement('div'); d.className = 'mx-card'; d.id = 'e8_ovcard';
+  var at = MX.st && MX.st.meta && MX.st.meta.ton && MX.st.meta.ton.at, min = at ? Math.round((Date.now() - new Date(at).getTime()) / 60000) : null;
+  d.innerHTML = '<h3>🔍 Kiểm tra lệch tồn kho Misa ↔ web</h3><div class="ih">Tồn kho cập nhật lần cuối: ' + (ageText(min) || '<b>chưa có</b>') + ' (' + E(MX.st && MX.st.meta && MX.st.meta.ton && MX.st.meta.ton.source || '?') + '). Nhập một mã để xem web đang lưu gì, so với Misa thật, và sửa nếu lệch.</div><div class="mx-row"><input type="text" id="e8_ovq" placeholder="mã SKU hoặc tên vật tư" style="min-width:260px"><button class="mx-btn pri" id="e8_ovgo">Kiểm tra</button></div>';
+  var grid = tab.querySelector('.mx-grid'); grid.parentNode.insertBefore(d, grid.nextSibling);
+  $('#e8_ovgo', d).onclick = function () { E8.diag(($('#e8_ovq', d).value || '').trim()); };
+  $('#e8_ovq', d).addEventListener('keydown', function (e) { if (e.key === 'Enter') $('#e8_ovgo', d).click(); });
+}
+new MutationObserver(function () { try { if (!document.getElementById('mxTab')) return; decorateOverview(); addExcelBtns(); } catch (e) { } }).observe(document.body, { childList: true, subtree: true });
 })();
 </script>
 
