@@ -929,6 +929,7 @@ tbody tr{border-bottom:1px solid #f1f5f9;transition:.1s}tbody tr:hover{backgroun
       <div class="sdot off" id="sDot"></div><span id="sLbl">Sheet chưa kết nối</span>
       <div class="sspin" id="sSpin"></div>
     </div>
+    <button class="tbtn" id="egMisaBtn" type="button" onclick="EG758.misaSync(event)" title="Đồng bộ hàng hóa + tồn kho từ Misa"><span class="egm-ic">📦</span><span class="egm-tx" id="egMisaTx">Misa</span></button>
     <div class="upill" onclick="nav('profile')">
       <div class="uav" id="tAv" style="background:rgba(255,255,255,.2)"></div>
       <div class="uname" id="tName"></div>
@@ -23856,9 +23857,11 @@ console.log('[V750-fix] ✅ Approver sync fix loaded');
   var KEEP_COPY = 6;                 // chỉ giữ khối "Sao chép dữ liệu" của N câu trả lời gần nhất khi lưu vào sessionStorage
   var KEEP_REP = 2;                  // chỉ giữ báo cáo / bảng của N câu trả lời gần nhất (nặng): các câu cũ hơn phải hỏi lại để xuất
   var KEEP_MEM = 3;                  // trí nhớ phiên: giữ và gửi lại bản ghi (mem) của N câu trả lời gần nhất — để câu sau kế thừa / chỉnh sửa được câu trước
+  /* V758: iPhone/Android đóng băng trang khi khoá máy / chuyển ứng dụng → đồng hồ chờ cộng cả thời gian nền (đã thấy « 865 giây » dù máy chủ chỉ chạy ~1 phút). Ghi lại thời gian nền để trừ ra. */
+  document.addEventListener('visibilitychange', function (){ var n = Date.now(); if (document.hidden){ if (!ST.hidAt) ST.hidAt = n; } else if (ST.hidAt){ if (ST.busy) ST.hid += n - ST.hidAt; ST.hidAt = 0; } });
   var MEM_TTL = 6 * 3600 * 1000;     // bản ghi quá 6 giờ thì bỏ (máy chủ cũng bỏ)
   var ST = { open: false, busy: false, msgs: [], owner: '', loadedFor: '', info: null, infoAt: 0,
-             codesRe: null, codesN: 0, t0: 0, timer: 0, wasReady: false, gone: 0, waitLbl: '', imgs: [] };
+             codesRe: null, codesN: 0, t0: 0, timer: 0, wasReady: false, gone: 0, waitLbl: '', imgs: [], hid: 0, hidAt: 0, ctl: null, userStop: false };
 
   function $(id){ return document.getElementById(id); }
   function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function (c){
@@ -24697,6 +24700,8 @@ console.log('[V750-fix] ✅ Approver sync fix loaded');
       if (g('data-q')){ ask(g('data-q')); }
       else if (g('data-copy') != null){ copyMsg(Number(g('data-copy')), t, false); }
       else if (g('data-copydata') != null){ copyMsg(Number(g('data-copydata')), t, true); }
+      else if (g('data-stop') != null){ ST.userStop = true; try { ST.ctl && ST.ctl.abort(); } catch (e2){} }
+      else if (g('data-lookup') != null){ var li = Number(g('data-lookup')), lu = ST.msgs[li - 1]; if (lu && lu.role === 'user') ask(String(lu.content || ''), { lookup: true, histUpTo: li - 1 }); }
       else if (g('data-deep') != null){ deepen(Number(g('data-deep'))); }
       else if (g('data-fresh') != null){ freshAsk(Number(g('data-fresh'))); }
       else if (g('data-rep') != null){ var mi = ST.msgs[Number(g('data-rep'))]; if (mi){ mi.showRep = true; render(true); } }
@@ -24892,6 +24897,7 @@ console.log('[V750-fix] ✅ Approver sync fix loaded');
   }
   function call(body, retried){
     var ctl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+    if (!retried) ST.ctl = ctl;
     var to = setTimeout(function (){ try { ctl && ctl.abort(); } catch (e){} }, TIMEOUT_MS);
     var done = function (){ clearTimeout(to); };
     return getTicket(false).then(function (t){
@@ -24907,7 +24913,7 @@ console.log('[V750-fix] ✅ Approver sync fix loaded');
     }).catch(function (e){
       done();
       if (e && e.needLogin) return { ok: false, needLogin: true, error: 'Phiên đăng nhập đã hết hạn — hãy đăng nhập lại rồi hỏi tiếp.' };
-      if (e && e.name === 'AbortError') return { ok: false, error: 'Câu này mất quá lâu nên đã dừng. Bạn thử hỏi nhỏ hơn (một máy, một khoảng thời gian) nhé.' };
+      if (e && e.name === 'AbortError') return { ok: false, error: ST.userStop ? 'Đã dừng chờ theo yêu cầu của bạn. Bạn có thể hỏi lại.' : 'Câu này mất quá lâu nên đã dừng. Bạn thử hỏi nhỏ hơn (một máy, một khoảng thời gian) nhé — hoặc hỏi lại nếu vừa rồi máy ở chế độ nền.' };
       /* Còn lại: không xin được vé / không nối được eGreen / eGreen trả rác → dùng đường dự phòng. */
       return fallbackCall(body, (e && e.message) || 'không nối được eGreen').catch(function (e2){
         return { ok: false, error: 'Không kết nối được máy chủ. Kiểm tra mạng rồi hỏi lại. (' + ((e2 && e2.message) || (e && e.message) || '?') + ')' };
@@ -25017,7 +25023,7 @@ console.log('[V750-fix] ✅ Approver sync fix loaded');
     if (opt.fresh) um.fresh = true;
     ST.msgs.push(um);
     save();
-    ST.busy = true; ST.t0 = Date.now();
+    ST.busy = true; ST.t0 = Date.now(); ST.hid = 0; ST.hidAt = document.hidden ? ST.t0 : 0; ST.ctl = null; ST.userStop = false;
     ST.waitLbl = imgs ? 'AI đang đọc ảnh và tra dữ liệu…' : (opt.deep ? 'AI đang phân tích sâu…' : ((ST.info && ST.info.aiReady) ? 'AI đang trả lời…' : 'Đang tra cứu dữ liệu…'));
     render(); tick();
     ST.timer = setInterval(tick, 1000);
@@ -25026,13 +25032,14 @@ console.log('[V750-fix] ✅ Approver sync fix loaded');
     if (mems.length) body.mem = mems;
     if (opt.deep) body.deep = true;
     if (opt.fresh) body.fresh = true;
+    if (opt.lookup) body.forceTools = true;
     (imgs ? callImg(body, imgs) : call(body)).then(function (d){
       if (d && d.ok && d.answer){
         ST.msgs.push({
           role: 'assistant', content: String(d.answer), tools: d.tools || [], sources: d.sources || [], ms: d.ms || 0,
           copy: d.copy ? String(d.copy) : '', engine: d.engine || '', provider: d.provider || '', model: d.model || '',
           estimated: !!d.estimated, tables: Array.isArray(d.tables) ? d.tables : [], charts: Array.isArray(d.charts) ? d.charts : [], report: d.report || null,
-          canDeepen: !!d.canDeepen, aiError: d.aiError ? String(d.aiError) : '', fallback: !!d.fallback,
+          canDeepen: !!d.canDeepen, canLookup: !!d.canLookup, perf: d.perf || null, wall: Math.max(0, Date.now() - ST.t0 - ST.hid - (ST.hidAt ? Date.now() - ST.hidAt : 0)), aiError: d.aiError ? String(d.aiError) : '', fallback: !!d.fallback,
           mem: (d.memV && d.mem && d.mem.v === 1) ? d.mem : null, inherit: d.inherit || null, noMem: !(d.memV || (ST.info && ST.info.memV))       // noMem: máy chủ chưa nạp CHATBOT.gs có trí nhớ phiên
         });
       } else {
@@ -25052,10 +25059,14 @@ console.log('[V750-fix] ✅ Approver sync fix loaded');
     return true;
   }
 
+  function activeMs(){ var n = Date.now(); return Math.max(0, n - ST.t0 - ST.hid - (ST.hidAt ? n - ST.hidAt : 0)); }
   function tick(){
     var el = $('cbWaitT'); if (!el) return;
-    var s = Math.round((Date.now() - ST.t0) / 1000);
-    el.textContent = (ST.waitLbl || 'Đang tra cứu dữ liệu…') + ' ' + s + ' giây' + (s > 25 ? ' (câu hỏi nhiều bước, chờ thêm chút)' : '');
+    var s = Math.round(activeMs() / 1000), hid = Math.round((ST.hid + (ST.hidAt ? Date.now() - ST.hidAt : 0)) / 1000);
+    el.textContent = (ST.waitLbl || 'Đang tra cứu dữ liệu…') + ' ' + s + ' giây' + (s > 25 ? ' (câu hỏi nhiều bước, chờ thêm chút)' : '') + (hid > 15 ? ' · máy ở chế độ nền ' + hid + ' giây (không tính)' : '');
+    var sb = $('cbStop'); if (sb) sb.style.display = (s > 20 || hid > 60) && ST.ctl ? '' : 'none';
+    /* đồng hồ nền của trình duyệt bị đóng băng nên bộ hẹn giờ ngắt có thể không chạy: tự ngắt theo thời gian CHẠY THẬT */
+    if (ST.ctl && activeMs() > TIMEOUT_MS + 15000){ try { ST.ctl.abort(); } catch (e){} }
   }
 
   /* data=false: chép câu trả lời. data=true: chép KHỐI DỮ LIỆU gọn (bảng đã tính sẵn, kèm nguồn & quy ước) để dán sang ChatGPT phân tích. */
@@ -25105,11 +25116,21 @@ console.log('[V750-fix] ✅ Approver sync fix loaded');
     if (m.tools && m.tools.length) bits.push('Đã tra: ' + m.tools.map(function (t){ return esc(t.label || t.name); }).join(', '));
     if (m.sources && m.sources.length) bits.push('Nguồn: ' + m.sources.map(esc).join(' · '));
     if (m.ms) bits.push((Math.round(m.ms / 100) / 10) + ' giây');
+    if (m.perf && m.perf.totalMs){
+      var P = m.perf, sec = function (x){ return (Math.round(x / 100) / 10) + 's'; }, tt = [];
+      tt.push('Tổng ở máy chủ: ' + sec(P.totalMs));
+      tt.push('AI: ' + sec(P.aiMs || 0) + ' (' + ((P.aiCalls || []).length) + ' lần gọi' + ((P.aiCalls || []).length ? ': ' + P.aiCalls.map(function (a){ return sec(a.ms) + (a.think ? '/' + a.think + ' token nghĩ' : ''); }).join(', ') : '') + ')');
+      tt.push('Đọc sheet + công cụ: ' + sec(P.toolMs || 0) + ' (đọc sheet ' + sec(P.sheetMs || 0) + '; bản sao nhớ: ' + (P.cacheHit || 0) + '/' + ((P.cacheHit || 0) + (P.cacheMiss || 0)) + ')');
+      if (P.kind === 'knowledge') tt.push('Câu hỏi kiến thức kỹ thuật chung → một lượt AI, không tra dữ liệu');
+      bits.push('<span class="cb-est" style="background:#eef2ff;color:#3730a3" title="' + esc(tt.join('\n')) + '">⏱ AI ' + sec(P.aiMs || 0) + ' · dữ liệu ' + sec(P.sheetMs || 0) + (P.kind === 'knowledge' ? ' · kiến thức chung' : '') + '</span>');
+    }
+    if (m.wall && m.ms && m.wall - m.ms > 8000) bits.push('<span title="Thời gian chờ thực tế trừ thời gian máy chủ xử lý: đường truyền, khởi động máy chủ Apps Script, xin vé trợ lý">chờ tổng ' + (Math.round(m.wall / 100) / 10) + ' giây (mạng/khởi động ≈ ' + (Math.round((m.wall - m.ms) / 100) / 10) + ' giây)</span>');
     var hasRep = !!(m.report || m.showRep);
     var canMakeRep = !hasRep && !m.hadRep && !m.fallback && (m.content || '').length > 0;
     return (bits.length ? bits.join(' — ') : '') + '<button type="button" data-copy="' + i + '">Sao chép</button>'
       + (m.copy ? '<button type="button" data-copydata="' + i + '" title="Chép bảng số liệu đã tính sẵn để dán sang ChatGPT phân tích">Sao chép dữ liệu</button>' : '')
       + (canMakeRep ? '<button type="button" data-rep="' + i + '" class="cb-b2" title="Xuất câu trả lời + bảng số liệu ra Word / Excel / In — không tốn lượt AI">📄 Xuất báo cáo</button>' : '')
+      + (m.canLookup ? '<button type="button" data-lookup="' + i + '" class="cb-b2" title="Câu này được trả lời nhanh bằng kiến thức kỹ thuật chung. Bấm để AI tra thêm dữ liệu máy / sửa chữa / phiếu trong hệ thống rồi trả lời lại">🔎 Đối chiếu dữ liệu hệ thống</button>' : '')
       + (m.canDeepen ? '<button type="button" data-deep="' + i + '" class="cb-b2" title="Đưa câu hỏi này cho AI phân tích, dựa trên đúng số liệu bot quy tắc vừa tra">🔎 Phân tích sâu</button>' : '')
       + (m.inherit ? '<button type="button" data-fresh="' + i + '" class="cb-b2" title="Hỏi lại câu này như một cuộc trò chuyện mới, không kế thừa các lượt trước">↺ Hỏi mới</button>' : '');
   }
@@ -25164,7 +25185,7 @@ console.log('[V750-fix] ✅ Approver sync fix loaded');
       }
     });
     if (ST.busy){
-      h += '<div class="cb-m cb-a"><div class="cb-b"><div class="cb-wait"><span class="cb-dots"><i></i><i></i><i></i></span><span id="cbWaitT">' + esc(ST.waitLbl || 'Đang tra cứu dữ liệu…') + '</span></div></div></div>';
+      h += '<div class="cb-m cb-a"><div class="cb-b"><div class="cb-wait"><span class="cb-dots"><i></i><i></i><i></i></span><span id="cbWaitT">' + esc(ST.waitLbl || 'Đang tra cứu dữ liệu…') + '</span><button type="button" id="cbStop" data-stop="1" class="cb-b2" style="display:none;margin-left:6px" title="Dừng chờ câu này (không mất lịch sử), rồi hỏi lại">Dừng chờ</button></div></div></div>';
     }
     body.innerHTML = h;
     body.scrollTop = keepScroll ? prevTop : body.scrollHeight;
@@ -26387,20 +26408,34 @@ function mskUi(host, c) {
   $('#mxMGen', host).onclick = async function () { try { await api('misaApiSaveConfig', { mode: 'generic' }); apiUi(host); } catch (e) { T('Lỗi: ' + e.message, 'err'); } };
 }
 
-/* ============================ TAB 2 · ĐANG CẦM ============================ */
+/* ============================ TAB 2 · ĐANG CẦM (V758: tách theo từng kho) ============================ */
+var camKho = '';
 async function tabCam(host) {
   loading(host);
   try {
-    var r = await api('misaOutstandingList', {});
-    function tbl(list, empty, cols) {
+    var r = await api('misaOutstandingList', {}), khos = r.khoList || [];
+    var want = F(camKho).replace(/^kho\s+/, '');
+    function inK(b) { return !want || F(b.kho).replace(/^kho\s+/, '') === want; }
+    function qtyIn(x) { return (x.byKho || []).filter(inK).reduce(function (s, b) { return s + b.qty; }, 0); }
+    function tbl(list0, empty, cols) {
+      var list = list0.filter(function (x) { return qtyIn(x) > 0; });
       if (!list.length) return '<div style="color:#64748b;font-size:12px">' + empty + '</div>';
-      return '<div class="mx-scroll"><table class="mx-tbl"><thead><tr><th>Vật tư</th><th>Mã SKU</th><th class="r">Số lượng</th><th>' + cols + '</th></tr></thead><tbody>' + list.map(function (x) {
-        return '<tr><td>' + E(x.ten) + '</td><td>' + (x.sku ? '<span class="mx-sku">' + E(x.sku) + '</span>' : '<span class="mx-badge y">chưa có mã</span>') + '</td><td class="r"><b>' + fmt(x.qty) + '</b> ' + E(x.dvt) + '</td><td style="font-size:11.5px">' + (x.phieu || []).map(function (p) { return '<span class="mx-badge">' + E(p.maPhieu) + ': ' + fmt(p.sl) + (p.doiTruong ? ' · ' + E(p.doiTruong) : '') + '</span>'; }).join(' ') + '</td></tr>';
+      return '<div class="mx-scroll"><table class="mx-tbl"><thead><tr><th>Vật tư</th><th>Mã SKU</th><th>Theo kho xuất (so với tồn Misa của kho đó)</th><th class="r">Tổng</th><th>' + cols + '</th></tr></thead><tbody>' + list.map(function (x) {
+        var by = (x.byKho || []).filter(inK).map(function (b) {
+          return '<span class="mx-badge' + (b.vuot ? ' r' : '') + '" title="' + (b.vuot ? 'Vượt tồn Misa của kho này' : 'Tồn Misa của kho: ' + fmt(b.ton)) + '"' + (b.vuot ? ' style="background:#fee2e2;color:#b91c1c"' : '') + '><b>' + E(b.kho) + '</b>: ' + fmt(b.qty) + (b.ton != null ? ' / tồn ' + fmt(b.ton) : '') + (b.tamTinh ? ' <i title="Phiếu chưa ghi kho xuất — tạm tính theo vùng">(tạm tính)</i>' : '') + '</span>';
+        }).join(' ');
+        return '<tr><td>' + E(x.ten) + '</td><td>' + (x.sku ? '<span class="mx-sku">' + E(x.sku) + '</span>' : '<span class="mx-badge y">chưa có mã</span>') + '</td><td>' + by + '</td><td class="r"><b>' + fmt(qtyIn(x)) + '</b> ' + E(x.dvt) + '</td><td style="font-size:11.5px">' + (x.phieu || []).filter(function (p) { return !want || F(p.kho || '').replace(/^kho\s+/, '') === want; }).map(function (p) { return '<span class="mx-badge">' + E(p.maPhieu) + ': ' + fmt(p.sl) + (p.kho ? ' · ' + E(p.kho) : '') + (p.doiTruong ? ' · ' + E(p.doiTruong) : '') + '</span>'; }).join(' ') + '</td></tr>';
       }).join('') + '</tbody></table></div>';
     }
-    host.innerHTML = '<div class="mx-info">Số lượng được cộng dồn từ <b>lịch sử xuất vật tư</b> của web (không cần sheet riêng). Khi phiếu hoàn thành, phần đã nhập lại tự trừ đi; phần đã dùng chuyển sang « chờ ghi Misa » cho tới khi kho bấm « Đã ghi Misa ».</div>' +
-      '<div class="mx-card"><h3>🧰 Đang cầm đi công trình (' + r.cam.length + ' mặt hàng)</h3>' + tbl(r.cam, 'Hiện không có vật tư nào đang ở công trình.', 'Phiếu đang giữ') + '</div>' +
-      '<div class="mx-card"><h3>⏳ Đã dùng, chờ ghi vào Misa (' + r.cho.length + ' mặt hàng)</h3>' + tbl(r.cho, 'Không có số lượng nào chờ ghi.', 'Từ phiếu') + '</div>';
+    var nk = r.noKho || [];
+    host.innerHTML = '<div class="mx-info">Số lượng được cộng dồn từ <b>lịch sử xuất vật tư</b> và <b>tách theo kho xuất của từng phiếu</b>: tồn thực tế của kho HN chỉ trừ phần đã xuất từ kho HN, kho HCM chỉ trừ phần của kho HCM. Khi phiếu hoàn thành, phần đã nhập lại tự trừ đi; phần đã dùng chuyển sang « chờ ghi Misa » cho tới khi kho bấm « Đã ghi Misa ».</div>' +
+      (nk.length ? '<div class="mx-card" style="border-color:#fcd34d;background:#fffbeb"><b>⚠ ' + nk.length + ' phiếu đã xuất vật tư nhưng chưa ghi kho xuất</b> — số lượng của chúng đang được tạm tính theo kho mặc định của vùng. <button class="mx-btn warn" id="mxCamPick">Chọn kho xuất cho các phiếu này</button></div>' : '') +
+      '<div class="mx-row" style="gap:6px;flex-wrap:wrap"><span style="font-size:12px;font-weight:700">Xem theo kho:</span><button class="mx-btn sm ' + (camKho ? '' : 'pri') + '" data-k="">Tất cả</button>' + khos.map(function (k) { return '<button class="mx-btn sm ' + (camKho === k ? 'pri' : '') + '" data-k="' + E(k) + '">' + E(k) + '</button>'; }).join('') +
+      (r.tongTheoKho || []).map(function (t) { return '<span class="mx-badge">' + E(t.kho) + ': ' + t.mat + ' mặt hàng đang ở công trình</span>'; }).join(' ') + '</div>' +
+      '<div class="mx-card"><h3>🧰 Đang cầm đi công trình' + (camKho ? ' · xuất từ ' + E(camKho) : '') + '</h3>' + tbl(r.cam, 'Hiện không có vật tư nào đang ở công trình.', 'Phiếu đang giữ') + '</div>' +
+      '<div class="mx-card"><h3>⏳ Đã dùng, chờ ghi vào Misa' + (camKho ? ' · ' + E(camKho) : '') + '</h3>' + tbl(r.cho, 'Không có số lượng nào chờ ghi.', 'Từ phiếu') + '</div>';
+    $$('[data-k]', host).forEach(function (b) { b.onclick = function () { camKho = b.getAttribute('data-k'); tabCam(host); }; });
+    var pk = $('#mxCamPick', host); if (pk) pk.onclick = function () { if (window.EG758) EG758.pickKho(nk, khos, function () { tabCam(host); }); };
   } catch (e) { fail(host, e); }
 }
 
@@ -27523,7 +27558,7 @@ function hhmm(t) { var d = new Date(t); return pad(d.getHours()) + ':' + pad(d.g
 
 /* ───────────── dữ liệu nào thuộc trang nào ───────────── */
 var ORDER = [['users', 'machines', 'phen', 'parts', 'ktv'], ['reports', 'hours'], ['pvdata', 'pvlist', 'conv', 'misa']];
-var ALL = ['users', 'machines', 'phen', 'parts', 'ktv', 'reports', 'hours', 'pvdata', 'pvlist', 'conv'];
+var ALL = ['users', 'machines', 'phen', 'parts', 'ktv', 'reports', 'hours', 'pvdata', 'pvlist', 'conv', 'misa'];
 var PAGE_DOMS = {
   dash: ['machines', 'reports'], replist: ['machines', 'reports'], watch: ['machines', 'reports'],
   analysis: ['machines', 'reports', 'conv'], lifecycle: ['machines', 'reports', 'hours', 'conv'],
@@ -27549,7 +27584,7 @@ var LOADERS = {
     var E = window.EG755; if (!E) return Promise.resolve();
     return Promise.all([E.loadVT12 ? E.loadVT12(true) : 0, E.loadVariants ? E.loadVariants(true) : 0]).then(function () { if (E.resetResolved) E.resetResolved(); if (window.EGPartMode) window.EGPartMode.refresh(); });
   },
-  misa: function () { var MX = window.MX754; if (!MX || !MX.loadCatalog) return Promise.resolve(); MX._cp = null; return MX.loadCatalog(false); }
+  misa: function () { var MX = window.MX754; if (!MX || !MX.loadCatalog) return Promise.resolve(); MX._cp = null; var p = MX.loadCatalog(false); try { if (window.EG758 && EG758.misaAuto && st.full === false) EG758.misaAuto('login'); } catch (e) { } return p; }
 };
 function dataSig() {
   try {
@@ -27903,6 +27938,25 @@ EG.start();
 .e8-one .e8-gb{border-left:2px solid #94a3b8}
 .e8-one td:nth-child(3){min-width:170px}
 @media(max-width:820px){.e8-head{grid-template-columns:1fr}.mx-modal.e8-xl .mx-mb{padding:10px}.e8-tbl{font-size:12.5px}}
+
+/* ===== V758 · đang cầm theo kho · nút Misa · đối soát ===== */
+.e8-kn{font-size:10px;color:#64748b;font-weight:600;line-height:1.25;margin-top:1px;white-space:nowrap}
+.e8-kn.warn{color:#b45309}
+.e8-nokho{margin:8px 0;padding:9px 12px;border-radius:10px;background:#fffbeb;border:1px solid #fcd34d;color:#78350f;font-size:12.5px;line-height:1.7}.e8-nokho .mx-btn{margin-left:8px}
+.e8-prog{position:relative;height:10px;border-radius:99px;background:#e2e8f0;overflow:hidden;margin:12px 0}
+.e8-prog::after{content:attr(data-t);position:absolute;right:0;top:14px;font-size:11px;color:#64748b}
+.e8-prog i{position:absolute;inset:0 auto 0 0;width:35%;border-radius:99px;background:linear-gradient(90deg,#0d6e3f,#34d399);animation:e8slide 1.3s ease-in-out infinite alternate}
+@keyframes e8slide{from{left:0}to{left:65%}}
+.e8-tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin:6px 0 10px}
+.e8-tile{border:1px solid #e2e8f0;border-radius:10px;padding:9px 12px;background:#fff;display:flex;flex-direction:column;gap:2px}
+.e8-tile b{font-size:21px;line-height:1.1}.e8-tile span{font-size:11.5px;color:#64748b}
+.e8-tile.ok b{color:#166534}.e8-tile.bad{border-color:#fca5a5;background:#fef2f2}.e8-tile.bad b{color:#b91c1c}.e8-tile.warn b{color:#b45309}
+.e8-ai{border:1px solid #bbf7d0;background:#f0fdf4;border-radius:10px;padding:10px 14px;font-size:13px;margin:6px 0}
+#egMisaBtn{position:relative;display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
+#egMisaBtn.busy .egm-ic{display:inline-block;animation:egspin .9s linear infinite}
+#egMisaBtn.busy{opacity:.85;cursor:progress}
+#egMisaBtn.old{background:rgba(251,191,36,.35)}
+@media (max-width:768px){#egMisaBtn .egm-tx{display:none}#egMisaBtn{padding:5px 8px}}
 </style>
 <script id="eg758-js">
 /* ===== V758 · (1) gợi ý tên Misa ở MỌI ô tên vật tư · (2) Đề xuất mua 6 bảng + Excel · (3) tồn kho: tuổi dữ liệu, đối chiếu trực tiếp, chẩn đoán ===== */
@@ -28161,7 +28215,7 @@ async function liveCheck(tbl, btn) {
 }
 (function wrapRefresh() {
   var _r = MX.refreshXuat; if (typeof _r !== 'function' || _r.__e8) return;
-  MX.refreshXuat = async function (tbl) { var res = await _r.apply(this, arguments); try { enhanceXuat(tbl); } catch (e) { } return res; };
+  MX.refreshXuat = async function (tbl) { var res = await _r.apply(this, arguments); try { enhanceXuat(tbl); } catch (e) { } try { enhanceKhoXuat(tbl); } catch (e) { } return res; };
   MX.refreshXuat.__e8 = 1;
 })();
 
@@ -28217,7 +28271,180 @@ function decorateOverview() {
   $('#e8_ovgo', d).onclick = function () { E8.diag(($('#e8_ovq', d).value || '').trim()); };
   $('#e8_ovq', d).addEventListener('keydown', function (e) { if (e.key === 'Enter') $('#e8_ovgo', d).click(); });
 }
-new MutationObserver(function () { try { if (!document.getElementById('mxTab')) return; decorateOverview(); addExcelBtns(); } catch (e) { } }).observe(document.body, { childList: true, subtree: true });
+
+/* ------------------------------------------------------------------ 4) ĐANG CẦM THEO TỪNG KHO: nhắc phiếu chưa có kho + chọn kho */
+E8.pickKho = function (list, khoList, onDone) {
+  list = list || []; khoList = (khoList && khoList.length) ? khoList : ((MX.cat && MX.cat.khos) || []);
+  if (!list.length) { T('Không có phiếu nào thiếu kho', 'ok'); return; }
+  var opts = function (sel) { return '<option value="">— chọn kho —</option>' + khoList.map(function (k) { return '<option' + (k === sel ? ' selected' : '') + '>' + E(k) + '</option>'; }).join(''); };
+  var m = MX.modal('Chọn kho xuất cho các phiếu đã xuất vật tư', '<div class="mx-info">Các phiếu dưới đây đã <b>xuất kho đi công trình</b> nhưng chưa ghi <b>xuất từ kho nào</b>. Hệ thống đang tạm tính theo kho mặc định của vùng (cột « Gợi ý »). Chọn đúng kho để số « đang cầm đi công trình » chỉ trừ vào tồn của <b>đúng kho đó</b>.</div>' +
+    '<div class="e8-scroll"><table class="e8-tbl" style="min-width:0"><thead><tr><th>Phiếu</th><th>Đội trưởng</th><th>Máy / trại</th><th>Ngày xuất</th><th class="r">Số dòng</th><th>Gợi ý</th><th>Kho xuất</th></tr></thead><tbody>' +
+    list.map(function (x, i) { return '<tr><td><b>' + E(x.maPhieu) + '</b></td><td>' + E(x.doiTruong || '') + '</td><td>' + E([x.maMay, x.trai].filter(Boolean).join(' · ')) + '</td><td>' + E(x.ngay || '') + '</td><td class="r">' + (x.soDong || '') + '</td><td>' + E(x.khoGoiY || '') + '</td><td><select class="mx-btn" data-i="' + i + '">' + opts('') + '</select></td></tr>'; }).join('') +
+    '</tbody></table></div>', { wide: true, footer: true });
+  m.foot.innerHTML = '<button class="mx-btn" data-c>Đóng</button><button class="mx-btn" data-sg>Áp kho gợi ý cho tất cả</button><button class="mx-btn pri" data-sv>Lưu kho đã chọn</button>';
+  m.foot.querySelector('[data-c]').onclick = m.close;
+  m.foot.querySelector('[data-sg]').onclick = function () { $$('select[data-i]', m.body).forEach(function (sel) { var g = list[+sel.getAttribute('data-i')].khoGoiY; if (g) sel.value = g; if (sel.value !== g) { var o = [].slice.call(sel.options).filter(function (op) { return F(op.value).replace(/^kho\s+/, '') === F(g).replace(/^kho\s+/, ''); })[0]; if (o) sel.value = o.value; } }); };
+  m.foot.querySelector('[data-sv]').onclick = async function () {
+    var b = this, items = [];
+    $$('select[data-i]', m.body).forEach(function (sel) { if (sel.value) items.push({ maPhieu: list[+sel.getAttribute('data-i')].maPhieu, kho: sel.value }); });
+    if (!items.length) { T('Chưa chọn kho cho phiếu nào', 'warn'); return; }
+    b.disabled = true; b.textContent = 'Đang lưu…';
+    try { var r = await api('misaSetPhieuKhoBulk', { items: items }); T('✅ Đã ghi kho xuất cho ' + r.saved + ' phiếu' + (r.failed && r.failed.length ? ' (lỗi: ' + r.failed.join(', ') + ')' : ''), 'ok'); m.close(); if (onDone) onDone(); }
+    catch (er) { T('Lỗi: ' + er.message, 'err'); b.disabled = false; b.textContent = 'Lưu kho đã chọn'; }
+  };
+};
+function enhanceKhoXuat(tbl) {
+  var S = tbl && tbl.__S, r = S && S.data; if (!r || !r.camTheoKho) return;
+  /* chú thích tồn thực tế theo kho */
+  $$('.ih', tbl.closest('.pv17-scroll') ? tbl.closest('.pv17-scroll').parentNode : document).forEach(function (h) {
+    if (h.__e8k || String(h.innerHTML).indexOf('Tồn thực tế</b>') < 0) return; h.__e8k = 1;
+    h.innerHTML = '<b>Tồn thực tế</b> của <b>kho đang chọn</b> = Tồn Misa của kho đó − số <b>xuất đi công trình TỪ kho đó</b> (phiếu đã xuất kho chưa hoàn thành) − số chờ ghi vào Misa của kho đó. Hàng đang cầm đi từ kho khác <b>không</b> bị trừ vào kho này (xem ghi chú nhỏ trong cột « Đang cầm đi CT »).';
+  });
+  /* ghi chú từng dòng */
+  $$('tr', tbl).forEach(function (tr) {
+    var d = tr.__d, c = d && $('[data-mx="cam"]', tr); if (!d || !c || !d.sku) return;
+    var add = '';
+    if (d.camTamTinh > 0) add += '<div class="e8-kn warn" title="Phiếu xuất cũ chưa ghi kho xuất — đang tạm tính theo kho mặc định của vùng">tạm tính ' + fmt(d.camTamTinh) + '</div>';
+    (d.camKhoKhac || []).forEach(function (k) { add += '<div class="e8-kn" title="Đang cầm đi từ kho này — KHÔNG trừ vào tồn kho đang chọn">' + E(k.kho) + ': ' + fmt(k.qty) + '</div>'; });
+    if (add && !c.querySelector('.e8-kn')) c.insertAdjacentHTML('beforeend', add);
+  });
+  /* nhắc phiếu thiếu kho */
+  var bar = $('.mx-bar'), old = $('#e8_nokho'); if (old) old.remove();
+  var nk = r.phieuThieuKho || [];
+  if (bar && nk.length) {
+    var w = document.createElement('div'); w.id = 'e8_nokho'; w.className = 'e8-nokho';
+    w.innerHTML = '⚠ <b>' + nk.length + ' phiếu</b> đã xuất vật tư đi công trình nhưng <b>chưa ghi kho xuất</b> (' + nk.slice(0, 4).map(function (x) { return E(x.maPhieu); }).join(', ') + (nk.length > 4 ? '…' : '') + ') — số « đang cầm » của chúng đang tạm tính theo vùng. <button type="button" class="mx-btn warn" id="e8_nokho_b">Chọn kho xuất</button>';
+    bar.parentNode.insertBefore(w, bar.nextSibling);
+    $('#e8_nokho_b', w).onclick = function () { E8.pickKho(nk, r.khoList, function () { MX.refreshXuat(tbl, true); }); };
+  }
+}
+
+/* ------------------------------------------------------------------ 5) ĐỒNG BỘ HÀNG HÓA + TỒN KHO MISA: nút trên thanh công cụ · tự chạy khi đăng nhập */
+var MS = { at: '', busy: false, lastTry: 0 };
+function curUser() { try { return CU; } catch (e) { return window.CU || null; } }
+function misaAgeMin() { var t = MS.at ? new Date(MS.at).getTime() : 0; return t ? Math.max(0, Math.round((Date.now() - t) / 60000)) : null; }
+function paintMisaBtn() {
+  var b = document.getElementById('egMisaBtn'); if (!b) return;
+  var tx = document.getElementById('egMisaTx'), min = misaAgeMin();
+  b.classList.toggle('busy', MS.busy);
+  if (tx) tx.textContent = MS.busy ? 'Đang đọc Misa…' : (min == null ? 'Misa' : 'Misa · ' + (min < 1 ? 'vừa xong' : min < 90 ? min + 'p' : Math.round(min / 6) / 10 + 'g'));
+  b.classList.toggle('old', !MS.busy && min != null && min > 360);
+  b.title = MS.busy ? 'Đang đọc hàng hóa và tồn kho từ Misa…' : 'Đồng bộ hàng hóa + tồn kho từ Misa' + (min != null ? '\nDữ liệu cập nhật ' + (min < 1 ? 'vừa xong' : min + ' phút trước') : '') + (MS.src ? ' (' + (MS.src === 'api' ? 'API Misa' : MS.src) + ')' : '') + '\nBấm để đọc lại ngay.';
+}
+async function readMisaStamp() {
+  try { var r = await api('misaStatus', {}); var t = r && r.meta && r.meta.ton; if (t && t.at) { MS.at = t.at; MS.src = t.source || ''; } } catch (e) { }
+  paintMisaBtn();
+}
+/* o: {force, source, quiet}. Máy chủ tự quyết có cần đọc lại Misa (dữ liệu cũ hơn 60 phút) hay chỉ tải bản đang lưu. */
+E8.misaSync = async function (o) {
+  o = o || {};
+  if (o && o.preventDefault) { o = { force: true, source: 'button' }; }
+  if (MS.busy) { if (!o.quiet) T('Đang đồng bộ Misa…', 'info'); return; }
+  if (!curUser()) return;
+  MS.busy = true; paintMisaBtn();
+  try {
+    var r = await api('misaRefresh', { force: !!o.force, source: o.source || 'login', maxAgeMin: o.maxAgeMin || 60 });
+    if (r && r.at) MS.at = r.at; if (r && r.source) MS.src = r.source;
+    MX.st = null; MX._cp = null; await MX.loadCatalog(false).catch(function () { });
+    if (!o.quiet) {
+      if (r.skipped === 'noapi') T('Chưa cấu hình API Misa — đã tải lại dữ liệu đang lưu trên web.', 'warn');
+      else if (r.skipped === 'busy') T('Người khác đang đồng bộ Misa — đã tải dữ liệu mới nhất có sẵn.', 'info');
+      else if (r.skipped === 'fresh') T('Dữ liệu Misa còn mới (' + (r.ageMin || 0) + ' phút trước) — đã tải về máy.', 'ok');
+      else if (r.ok === false) T('Không đọc được Misa: ' + (r.error || 'lỗi không rõ'), 'err');
+      else if (r.blocked) T('Misa trả dữ liệu bất thường nên KHÔNG ghi đè: ' + (r.warnings || []).join(' '), 'warn');
+      else T('✅ Đã đồng bộ hàng hóa + tồn kho từ Misa' + (r.soMaLech != null ? ' — ' + r.soMaLech + ' mã có thay đổi' : ''), 'ok');
+    }
+    var tbl = document.getElementById('v43_xt'); if (tbl && tbl.__mx && MX.refreshXuat) MX.refreshXuat(tbl, true);
+    try { if (document.getElementById('mxTab') && MX.renderMisa) MX.renderMisa(); } catch (e) { }
+  } catch (er) { if (!o.quiet) T('Lỗi đồng bộ Misa: ' + er.message, 'err'); }
+  MS.busy = false; MS.lastTry = Date.now(); paintMisaBtn();
+};
+/* gọi từ bộ đồng bộ ban đầu (EG756Sync, nguồn login/full): không chặn giao diện, chỉ báo khi có thay đổi thật */
+E8.misaAuto = function (src) {
+  if (!curUser() || MS.busy || Date.now() - MS.lastTry < 120000) { return Promise.resolve(); }
+  return E8.misaSync({ force: false, source: src || 'login', quiet: true });
+};
+setInterval(paintMisaBtn, 60000); setTimeout(readMisaStamp, 2500);
+
+/* ------------------------------------------------------------------ 6) ĐỐI SOÁT TOÀN BỘ MISA ↔ WEB (QTV) */
+E8.reconcile = function (apply) {
+  if (!MX.isAdmin()) { T('Chỉ QTV dùng được đối soát toàn bộ', 'warn'); return; }
+  var m = MX.modal(apply ? '🔄 Kiểm tra toàn bộ & đồng bộ theo tồn Misa' : '🔎 Kiểm tra toàn bộ (chưa ghi)', '<div id="e8_rcb"><div class="mx-info">Đang đọc <b>toàn bộ mặt hàng và tồn từng kho</b> từ Misa rồi so từng mã × từng kho với dữ liệu trên web. Thường mất <b>1–4 phút</b> với vài nghìn mã — vui lòng không đóng cửa sổ.</div><div class="e8-prog"><i></i></div></div>', { wide: true, sticky: true, footer: true });
+  m.el.querySelector('.mx-modal').classList.add('e8-xl');
+  var host = $('#e8_rcb', m.body), t0 = Date.now(), tm = setInterval(function () { var p = $('.e8-prog', host); if (p) p.setAttribute('data-t', Math.round((Date.now() - t0) / 1000) + ' giây'); }, 1000);
+  m.foot.innerHTML = '<button class="mx-btn" data-c>Đóng</button>'; m.foot.querySelector('[data-c]').onclick = m.close;
+  api('misaReconcileAll', { apply: apply !== false }).then(function (r) {
+    clearInterval(tm);
+    if (r.busy) { host.innerHTML = '<div class="mx-err">' + E(r.error) + '</div>'; return; }
+    if (r.at) { MS.at = r.at; paintMisaBtn(); }
+    renderRecon(host, m, r, apply);
+    if (r.applied) { MX.st = null; MX.loadCatalog(true).catch(function () { }); }
+  }).catch(function (er) { clearInterval(tm); host.innerHTML = '<div class="mx-err">Lỗi: ' + E(er.message) + '<br><small>Nếu báo quá thời gian, mở « Kết nối Misa » kiểm tra API rồi chạy lại; dữ liệu cũ vẫn được giữ nguyên.</small></div>'; });
+};
+function tile(l, v, cls) { return '<div class="e8-tile ' + (cls || '') + '"><b>' + v + '</b><span>' + l + '</span></div>'; }
+function renderRecon(host, m, r, apply) {
+  var d = r.diff || {}, a = r.api || {}, w = r.web || {}, h = '';
+  h += '<div class="' + (r.applied ? 'mx-ok' : (r.blocked ? 'mx-err' : 'mx-info')) + '" style="margin-bottom:10px">' +
+    (r.applied ? '✅ <b>Đã đồng bộ</b> danh mục + tồn kho theo Misa lúc ' + E(String(r.at).replace('T', ' ').slice(0, 16)) + '.' : r.blocked ? '⛔ <b>KHÔNG ghi đè</b> vì dữ liệu Misa trả về bất thường (xem cảnh báo bên dưới).' : '🔎 Mới <b>kiểm tra</b>, chưa ghi gì. Bấm « Đồng bộ theo Misa » để ghi đè.') + ' Mất ' + Math.round((r.ms || 0) / 1000) + ' giây.</div>';
+  h += '<div class="e8-tiles">' + tile('Mặt hàng Misa', fmt(a.hang)) + tile('Dòng tồn Misa', fmt(a.tonRows)) + tile('Mặt hàng web (trước)', fmt(w.hang)) + tile('Mã × kho khớp', fmt(d.khop), 'ok') +
+    tile('Mã bị lệch', fmt(d.soMaLech), d.soMaLech ? 'bad' : 'ok') + tile('Web thấp hơn Misa', fmt(d.webThapHon), d.webThapHon ? 'warn' : '') + tile('Web cao hơn Misa', fmt(d.webCaoHon), d.webCaoHon ? 'warn' : '') + tile('Mã mới / bị xoá', fmt(d.maMoi) + ' / ' + fmt(d.maBiXoa)) + '</div>';
+  if ((r.warnings || []).length) h += '<div class="mx-err" style="margin:8px 0">' + r.warnings.map(function (x) { return '⚠ ' + E(x); }).join('<br>') + '</div>';
+  if ((r.byKho || []).length) h += '<div class="e8-scroll" style="margin:8px 0"><table class="e8-tbl" style="min-width:0"><thead><tr><th>Kho</th><th class="r">Dòng lệch</th><th class="r">Web thấp hơn</th><th class="r">Web cao hơn</th></tr></thead><tbody>' + r.byKho.map(function (k) { return '<tr><td>' + E(k.kho) + '</td><td class="r"><b>' + fmt(k.lech) + '</b></td><td class="r">' + fmt(k.tang) + '</td><td class="r">' + fmt(k.giam) + '</td></tr>'; }).join('') + '</tbody></table></div>';
+  h += '<div class="mx-row" style="gap:8px;flex-wrap:wrap;margin:8px 0"><button class="mx-btn" id="e8_rai">🤖 AI phân tích nguyên nhân</button><button class="mx-btn" id="e8_rxl"' + ((r.changes || []).length ? '' : ' disabled') + '>📊 Tải danh sách lệch (Excel)</button><input class="mx-in" id="e8_rq" placeholder="Lọc theo mã / tên / kho…" style="flex:1;min-width:180px"></div><div id="e8_raiout"></div>';
+  h += '<div id="e8_rtb"></div>' + (r.truncated ? '<div class="ih">Chỉ hiện 600 dòng lệch đầu tiên; toàn bộ đã ghi vào sheet « 21 Misa đối soát » (hoặc tải Excel).</div>' : '');
+  host.innerHTML = h;
+  function paintRows() {
+    var q = F($('#e8_rq', host).value || ''), rows = (r.changes || []).filter(function (c) { return !q || F(c.sku + ' ' + c.ten + ' ' + c.kho + ' ' + c.loai).indexOf(q) >= 0; });
+    $('#e8_rtb', host).innerHTML = rows.length ? '<div class="e8-scroll" style="max-height:48vh"><table class="e8-tbl" style="min-width:0"><thead><tr><th>Mã</th><th>Tên hàng</th><th>Kho</th><th class="r">Web (cũ)</th><th class="r">Misa</th><th class="r">Chênh</th><th>Loại</th></tr></thead><tbody>' +
+      rows.slice(0, 600).map(function (c) { return '<tr><td><span class="e8-sku">' + E(c.sku) + '</span></td><td>' + E(c.ten) + '</td><td>' + E(c.kho) + '</td><td class="r">' + fmt(c.web) + '</td><td class="r"><b>' + fmt(c.misa) + '</b></td><td class="r" style="color:' + (c.chenh > 0 ? '#166534' : '#b91c1c') + ';font-weight:700">' + (c.chenh > 0 ? '+' : '') + fmt(c.chenh) + '</td><td style="font-size:11.5px">' + E(c.loai) + '</td></tr>'; }).join('') + '</tbody></table></div>' : '<div class="mx-ok">' + ((r.changes || []).length ? 'Không có dòng nào khớp bộ lọc.' : 'Không có chênh lệch nào — web đang khớp Misa.') + '</div>';
+  }
+  paintRows(); $('#e8_rq', host).addEventListener('input', paintRows);
+  $('#e8_rxl', host).onclick = function () {
+    var X = window.XLSX; if (!X) { T('Thư viện Excel chưa tải xong', 'warn'); return; }
+    var aoa = [['Mã SKU', 'Tên hàng', 'Kho', 'Web (cũ)', 'Misa', 'Chênh', 'Loại']].concat((r.changes || []).map(function (c) { return [c.sku, c.ten, c.kho, c.web, c.misa, c.chenh, c.loai]; }));
+    var wb = X.utils.book_new(), ws = X.utils.aoa_to_sheet(aoa); ws['!cols'] = [{ wch: 20 }, { wch: 46 }, { wch: 14 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 32 }];
+    X.utils.book_append_sheet(wb, ws, 'Chênh lệch'); X.writeFile(wb, 'doi-soat-misa-' + new Date().toISOString().slice(0, 10) + '.xlsx');
+  };
+  $('#e8_rai', host).onclick = async function () {
+    var b = this, o = $('#e8_raiout', host); b.disabled = true; o.innerHTML = '<div class="mx-info">AI đang đọc kết quả…</div>';
+    try {
+      var x = await api('misaReconcileAi', {});
+      if (!x.ok) { o.innerHTML = '<div class="mx-err">' + E(x.error || 'AI chưa phân tích được') + '</div>'; }
+      else { var a = x.ai || {}, li = function (t, arr) { return arr && arr.length ? '<div><b>' + t + '</b><ul style="margin:4px 0 8px 18px">' + arr.map(function (z) { return '<li>' + E(z) + '</li>'; }).join('') + '</ul></div>' : ''; };
+        o.innerHTML = '<div class="e8-ai"><div style="margin-bottom:6px">' + E(a.nhan_dinh || '') + '</div>' + li('Nguyên nhân có thể', a.nguyen_nhan) + li('Việc cần làm', a.viec_can_lam) + (a.ma_can_xem && a.ma_can_xem.length ? '<div><b>Mã nên xem tay:</b> ' + a.ma_can_xem.map(function (z) { return '<span class="e8-sku">' + E(z) + '</span>'; }).join(' ') + '</div>' : '') + '</div>'; }
+    } catch (er) { o.innerHTML = '<div class="mx-err">' + E(er.message) + '</div>'; }
+    b.disabled = false;
+  };
+  m.foot.innerHTML = '<button class="mx-btn" data-c>Đóng</button>' + (!r.applied && !r.blocked ? '<button class="mx-btn pri" data-ap>🔄 Đồng bộ theo Misa (ghi đè)</button>' : '') + (r.blocked ? '<button class="mx-btn warn" data-fc>Vẫn ghi đè (tôi đã kiểm tra)</button>' : '');
+  m.foot.querySelector('[data-c]').onclick = m.close;
+  var ap = m.foot.querySelector('[data-ap]'); if (ap) ap.onclick = function () { m.close(); E8.reconcile(true); };
+  var fc = m.foot.querySelector('[data-fc]'); if (fc) fc.onclick = function () { if (!confirm('Dữ liệu Misa trả về đang bất thường. Chỉ ghi đè nếu bạn chắc chắn Misa đúng. Tiếp tục?')) return; m.close(); E8.reconcileForce(); };
+}
+E8.reconcileForce = function () {
+  var m = MX.modal('Đang ghi đè theo Misa…', '<div class="e8-prog"><i></i></div>', { sticky: true });
+  api('misaReconcileAll', { apply: true, force: true }).then(function (r) { m.close(); var m2 = MX.modal('Kết quả', '<div id="e8_rcb"></div>', { wide: true, footer: true }); m2.el.querySelector('.mx-modal').classList.add('e8-xl'); renderRecon($('#e8_rcb', m2.body), m2, r, true); MX.st = null; MX.loadCatalog(true).catch(function () { }); })
+    .catch(function (er) { m.close(); T('Lỗi: ' + er.message, 'err'); });
+};
+function decorateRecon() {
+  var tab = $('#mxTab'); if (!tab || $('#e8_rccard', tab) || !tab.querySelector('.mx-grid') || !MX.isAdmin()) return;
+  var d = document.createElement('div'); d.className = 'mx-card'; d.id = 'e8_rccard';
+  d.innerHTML = '<h3>🔄 Đối soát toàn bộ hàng hóa + tồn kho với Misa</h3><div class="ih">Một lần bấm: đọc <b>tất cả mặt hàng và tồn từng kho</b> từ Misa, so từng mã × từng kho với web, ghi đè theo tồn thật của Misa, lưu <b>nhật ký chênh lệch</b> (sheet « 21 Misa đối soát ») và có thể nhờ <b>AI phân tích nguyên nhân</b>. Web cũng tự đối soát mỗi giờ nếu đã bật đồng bộ tự động.</div>' +
+    '<div class="mx-row" style="gap:8px;flex-wrap:wrap"><button class="mx-btn pri" id="e8_rc1">🔄 Kiểm tra toàn bộ & đồng bộ theo Misa</button><button class="mx-btn" id="e8_rc0">🔎 Chỉ kiểm tra (không ghi)</button><button class="mx-btn" id="e8_rcl">📜 Nhật ký đối soát</button></div>';
+  var anchor = $('#e8_ovcard', tab) || tab.querySelector('.mx-grid'); anchor.parentNode.insertBefore(d, anchor.nextSibling);
+  $('#e8_rc1', d).onclick = function () { if (confirm('Đọc toàn bộ Misa rồi GHI ĐÈ danh mục + tồn kho trên web theo Misa (nhóm hàng đã nạp được giữ). Tiếp tục?')) E8.reconcile(true); };
+  $('#e8_rc0', d).onclick = function () { E8.reconcile(false); };
+  $('#e8_rcl', d).onclick = async function () {
+    var b = this; b.disabled = true;
+    try {
+      var r = await api('misaReconcileLog', { limit: 500 }), m = MX.modal('📜 Nhật ký đối soát (500 dòng mới nhất)', '', { wide: true, footer: true }); m.el.querySelector('.mx-modal').classList.add('e8-xl');
+      m.body.innerHTML = (r.rows || []).length ? '<div class="e8-scroll" style="max-height:62vh"><table class="e8-tbl" style="min-width:0"><thead><tr><th>Lúc</th><th>Cách chạy</th><th>Mã</th><th>Tên</th><th>Kho</th><th class="r">Web cũ</th><th class="r">Misa</th><th class="r">Chênh</th><th>Loại</th></tr></thead><tbody>' + r.rows.map(function (x) { return '<tr><td style="white-space:nowrap">' + E(x.at) + '</td><td>' + E(x.how) + '</td><td><span class="e8-sku">' + E(x.sku) + '</span></td><td>' + E(x.ten) + '</td><td>' + E(x.kho) + '</td><td class="r">' + fmt(x.web) + '</td><td class="r"><b>' + fmt(x.misa) + '</b></td><td class="r">' + fmt(x.chenh) + '</td><td style="font-size:11.5px">' + E(x.loai) + '</td></tr>'; }).join('') + '</tbody></table></div>' : '<div class="mx-ok">Chưa có lần đối soát nào ghi nhật ký.</div>';
+      m.foot.innerHTML = '<button class="mx-btn" data-c>Đóng</button>'; m.foot.querySelector('[data-c]').onclick = m.close;
+    } catch (er) { T(er.message, 'err'); }
+    b.disabled = false;
+  };
+}
+
+new MutationObserver(function () { try { if (!document.getElementById('mxTab')) return; decorateOverview(); decorateRecon(); addExcelBtns(); } catch (e) { } }).observe(document.body, { childList: true, subtree: true });
 })();
 </script>
 
