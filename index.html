@@ -30244,6 +30244,7 @@ V.openPv = function (purpose) {
   setTimeout(function () { V.pvApply(true); }, 250);
 };
 V.badge = function () {
+  try { if (!window.CU || !window.CU.u || document.hidden) return; } catch (e) { return; }
   api('vth763List', { status: 'open' }).then(function (r) { var b = $('v763-hong-badge'); if (b) { var n = (r.counts || {})['Chờ kiểm tra'] || 0; b.textContent = n; b.style.display = n ? '' : 'none'; } }).catch(function () { });
 };
 
@@ -31142,12 +31143,23 @@ function pvWatch() {
 
 /* ───────── G. KHỞI ĐỘNG ───────── */
 installPvHooks();
+
+/* Đăng nhập: không để treo vô hạn — sau 45 s báo rõ máy chủ Google chưa trả lời (và ghi thời gian phản hồi vào Console để chẩn đoán) */
+wrap('callGoogleAPI', function (o) {
+  return function (action) {
+    if (action !== 'login') return o.apply(this, arguments);
+    var t0 = Date.now(), done = false;
+    var real = o.apply(this, arguments).then(function (r) { done = true; try { console.log('[V763] login phản hồi sau ' + ((Date.now() - t0) / 1000).toFixed(1) + ' s'); } catch (e) { } return r; });
+    var lim = new Promise(function (res) { setTimeout(function () { if (!done) res({ ok: false, msg: '⏱ Máy chủ Google chưa trả lời sau 45 giây. Đợi 1–2 phút rồi thử lại; nếu vẫn vậy, chủ dự án chạy hàm v763Diag trong Apps Script để xem bước nào chậm.' }); }, 45000); });
+    return Promise.race([real, lim]);
+  };
+});
 function boot() {
   try { buildHubs(); } catch (e) { console.warn('[V763 hubs]', e); }
   try { installNav(); } catch (e) { console.warn('[V763 nav]', e); }
   try { installBdscSign(); } catch (e) { console.warn('[V763 sign]', e); }
   setInterval(function () { try { V.injectHongCols(); pvWatch(); } catch (e) { } }, 700);
-  setTimeout(function () { try { V.badge(); } catch (e) { } }, 4000);
+  setTimeout(function () { try { V.badge(); } catch (e) { } }, 25000);
   setInterval(function () { try { if (window.CU) V.badge(); } catch (e) { } }, 180000);
 }
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot); else boot();
