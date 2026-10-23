@@ -30446,19 +30446,20 @@ function signBox(key, who) {
 V.sign.html = function (key) { return '<div class="v763-grid2">' + signBox(key, 'farm') + signBox(key, 'ktv') + '</div><div class="ih" style="margin-top:8px">Chữ ký lưu cùng thời điểm, tài khoản, thiết bị và mã băm để đối chiếu biên bản. Không bắt buộc, nhưng biên bản có chữ ký + khuôn mặt sẽ đầy đủ hơn.</div>'; };
 V.sign.mount = function (host, key) {
   if (!host || host.dataset.v763mounted) return; host.dataset.v763mounted = '1'; host.innerHTML = V.sign.html(key);
-  var st = V.sign.state(key);
+  /* luôn lấy trạng thái MỚI NHẤT: V.sign.reset() xóa & tạo lại đối tượng → nếu giữ tham chiếu cũ thì chữ ký ghi vào đối tượng đã bị bỏ (lỗi gốc: chữ ký không bao giờ được lưu) */
+  var S = function () { return V.sign.state(key); };
   ['farm', 'ktv'].forEach(function (who) {
     var id = 'v763s-' + key + '-' + who, cv = $(id + '-c'), pad = makePad(cv); V.sign.pads[key + '|' + who] = pad;
-    var nm = $(id + '-n'); if (who === 'ktv') { nm.value = curUser(); st.ktv.name = nm.value; }
-    nm.addEventListener('input', function () { st[who].name = nm.value; });
-    cv.addEventListener('pointerup', function () { st[who].sig = pad.toDataURL(); var s = $(id + '-s'); if (s) s.innerHTML = pad.isEmpty() ? '' : '✅ Đã ký'; });
+    var nm = $(id + '-n'); if (who === 'ktv') { nm.value = curUser(); S().ktv.name = nm.value; }
+    nm.addEventListener('input', function () { S()[who].name = nm.value; });
+    cv.addEventListener('pointerup', function () { S()[who].sig = pad.toDataURL(); var s = $(id + '-s'); if (s) s.innerHTML = pad.isEmpty() ? '' : '✅ Đã ký'; });
     var box = cv.closest('.v763-sigbox');
     box.addEventListener('click', function (e) {
       var b = e.target.closest('[data-act]'); if (!b) return;
-      if (b.dataset.act === 'clear') { pad.clear(); st[who].sig = ''; $(id + '-s').innerHTML = 'Đã xóa — ký lại.'; }
+      if (b.dataset.act === 'clear') { pad.clear(); S()[who].sig = ''; $(id + '-s').innerHTML = 'Đã xóa — ký lại.'; }
       if (b.dataset.act === 'face') {
         V.face.capture({ compare: who === 'ktv', name: val(id + '-n') }).then(function (r) {
-          if (!r) return; st[who].face = r.photo; st[who].faceScore = r.score; st[who].faceMethod = r.method; st[who].faceMatch = r.match;
+          if (!r) return; S()[who].face = r.photo; S()[who].faceScore = r.score; S()[who].faceMethod = r.method; S()[who].faceMatch = r.match;
           $(id + '-f').innerHTML = '<img src="' + r.photo + '" alt=""> ' + (r.match === false ? '<span class="v763-pill r">KHÔNG khớp</span> ' : (r.match ? '<span class="v763-pill g">Khớp</span> ' : '<span class="v763-pill a">Đã chụp</span> ')) + esc(r.method);
         });
       }
@@ -30470,47 +30471,84 @@ V.sign.reset = function (key) {
   delete V.sigMem[key]; ['farm', 'ktv'].forEach(function (who) { var id = 'v763s-' + key + '-' + who; var p = V.sign.pads[key + '|' + who]; if (p) p.clear(); var n = $(id + '-n'); if (n) n.value = who === 'ktv' ? curUser() : ''; var f = $(id + '-f'); if (f) f.innerHTML = ''; var s = $(id + '-s'); if (s) s.innerHTML = ''; });
   if ($('v763s-' + key + '-ktv-n')) V.sign.state(key).ktv.name = curUser();
 };
-V.sign.save = function (key, refId, refType) {
-  var st = V.sigMem[key]; if (!st || !refId) return Promise.resolve([]);
+V.sign.save = function (key, refId, refType, snap) {
+  var st = snap || V.sigMem[key]; if (!st || !refId) return Promise.resolve([]);
   var jobs = [];
   ['farm', 'ktv'].forEach(function (who) {
     var s = st[who]; if (!s || !s.sig) return;
     jobs.push(api('sig763Save', { refId: refId, refType: refType || 'BDSC', role: ROLE[who], name: s.name || (who === 'ktv' ? curUser() : 'Đại diện trại'), sig: s.sig, face: s.face || '', faceScore: s.faceScore, faceMethod: s.faceMethod || '', device: navigator.userAgent }));
   });
-  return Promise.all(jobs).then(function (r) { delete V.sigCache[refId]; return r; });
+  return Promise.all(jobs).then(function (r) { delete V.sigCache[refId]; r.forEach(function (x) { if (x && x.ok === false) throw new Error(x.error || x.msg || 'Máy chủ từ chối lưu chữ ký'); }); return r; });
 };
 /* in biên bản: ảnh chữ ký + dòng xác thực */
 function sigFor(rep, who) {
   var role = ROLE[who], c = rep && rep.id ? V.sigCache[rep.id] : null, o = null;
   if (c) c.forEach(function (x) { if (x.role === role) o = x; });
-  if (!o) { var m = V.sigMem[(rep && rep.__sigKey) || 'bdsc']; if (m && m[who] && m[who].sig && (!rep || !rep.id || rep.id === 'PREVIEW' || !c)) o = { sig: m[who].sig, name: m[who].name, method: m[who].faceMethod, score: m[who].faceScore, time: 'chưa lưu' }; }
+  if (!o) { var m = V.sigMem[(rep && rep.__sigKey) || 'bdsc']; if (m && m[who] && m[who].sig && (!rep || !rep.id || rep.id === 'PREVIEW' || !c)) o = { sig: m[who].sig, name: m[who].name, face: m[who].face, method: m[who].faceMethod, score: m[who].faceScore, time: 'chưa lưu' }; }
   return o;
 }
 V.docSign = function (rep, who) {
   var o = sigFor(rep, who); if (!o || !o.sig) return '<div class="sign-space"></div>';
-  var note = (who === 'ktv' && o.method) ? '<div style="font-size:7.5pt;line-height:1.15;color:#444">Xác thực: ' + esc(o.method) + (o.time ? ' · ' + esc(o.time) : '') + (o.hash ? ' · #' + esc(String(o.hash).slice(0, 8)) : '') + '</div>' : '';
-  return '<div class="sign-space" style="height:auto;line-height:normal;min-height:52pt"><img src="' + o.sig + '" style="max-height:52pt;max-width:92%">' + note + '</div>';
+  var note = ((who === 'ktv' && o.method) || o.face) ? '<div style="font-size:7.5pt;line-height:1.15;color:#444">' + (o.method ? 'Xác thực: ' + esc(o.method) : 'Ảnh người ký') + (o.time ? ' · ' + esc(o.time) : '') + (o.hash ? ' · #' + esc(String(o.hash).slice(0, 8)) : '') + '</div>' : '';
+  var face = o.face ? '<div style="margin-top:3pt"><img src="' + o.face + '" alt="Ảnh khuôn mặt" style="height:58pt;width:auto;border:0.5pt solid #777"></div>' : '';
+  return '<div class="sign-space" style="height:auto;line-height:normal;min-height:52pt"><img src="' + o.sig + '" style="max-height:52pt;max-width:92%">' + face + note + '</div>';
 };
 V.docFarmName = function (rep) { var o = sigFor(rep, 'farm'); return o && o.name ? '<p class="sign-name">' + esc(o.name) + '</p>' : '<p><span class="sign-dot"></span></p>'; };
 V.loadSigs = function (ids) {
   ids = (ids || []).filter(function (i) { return i && !V.sigCache[i]; }); if (!ids.length) return Promise.resolve();
-  return api('sig763List', { refIds: ids, withData: true }).then(function (r) { ids.forEach(function (i) { V.sigCache[i] = []; }); (r.list || []).forEach(function (s) { (V.sigCache[s.refId] = V.sigCache[s.refId] || []).push(s); }); }).catch(function () { });
+  return api('sig763List', { refIds: ids, withData: true }).then(function (r) { ids.forEach(function (i) { V.sigCache[i] = []; }); (r.list || []).forEach(function (s) { (V.sigCache[s.refId] = V.sigCache[s.refId] || []).push(s); }); }).catch(function (e) { try { console.warn('[V763] không nạp được chữ ký cho biên bản:', e && e.message || e); } catch (x) { } });
 };
+
+/* Ký bổ sung cho biên bản đã lưu (báo cáo cũ chưa có chữ ký / ảnh khuôn mặt) — nút nằm trong cửa sổ « Xem phiếu » */
+V.lateSign = function (id) {
+  var key = 'late-' + id;
+  var m = overlay('✍ Ký bổ sung — ' + esc(id), '<div class="ih" style="margin-bottom:8px">Ký và chụp ảnh xác thực cho biên bản đã lưu. Chữ ký, ảnh và thời điểm ký được lưu kèm tài khoản đang đăng nhập.</div><div id="v763-late-host"></div>',
+    '<button class="btn bg-gr" data-c>Hủy</button><button class="btn bg-g" id="v763-late-ok">💾 Lưu chữ ký vào biên bản</button>', { w: '760px', sticky: true, onClose: function () { V.sign.reset(key); } });
+  V.sign.mount(m.q('#v763-late-host'), key);
+  m.q('[data-c]').onclick = function () { m.close(); };
+  m.q('#v763-late-ok').onclick = function () {
+    if (!V.sign.has(key)) { tt('⚠️ Chưa có chữ ký nào — hãy ký vào ô trước.', 'warn'); return; }
+    var b = this; b.disabled = true; b.textContent = '⏳ Đang lưu…';
+    V.sign.save(key, id, 'BDSC').then(function () {
+      tt('✅ Đã lưu chữ ký & ảnh khuôn mặt cho ' + id, 'ok'); m.close(); delete V.sigCache[id];
+      try { if (typeof window.viewRep === 'function') window.viewRep(id); } catch (e) { }
+    }).catch(function (e) { b.disabled = false; b.textContent = '💾 Lưu chữ ký vào biên bản'; tt('❌ Không lưu được chữ ký: ' + (e.message || e), 'err'); });
+  };
+};
+function installViewSign() {
+  wrap('viewRep', function (o) {
+    return function (id) {
+      var r = o.apply(this, arguments);
+      try {
+        var b = document.querySelector('#viewBody button[onclick^="saveRepNote"]'), row = b && b.parentElement;
+        if (row && !row.querySelector('[data-v763late]')) {
+          var n = document.createElement('button'); n.className = 'btn bg-gr sm'; n.setAttribute('data-v763late', '1'); n.textContent = '✍ Ký bổ sung / chụp ảnh xác thực';
+          n.onclick = function () { V.lateSign(id); }; row.insertBefore(n, row.firstChild);
+        }
+      } catch (e) { }
+      return r;
+    };
+  });
+}
 function installBdscSign() {
+  try { installViewSign(); } catch (e) { console.warn('[V763 viewSign]', e); }
   var btn = document.querySelector('#pg-newrep button[onclick*="saveDraft"]'), row = btn && btn.parentElement;
   if (row && !$('v763-sec-sign')) {
     var d = document.createElement('div'); d.className = 'fsec'; d.id = 'v763-sec-sign';
     d.innerHTML = '<div class="fsh"><div class="fsn">7</div><div class="fst">Xác nhận &amp; ký trực tiếp (máy tính / điện thoại cảm ứng) · xác thực khuôn mặt</div></div><div style="padding:13px 16px" id="v763-sign-host"></div>';
     row.parentNode.insertBefore(d, row); V.sign.mount($('v763-sign-host'), 'bdsc');
   }
-  wrap('collectReport', function (o) { return function () { var r = o.apply(this, arguments); try { r.v763Sign = V.sign.has('bdsc'); r.__sigKey = 'bdsc'; } catch (e) { } return r; }; });
+  V.sigPending = V.sigPending || {};
+  /* Chụp lại (snapshot) chữ ký + khuôn mặt NGAY khi thu thập báo cáo: sau khi bấm Lưu, web gọi initForm() (xóa ô ký) TRƯỚC khi lưu lên máy chủ xong → nếu đọc lại ô ký lúc đó thì chữ ký đã mất (lỗi khiến biên bản không có chữ ký / ảnh). */
+  wrap('collectReport', function (o) { return function () { var r = o.apply(this, arguments); try { r.__sigKey = 'bdsc'; if (V.sign.has('bdsc')) { r.v763Sign = true; if (r && r.id) V.sigPending[r.id] = JSON.parse(JSON.stringify(V.sigMem.bdsc)); } else r.v763Sign = false; } catch (e) { } return r; }; });
   wrap('previewReport', function (o) { return function () { var r = o.apply(this, arguments); try { r.__sigKey = 'bdsc'; } catch (e) { } return r; }; });
   wrap('initForm', function (o) { return function () { var r = o.apply(this, arguments); try { V.sign.reset('bdsc'); } catch (e) { } return r; }; });
   wrap('syncReportGS', function (o) {
     return async function (rep) {
       var res = await o.apply(this, arguments);
       try {
-        if (rep && rep.id && rep.v763Sign && V.sign.has('bdsc')) { await V.sign.save('bdsc', rep.id, 'BDSC'); V.sign.reset('bdsc'); tt('✍ Đã lưu chữ ký & xác thực khuôn mặt cho ' + rep.id, 'ok'); }
+        var pend = rep && rep.id && V.sigPending[rep.id];
+        if (pend) { await V.sign.save('bdsc', rep.id, 'BDSC', pend); delete V.sigPending[rep.id]; tt('✍ Đã lưu chữ ký & ảnh khuôn mặt cho ' + rep.id, 'ok'); }
       } catch (e) { tt('⚠️ Đã lưu báo cáo nhưng chưa lưu được chữ ký: ' + (e.message || e), 'warn'); }
       return res;
     };
@@ -30519,7 +30557,7 @@ function installBdscSign() {
     return function (id, mode) {
       var self = this, args = arguments;
       if (!id) return o.apply(self, args);
-      var pre = V.loadSigs([id]); Promise.race([pre, new Promise(function (ok) { setTimeout(ok, 6000); })]).then(function () { o.apply(self, args); });
+      delete V.sigCache[id]; var pre = V.loadSigs([id]); Promise.race([pre, new Promise(function (ok) { setTimeout(ok, 6000); })]).then(function () { o.apply(self, args); });
     };
   });
 }
