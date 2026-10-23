@@ -31161,11 +31161,20 @@ wrap('callGoogleAPI', function (o) {
     return Promise.race([real, lim]);
   };
 });
+/* Sửa lỗi bố cục gốc V761: nhiều trang (Tạo phiếu, Phiếu xuất vật tư, Hoàn thành phiếu, Xuất vật tư, Danh sách máy, Mã vật tư, Misa…) nằm NGOÀI khung .content, ngang hàng với nó trong .layout (flex).
+   Trên điện thoại .content (rộng 100%) và trang cùng bị chia đôi màn hình → biểu mẫu bị thu hẹp. Đưa mọi .page về đúng trong .content, giống trang « Nhập báo cáo mới ». */
+function fixPages() {
+  var c = document.querySelector('.layout > .content'); if (!c) return;
+  var l = c.parentNode, ps = l.querySelectorAll(':scope > .page');
+  for (var i = 0; i < ps.length; i++) c.appendChild(ps[i]);
+}
+wrap('nav', function (o) { return function () { try { fixPages(); } catch (e) { } return o.apply(this, arguments); }; });
 function boot() {
+  try { fixPages(); } catch (e) { }
   try { buildHubs(); } catch (e) { console.warn('[V763 hubs]', e); }
   try { installNav(); } catch (e) { console.warn('[V763 nav]', e); }
   try { installBdscSign(); } catch (e) { console.warn('[V763 sign]', e); }
-  setInterval(function () { try { V.injectHongCols(); pvWatch(); } catch (e) { } }, 700);
+  setInterval(function () { try { fixPages(); V.injectHongCols(); pvWatch(); } catch (e) { } }, 700);
   setTimeout(function () { try { V.badge(); } catch (e) { } }, 25000);
   setInterval(function () { try { if (window.CU) V.badge(); } catch (e) { } }, 180000);
 }
