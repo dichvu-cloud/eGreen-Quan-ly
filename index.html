@@ -25364,7 +25364,7 @@ console.log('[V750-fix] ✅ Approver sync fix loaded');
       return r;
     });
   }
-  function call(body, retried){
+  function callEg(body, retried){
     var ctl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
     if (!retried) ST.ctl = ctl;
     var to = setTimeout(function (){ try { ctl && ctl.abort(); } catch (e){} }, TIMEOUT_MS);
@@ -25375,7 +25375,7 @@ console.log('[V750-fix] ✅ Approver sync fix loaded');
       if (d && d.ticketExpired && !retried){
         TK.ticket = '';
         done();
-        return call(body, true);
+        return callEg(body, true);
       }
       done();
       return d;
@@ -25387,6 +25387,48 @@ console.log('[V750-fix] ✅ Approver sync fix loaded');
       return fallbackCall(body, (e && e.message) || 'không nối được eGreen').catch(function (e2){
         return { ok: false, error: 'Không kết nối được máy chủ. Kiểm tra mạng rồi hỏi lại. (' + ((e2 && e2.message) || (e && e.message) || '?') + ')' };
       });
+    });
+  }
+
+  /* V763 · (DỰ PHÒNG khi eGreen chưa cập nhật V763c) Câu hỏi về Misa / Smartgen / LIXiSE / tồn kho đi sang bộ trả lời của máy chủ SỬA CHỮA (GPT + công cụ đọc Misa & Smartgen trực tiếp).
+     Bộ trả lời của web eGreen chỉ đọc sheet, không có công cụ Misa nên trả "không có dữ liệu". Lỗi / không nối được → quay về bộ eGreen như cũ. */
+  function fold(s){ try { return String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd'); } catch (e){ return String(s || '').toLowerCase(); } }
+  var LIVE_RE = /misa|\bsku\b|ton kho|ton thuc te|kho (hn|hcm|ha noi|bac|nam|binh duong|mien)|dang cam|xuat kho|nhap kho|smart ?gen|lixi/;
+  var NOLIVE_RE = /(tao|lap|xuat)\s+(bao cao|file)|bao cao thang|\bword\b|\bpdf\b|\bexcel\b/;
+  function wantsLive(body){
+    var f = fold(body.question);
+    if (NOLIVE_RE.test(f) && !/misa/.test(f)) return false;
+    if (LIVE_RE.test(f)) return true;
+    var last = null; for (var i = ST.msgs.length - 1; i >= 0; i--){ if (ST.msgs[i].role === 'assistant'){ last = ST.msgs[i]; break; } }
+    return !!(last && last.route === 'bdsc' && !last.err && f.length < 60 && !/\b[a-z]{1,4}\d{2,4}kva\d*\b/.test(f) && /\b(con|the|vay|nua|so voi|ma|loai|kho|thi sao)\b/.test(f));
+  }
+  function bdscAsk(body, signal){
+    var req = { token: token(), question: body.question, history: (body.history || []).slice(-10), forceTools: true };
+    if (body.fresh) req.fresh = true;
+    return fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'chatAsk', data: req }), headers: { 'Content-Type': 'text/plain;charset=utf-8' }, signal: signal })
+      .then(function (r){ return r.json(); })
+      .then(function (j){
+        var d = (j && j.data !== undefined) ? j.data : j;
+        if (d && d.ok !== false && d.answer){ d.route = 'bdsc'; if (!d.engine) d.engine = 'gpt'; }
+        return d;
+      });
+  }
+  function call(body, retried){
+    /* V763c · Khi bot eGreen đã có cầu nối công cụ (trả cờ bridgeV) thì MỌI câu hỏi đi bot eGreen — nó tự gọi Misa / hồ sơ sửa chữa qua cầu nối nên hai bot như nhau.
+       Chỉ khi chưa thấy cờ đó (eGreen chưa cập nhật bản V763c) mới chuyển câu Misa / Smartgen sang bộ trả lời của máy chủ sửa chữa như dự phòng. */
+    if (retried || !body || body.action !== 'chatAsk' || ST.egBridge === true || !wantsLive(body))
+      return callEg(body, retried).then(function (d){ try { if (d && d.bridgeV) ST.egBridge = true; } catch (e){} return d; });
+    var ctl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+    ST.ctl = ctl;
+    var to = setTimeout(function (){ try { ctl && ctl.abort(); } catch (e){} }, TIMEOUT_MS);
+    return bdscAsk(body, ctl ? ctl.signal : undefined).then(function (d){
+      clearTimeout(to);
+      if (d && ((d.ok && d.answer) || d.needLogin || d.rateLimited)) return d;
+      return callEg(body);
+    }).catch(function (e){
+      clearTimeout(to);
+      if (e && e.name === 'AbortError') return { ok: false, error: ST.userStop ? 'Đã dừng chờ theo yêu cầu của bạn. Bạn có thể hỏi lại.' : 'Câu này mất quá lâu nên đã dừng. Bạn thử hỏi nhỏ hơn (một mã hàng, một máy) nhé.' };
+      return callEg(body);
     });
   }
 
@@ -25509,7 +25551,7 @@ console.log('[V750-fix] ✅ Approver sync fix loaded');
           copy: d.copy ? String(d.copy) : '', engine: d.engine || '', provider: d.provider || '', model: d.model || '',
           estimated: !!d.estimated, tables: Array.isArray(d.tables) ? d.tables : [], charts: Array.isArray(d.charts) ? d.charts : [], report: d.report || null,
           canDeepen: !!d.canDeepen, canLookup: !!d.canLookup, perf: d.perf || null, wall: Math.max(0, Date.now() - ST.t0 - ST.hid - (ST.hidAt ? Date.now() - ST.hidAt : 0)), aiError: d.aiError ? String(d.aiError) : '', fallback: !!d.fallback,
-          mem: (d.memV && d.mem && d.mem.v === 1) ? d.mem : null, inherit: d.inherit || null, noMem: !(d.memV || (ST.info && ST.info.memV))       // noMem: máy chủ chưa nạp CHATBOT.gs có trí nhớ phiên
+          route: d.route || '', mem: (d.memV && d.mem && d.mem.v === 1) ? d.mem : null, inherit: d.inherit || null, noMem: !(d.memV || (ST.info && ST.info.memV))       // noMem: máy chủ chưa nạp CHATBOT.gs có trí nhớ phiên
         });
       } else {
         var t;
