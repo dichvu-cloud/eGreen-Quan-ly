@@ -31144,6 +31144,13 @@ function pvWatch() {
 /* ───────── G. KHỞI ĐỘNG ───────── */
 installPvHooks();
 
+
+/* Sửa lỗi gốc V761: renderWatchlist (mục « Nguyên nhân ») gọi esc() nhưng KHÔNG có hàm esc toàn cục → "ReferenceError: esc is not defined"
+   → showApp() dừng giữa chừng ngay sau đăng nhập (không chạy tiếp đồng bộ dữ liệu). Khai báo esc toàn cục nếu chưa có. */
+if (typeof window.esc !== 'function') window.esc = esc;
+/* Một lỗi vẽ giao diện không được chặn các bước còn lại của showApp (đồng bộ dữ liệu, polling…) */
+wrap('renderAll', function (o) { return function () { try { return o.apply(this, arguments); } catch (e) { try { console.error('[V763] renderAll lỗi — bỏ qua để không chặn đăng nhập:', e); } catch (e2) { } } }; });
+
 /* Đăng nhập: không để treo vô hạn — sau 45 s báo rõ máy chủ Google chưa trả lời (và ghi thời gian phản hồi vào Console để chẩn đoán) */
 wrap('callGoogleAPI', function (o) {
   return function (action) {
