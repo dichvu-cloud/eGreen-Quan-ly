@@ -31345,7 +31345,18 @@ if (document.readyState === 'loading') document.addEventListener('DOMContentLoad
 var V = window.V764 = { v: 'V764' }, U = (window.V763 && window.V763.u) || {};
 function $(id) { return document.getElementById(id); }
 function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
-function api(a, d) { return window.pvApi(a, d || {}); }
+var NOTED_OLD = false;
+function api(a, d) {
+  return window.pvApi(a, d || {}).catch(function (e) {
+    var m = String(e && e.message || e);
+    if (/Action không hợp lệ|Unknown action/i.test(m) && /764/.test(a)) {
+      var msg = 'Máy chủ Apps Script đang chạy bản CŨ, chưa có chức năng V764 (thiếu action ' + a + '). Hãy dán Code_V764.gs vào Apps Script rồi Deploy › Manage deployments › Edit › New version.';
+      if (!NOTED_OLD) { NOTED_OLD = true; try { window.toast('⚠️ ' + msg, 'warn'); } catch (x) { } }
+      throw new Error(msg);
+    }
+    throw e;
+  });
+}
 function tt(m, t) { try { window.toast(m, t || ''); } catch (e) { } }
 function fold(s) { return String(s == null ? '' : s).toLowerCase().replace(/đ/g, 'd').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ').trim(); }
 function num(v) { var n = Number(String(v == null ? '' : v).replace(',', '.')); return isFinite(n) ? n : 0; }
@@ -31875,17 +31886,17 @@ function showAi(ai, cat) {
 
 /* ═══════════════ 6c · CATALOG ĐỘNG CƠ — "điểm lưu" cho AI (chỉ QTV) ═══════════════ */
 V.openCatalog = function () {
-  var o = overlay('📖 Catalog động cơ — điểm lưu cho AI', '<div id="cat-list"><i>Đang tải…</i></div><hr><div class="v764-info">Nạp file JSON <code>{ "taiLieu": "...", "dong": "PD6T", "rows": [{ "muc": "...", "trang": "12", "noiDung": "...", "tuKhoa": "..." }] }</code>. Nạp lại cùng tên tài liệu sẽ <b>thay thế</b> điểm lưu cũ của tài liệu đó. File lớn được gửi theo từng lô.</div><div class="v764-row"><input type="file" id="cat-file" accept=".json,application/json"><span id="cat-st" class="v764-sub"></span></div><hr><div class="v764-row"><input id="cat-q" class="v764-in" style="flex:1" placeholder="Thử tra cứu: ví dụ “khe hở xéc măng PE6T”"><button class="btn bg-b sm" id="cat-go">Tra</button></div><div id="cat-res"></div>', '', { w: '860px' });
+  var o = overlay('📖 Catalog động cơ — điểm lưu cho AI', '<div id="cat-list"><i>Đang tải…</i></div><hr><div class="v764-info">Nạp file JSON <code>{ "taiLieu": "...", "dong": "PD6T", "rows": [{ "muc": "...", "trang": "12", "noiDung": "...", "tuKhoa": "..." }] }</code>. Nạp lại cùng tên tài liệu sẽ <b>thay thế</b> điểm lưu cũ của tài liệu đó. File lớn được gửi theo từng lô.</div><div class="v764-row"><label class="btn bg-b sm" for="cat-file" style="cursor:pointer">📂 Chọn file JSON</label><input type="file" id="cat-file" accept=".json,application/json" style="display:none"><span id="cat-fname" class="v764-sub">Chưa chọn file</span><span id="cat-st" class="v764-sub"></span></div><hr><div class="v764-row"><input id="cat-q" class="v764-in" style="flex:1" placeholder="Thử tra cứu: ví dụ “khe hở xéc măng PE6T”"><button class="btn bg-b sm" id="cat-go">Tra</button></div><div id="cat-res"></div>', '', { w: '860px' });
   var refresh = function () { api('cat764List', {}).then(function (r) { o.q('#cat-list').innerHTML = (r.list || []).length ? '<table class="v764-tb"><thead><tr><th>Tài liệu</th><th>Dòng</th><th>Số điểm lưu</th><th>Cập nhật</th></tr></thead><tbody>' + r.list.map(function (x) { return '<tr><td>' + esc(x.taiLieu) + '</td><td>' + esc(x.dong) + '</td><td style="text-align:center">' + x.so + '</td><td>' + esc(x.capNhat) + '</td></tr>'; }).join('') + '</tbody></table>' : '<i>Chưa có catalog nào được nạp.</i>'; }).catch(function (e) { o.q('#cat-list').innerHTML = esc(e.message || e); }); };
   refresh();
   o.q('#cat-go').onclick = function () { var q = o.q('#cat-q').value; api('cat764Search', { query: q, engine: '' }).then(function (r) { o.q('#cat-res').innerHTML = (r.hits || []).map(function (h) { return '<div class="v764-card"><b>' + esc(h.tai_lieu) + '</b> · tr.' + esc(h.trang) + ' · ' + esc(h.muc) + '<div class="v764-sub">' + esc(h.noi_dung) + '</div></div>'; }).join('') || '<i>Không thấy.</i>'; }); };
   o.q('#cat-file').onchange = function () {
-    var f = this.files[0]; if (!f) return; var st = o.q('#cat-st'); st.textContent = 'Đang đọc…';
+    var f = this.files[0]; if (!f) return; var st = o.q('#cat-st'); o.q('#cat-fname').textContent = f.name; st.textContent = 'Đang đọc file…';
     var fr = new FileReader();
     fr.onload = async function () {
       try {
         var j = JSON.parse(fr.result), rows = j.rows || [], BATCH = 40, n = 0;
-        if (!j.taiLieu || !rows.length) throw new Error('File thiếu taiLieu / rows');
+        if (!j.taiLieu || !rows.length) throw new Error('File JSON thiếu taiLieu / rows');
         for (var i = 0; i < rows.length; i += BATCH) {
           var r = await api('cat764Import', { taiLieu: j.taiLieu, dong: j.dong || '', rows: rows.slice(i, i + BATCH), replace: i === 0 });
           if (!r.ok) throw new Error(r.error); n += r.them; st.textContent = 'Đã nạp ' + n + '/' + rows.length + '…';
