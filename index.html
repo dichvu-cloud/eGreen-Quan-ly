@@ -32355,5 +32355,544 @@ if (document.readyState === 'loading') document.addEventListener('DOMContentLoad
 })();
 </script>
 
+<!-- ============================================================================
+  V766 — PATCH GIAO DIỆN (dán NGUYÊN khối này ngay TRƯỚC thẻ </body> của index_V765.html)
+  1) Gửi kèm "nhóm báo cáo" + mã máy để ảnh/video/chữ ký vào đúng thư mục
+  2) Trang « Nhập báo cáo sản xuất » mới: tiến độ chi tiết, ảnh minh chứng, % hoàn thành, nhắc báo cáo hằng ngày
+  3) Chữ ký + ảnh khuôn mặt: nạp chắc chắn trước khi dựng phiếu (xem trước / Word / PDF) + Word nhúng ảnh thật
+  4) Kế hoạch làm việc: thanh trạng thái, Chốt, Báo phát sinh (AI), Hoàn thành (bắt buộc checklist), Mở lại
+============================================================================ -->
+<style id="v766-css">
+.v766-card{background:#fff;border:1px solid #d9e2dc;border-radius:10px;padding:12px 14px;margin-bottom:12px}
+.v766-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.v766-sub{font-size:12px;color:#5b6b61}
+.v766-badge{display:inline-block;padding:2px 9px;border-radius:999px;font-size:12px;font-weight:700;background:#e5e7eb;color:#374151}
+.v766-badge.nhap{background:#e5e7eb;color:#374151}
+.v766-badge.chot{background:#dbeafe;color:#1e40af}
+.v766-badge.dang{background:#fef3c7;color:#92400e}
+.v766-badge.xong{background:#bbf7d0;color:#166534}
+.v766-bar{background:#f7fbf8;border:1px solid #b7d9c3;border-left:5px solid #0d6e3f;border-radius:10px;padding:10px 14px;margin:0 0 12px}
+.v766-bar.nhap{border-left-color:#9ca3af}.v766-bar.chot{border-left-color:#2563eb}.v766-bar.dang{border-left-color:#d97706}.v766-bar.xong{border-left-color:#16a34a}
+.v766-gate{margin:8px 0 0;padding:0;list-style:none;font-size:13px}
+.v766-gate li{margin:2px 0}
+.v766-gate li.ok::before{content:"✅ "}.v766-gate li.no::before{content:"⬜ "}
+.v766-nk{margin-top:8px;font-size:12px;color:#44544a;border-top:1px dashed #c9d8cf;padding-top:6px}
+.v766-chip{display:inline-block;margin:2px 4px 2px 0;padding:3px 9px;border-radius:999px;background:#f1f5f9;border:1px solid #d4dde5;font-size:12px;cursor:pointer}
+.v766-chip:hover{background:#e0f2e9}
+#v764-plan[data-v766-locked] input,#v764-plan[data-v766-locked] textarea{pointer-events:none;opacity:.6}
+.v766-kpi{display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+.v766-big{font-size:34px;font-weight:800;color:#0d6e3f;line-height:1}
+.v766-prog{height:12px;background:#e5e7eb;border-radius:999px;overflow:hidden;flex:1;min-width:160px}
+.v766-prog>i{display:block;height:100%;background:linear-gradient(90deg,#16a34a,#0d6e3f)}
+.v766-mini{height:6px;background:#e5e7eb;border-radius:999px;overflow:hidden;width:90px;display:inline-block;vertical-align:middle}
+.v766-mini>i{display:block;height:100%;background:#16a34a}
+.v766-warn{background:#fffbeb;border:1px solid #fcd34d;border-radius:8px;padding:8px 12px;margin:8px 0;font-size:13px;color:#78350f}
+.v766-info{background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:8px 12px;margin:8px 0;font-size:13px;color:#1e3a8a}
+details.v766-hm{border:1px solid #d9e2dc;border-radius:10px;margin:8px 0;background:#fff}
+details.v766-hm>summary{cursor:pointer;padding:9px 12px;font-weight:700;display:flex;gap:10px;align-items:center;flex-wrap:wrap;list-style:none}
+details.v766-hm>summary::-webkit-details-marker{display:none}
+details.v766-hm>summary::before{content:"▸";color:#0d6e3f}
+details.v766-hm[open]>summary::before{content:"▾"}
+.v766-line{display:grid;grid-template-columns:1fr auto;gap:4px 10px;padding:8px 12px;border-top:1px solid #edf1ee}
+.v766-line .ln{display:flex;gap:8px;align-items:flex-start;flex-wrap:wrap}
+.v766-line .lm{grid-column:1/-1;font-size:12px;color:#5b6b61}
+.v766-st{display:inline-block;padding:1px 8px;border-radius:999px;font-size:11px;font-weight:700;white-space:nowrap}
+.v766-st.none{background:#f3f4f6;color:#6b7280}.v766-st.wip{background:#fef3c7;color:#92400e}.v766-st.wait{background:#fee2e2;color:#991b1b}.v766-st.ok{background:#bbf7d0;color:#166534}.v766-st.note{background:#e0e7ff;color:#3730a3}
+.v766-vt{font-size:11.5px;color:#6b7280;margin-top:2px}
+.v766-th{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px}
+.v766-th a{display:block;width:54px;height:54px;border-radius:6px;overflow:hidden;border:1px solid #d1d5db;background:#f3f4f6;position:relative}
+.v766-th img{width:100%;height:100%;object-fit:cover}
+.v766-th a.vid::after{content:"▶";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#fff;background:rgba(0,0,0,.35);font-size:18px}
+.v766-tl{border-left:3px solid #c9d8cf;margin:6px 0 0 6px;padding-left:12px}
+.v766-tl .it{margin:0 0 10px;position:relative}
+.v766-tl .it::before{content:"";position:absolute;left:-18px;top:5px;width:9px;height:9px;border-radius:50%;background:#0d6e3f}
+.v766-tl .d{font-weight:700;font-size:12.5px}
+.v766-tb{width:100%;border-collapse:collapse;font-size:13px}
+.v766-tb th,.v766-tb td{border-bottom:1px solid #e5e7eb;padding:6px 8px;text-align:left;vertical-align:middle}
+.v766-tb tr.late td{background:#fffbeb}
+.v766-up{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
+.v766-up .t{width:78px;height:78px;border-radius:8px;border:1px solid #d1d5db;overflow:hidden;position:relative;background:#f3f4f6;font-size:11px}
+.v766-up .t img{width:100%;height:100%;object-fit:cover}
+.v766-up .t .p{position:absolute;left:0;bottom:0;height:5px;background:#16a34a}
+.v766-up .t .x{position:absolute;right:2px;top:2px;background:rgba(0,0,0,.55);color:#fff;border:0;border-radius:50%;width:18px;height:18px;line-height:16px;cursor:pointer;font-size:11px}
+.v766-radio{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0}
+.v766-radio label{border:1px solid #cbd5e1;border-radius:8px;padding:6px 10px;cursor:pointer;font-size:13px;background:#fff}
+.v766-radio input{margin-right:5px}
+.v766-radio label.on{border-color:#0d6e3f;background:#ecfdf5;font-weight:700}
+</style>
+
+<script id="v766-js">
+(function () {
+  'use strict';
+  var W = window;
+  var hasDom = typeof document !== 'undefined';
+  function $(id) { return hasDom ? document.getElementById(id) : null; }
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  function tt(m, t) { try { W.toast(m, t || ''); } catch (e) { } }
+  function api(a, d) { return W.pvApi(a, d || {}); }
+  function fold(s) { return String(s == null ? '' : s).toLowerCase().replace(/đ/g, 'd').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim(); }
+  function today() { var d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+  function dmy(iso) { var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(iso || '')); return m ? m[3] + '/' + m[2] + '/' + m[1] : String(iso || ''); }
+  function curUser() { try { return (W.CU && (CU.name || CU.fullName || CU.u)) || ''; } catch (e) { return ''; } }
+  function isAdmin() { try { return typeof W.isAdmin === 'function' ? !!W.isAdmin() : (W.CU && /admin|qtv/i.test(String(CU.role || ''))); } catch (e) { return false; } }
+  function wait(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+  function retry(fn, n) { return fn().catch(function (e) { if (n <= 1) throw e; return wait(1200).then(function () { return retry(fn, n - 1); }); }); }
+  function until(cond, fn, tries) {                       /* chờ các module V763/V764 nạp xong */
+    tries = tries || 0; if (cond()) return fn(); if (tries > 240) return; setTimeout(function () { until(cond, fn, tries + 1); }, 150);
+  }
+
+  /* ───────────── MHTML cho Word (giống hệt phía máy chủ) ───────────── */
+  function utf8b64(s) { return btoa(unescape(encodeURIComponent(s))); }
+  function toMht(html) {
+    var parts = [], seen = {}, n = 0, wrap = function (s) { return s.replace(/(.{76})/g, '$1\r\n'); };
+    var re = /(<img\b[^>]*?\bsrc\s*=\s*)(["'])data:(image\/[a-z0-9.+-]+);base64,([A-Za-z0-9+\/=\s]+)\2/gi;
+    var body = String(html || '').replace(re, function (all, pre, q, mime, b64) {
+      var clean = b64.replace(/\s+/g, ''), k = mime + ':' + clean.length + ':' + clean.slice(0, 64) + clean.slice(-64), loc = seen[k];
+      if (!loc) { n++; loc = 'file:///C:/v766/img' + n + '.' + mime.split('/')[1].replace('jpeg', 'jpg').replace(/[^a-z0-9]/g, ''); seen[k] = loc; parts.push({ mime: mime, loc: loc, b64: clean }); }
+      return pre + q + loc + q;
+    });
+    var B = '----=_NextPart_V766_' + (n + 1000);
+    var out = 'MIME-Version: 1.0\r\nContent-Type: multipart/related; boundary="' + B + '"; type="text/html"\r\n\r\n';
+    out += '--' + B + '\r\nContent-Type: text/html; charset="utf-8"\r\nContent-Transfer-Encoding: base64\r\nContent-Location: file:///C:/v766/document.htm\r\n\r\n' + wrap(utf8b64(body)) + '\r\n\r\n';
+    parts.forEach(function (p) { out += '--' + B + '\r\nContent-Type: ' + p.mime + '\r\nContent-Transfer-Encoding: base64\r\nContent-Location: ' + p.loc + '\r\n\r\n' + wrap(p.b64) + '\r\n\r\n'; });
+    return out + '--' + B + '--\r\n';
+  }
+
+  /* ───────────── 0. GỌI API: gắn nhóm báo cáo / mã máy + "nghe" kết quả kế hoạch ───────────── */
+  var PL = { id: '', st: '', plan: null, gate: null, known: [], open: [], openAt: 0, t: 0 };
+  function tap(action, r, data) {
+    if (!r) return;
+    if (action === 'kh764Get' && r.ok) { PL.id = r.id || data.id; PL.st = r.trangThai || ''; PL.plan = r.plan; PL.gate = null; renderBar(); syncState(); }
+    else if (action === 'kh764Chat' && r.ok && r.keHoach) { PL.plan = r.keHoach; if (r.id) PL.id = r.id; renderBar(); syncState(); }
+    else if ((action === 'kh764Save' || action === 'kh764Tick') && r.ok) { if (r.id) PL.id = r.id; if (r.plan) PL.plan = r.plan; if (r.trangThai) PL.st = r.trangThai; renderBar(); syncState(); }
+    else if (action === 'kh764List' && r.list) { PL.known = r.list; decorateChips(); }
+  }
+  function installApi() {
+    if (!W.pvApi || W.pvApi.__v766) return;
+    var o = W.pvApi;
+    var w = function (action, data) {
+      data = data || {};
+      try {
+        var V = W.V763;
+        if (action === 'bdscMediaInit' && !data.domain) { var dk = V && V.dcr && V.dcr.key; data.domain = (dk && (data.id === dk || data.draftKey === dk)) ? 'ld' : 'bdsc'; }
+        if (action === 'sig763Save' && !data.maMay) { var rp = W.__v766Rep; if (rp && rp.id === data.refId && rp.maMay) data.maMay = String(rp.maMay).toUpperCase(); }
+      } catch (e) { }
+      return Promise.resolve(o.apply(this, arguments)).then(function (r) { try { tap(action, r, data); } catch (e) { console.warn('[V766 tap]', e); } return r; });
+    };
+    w.__v766 = true; W.pvApi = w;
+  }
+
+  /* ───────────── 3. CHỮ KÝ + KHUÔN MẶT TRÊN PHIẾU ───────────── */
+  var sigInflight = {}, sigStore = {};
+  function installSigs() {
+    var V = W.V763; if (!V || V.__v766sig) return; V.__v766sig = true; V.sigCache = V.sigCache || {};
+    var fetchSigs = function (ids) {
+      return retry(function () { return api('sig766Doc', { refIds: ids }); }, 3).catch(function (e) {
+        if (/Unknown|không hợp lệ|not found/i.test(String(e && e.message))) return api('sig763List', { refIds: ids, withData: true });   /* backend cũ */
+        throw e;
+      });
+    };
+    V.loadSigs = function (ids) {
+      ids = (ids || []).filter(function (i) { return i && i !== 'PREVIEW'; });
+      var need = ids.filter(function (i) { return !V.sigCache[i]; }); if (!need.length) return Promise.resolve();
+      var jobs = [], fetchIds = [];
+      need.forEach(function (i) {
+        var st = sigStore[i]; if (st && Date.now() - st.t < 20000) { V.sigCache[i] = st.list; return; }
+        if (sigInflight[i]) { jobs.push(sigInflight[i]); return; }
+        fetchIds.push(i);
+      });
+      if (fetchIds.length) {
+        var p = fetchSigs(fetchIds).then(function (r) {
+          fetchIds.forEach(function (i) { var l = ((r && r.list) || []).filter(function (s) { return s.refId === i; }); sigStore[i] = { t: Date.now(), list: l }; V.sigCache[i] = l; delete sigInflight[i]; });
+          if (r && r.thieu) tt('⚠️ ' + r.thieu + ' ảnh chữ ký / khuôn mặt không đọc được từ Drive — nhờ QTV chạy v766DiagSig("mã phiếu")', 'warn');
+        }).catch(function (e) {
+          fetchIds.forEach(function (i) { delete sigInflight[i]; });
+          tt('⚠️ Chưa nạp được chữ ký / ảnh khuôn mặt cho biên bản: ' + (e && e.message || e), 'warn');
+        });
+        fetchIds.forEach(function (i) { sigInflight[i] = p; }); jobs.push(p);
+      }
+      return Promise.all(jobs).then(function () { });
+    };
+    if (V.sign && V.sign.save && !V.sign.save.__v766) {
+      var s0 = V.sign.save;
+      V.sign.save = function (key, refId) { delete sigStore[refId]; return s0.apply(this, arguments).then(function (r) { delete sigStore[refId]; return r; }); };
+      V.sign.save.__v766 = true;
+    }
+  }
+  function installWord() {
+    var cur = W.exportWord; if (typeof cur !== 'function' || cur.__v766) return false;
+    var w = function (id, mode) {
+      var self = this, args = arguments, V = W.V763;
+      if (!id || id === 'PREVIEW' || !V || !V.loadSigs) return cur.apply(self, args);
+      if (!V.sigCache || !V.sigCache[id]) tt('⏳ Đang nạp chữ ký & ảnh xác thực…', 'info');
+      return Promise.resolve(V.loadSigs([id])).catch(function () { }).then(function () { return cur.apply(self, args); });
+    };
+    w.__v766 = true; W.exportWord = w; return true;
+  }
+  function installBlob() {                              /* Word không hiện ảnh data: → mọi tệp .doc có ảnh nhúng được đổi sang MHTML */
+    if (!W.Blob || W.Blob.__v766) return;
+    var N = W.Blob;
+    var P = function (parts, opts) {
+      try {
+        if (opts && /msword/i.test(String(opts.type || '')) && Array.isArray(parts)) {
+          var s = parts.map(function (x) { return typeof x === 'string' ? x : ''; }).join('');
+          if (s && s.indexOf('data:image') >= 0 && parts.every(function (x) { return typeof x === 'string'; })) return new N([toMht(s.replace(/^\ufeff/, ''))], { type: 'application/msword' });
+        }
+      } catch (e) { console.warn('[V766 mht]', e); }
+      return new N(parts, opts);
+    };
+    P.prototype = N.prototype; P.__v766 = true; W.Blob = P;
+  }
+  function installSubmitNet() {                         /* lưới an toàn: chữ ký luôn được lưu sau khi lưu báo cáo */
+    var ok1 = false, ok2 = false, V = W.V763;
+    if (typeof W.collectReport === 'function' && !W.collectReport.__v766) {
+      var c0 = W.collectReport;
+      W.collectReport = function () {
+        var r = c0.apply(this, arguments);
+        try { if (r && V && V.sign && V.sign.has('bdsc')) r.__v766Snap = JSON.parse(JSON.stringify(V.sigMem.bdsc)); } catch (e) { }
+        return r;
+      };
+      W.collectReport.__v766 = true; ok1 = true;
+    } else if (W.collectReport && W.collectReport.__v766) ok1 = true;
+    if (typeof W.syncReportGS === 'function' && !W.syncReportGS.__v766) {
+      var s0 = W.syncReportGS;
+      W.syncReportGS = async function (rep) {
+        var had = !!(V && V.sigPending && rep && rep.id && V.sigPending[rep.id]); W.__v766Rep = rep || null;
+        var res = await s0.apply(this, arguments);
+        try { if (!had && rep && rep.id && rep.__v766Snap) { await V.sign.save('bdsc', rep.id, 'BDSC', rep.__v766Snap); tt('✍ Đã lưu chữ ký & ảnh khuôn mặt cho ' + rep.id, 'ok'); } }
+        catch (e) { tt('⚠️ Đã lưu báo cáo nhưng chưa lưu được chữ ký: ' + (e.message || e), 'warn'); }
+        return res;
+      };
+      W.syncReportGS.__v766 = true; ok2 = true;
+    } else if (W.syncReportGS && W.syncReportGS.__v766) ok2 = true;
+    return ok1 && ok2;
+  }
+
+  /* ───────────── 2. BÁO CÁO SẢN XUẤT: TIẾN ĐỘ CHI TIẾT ───────────── */
+  var SX = { list: [], cur: null, open: {}, newMode: false, busy: false };
+  var ST_CLS = { 'Hoàn thành': 'ok', 'Đang làm': 'wip', 'Chờ vật tư': 'wait', '': 'none' };
+  function stBadge(t) { return '<span class="v766-st ' + (ST_CLS[t || ''] || 'none') + '">' + esc(t || 'Chưa làm') + '</span>'; }
+  function pageSx() {
+    var pg = $('pg-v763Spx');
+    if (!pg) { var ref = $('pg-newrep'); if (!ref) return null; pg = document.createElement('div'); pg.className = 'page'; pg.id = 'pg-v763Spx'; ref.parentNode.appendChild(pg); }
+    return pg;
+  }
+  function head(title, sub, back) {
+    return '<div class="ph"><button class="v763-back" data-act="back">← Chọn loại báo cáo khác</button><h1>' + title + '</h1><p>' + sub + '</p></div>';
+  }
+  function openSx(id) {
+    var V = W.V763; if (!V) return;
+    var go = function () { W.nav('v763Spx'); render(); };
+    SX.newMode = false;
+    V.loadBt().then(function () {
+      if (!id) { SX.cur = null; return api('spx766List', {}).then(function (r) { SX.list = (r && r.list) || []; go(); }); }
+      return api('spx766Get', { id: id }).then(function (r) { if (!r || r.ok === false) throw new Error(r && r.error || 'Không mở được'); SX.cur = r; go(); });
+    }).catch(function (e) { tt('❌ ' + (e.message || e), 'err'); });
+  }
+  function render() {
+    var pg = pageSx(); if (!pg) return;
+    if (!SX.cur && !SX.newMode) return renderList(pg);
+    renderDetail(pg);
+  }
+  function renderList(pg) {
+    var rows = SX.list.map(function (o) {
+      var late = o.canBaoCao && !o.daBaoCaoHomNay;
+      return '<tr class="' + (late ? 'late' : '') + '"><td><b>' + esc(o.id) + '</b></td><td>' + esc(o.maMay) + '</td><td>' + esc(o.nhom) + '</td><td><span class="v766-mini"><i style="width:' + o.pct + '%"></i></span> <b>' + o.pct + '%</b></td><td>' + esc(o.trangThai) + '</td><td>' + (o.baoCaoCuoi ? esc(dmy(o.baoCaoCuoi)) + '<div class="v766-sub">' + esc(o.baoCaoBoi) + '</div>' : '<span class="v766-sub">chưa có</span>') + '</td><td>' + (!o.canBaoCao ? '—' : (o.daBaoCaoHomNay ? '✅ Đã báo cáo' : '<b style="color:#b45309">⚠️ Chưa báo cáo</b>')) + '</td><td><button class="btn bg-g sm" data-act="open" data-id="' + esc(o.id) + '">' + (o.canBaoCao ? '📝 Báo cáo' : 'Xem') + '</button></td></tr>';
+    }).join('');
+    var late = SX.list.filter(function (o) { return o.canBaoCao && !o.daBaoCaoHomNay; });
+    pg.innerHTML = head('🏭 Báo cáo sản xuất', 'Tiến độ chi tiết theo bóc tách · ảnh minh chứng · báo cáo hằng ngày') +
+      (late.length ? '<div class="v766-warn"><b>⚠️ Hôm nay ' + late.length + ' máy đang sản xuất chưa có báo cáo:</b> ' + late.map(function (o) { return esc(o.maMay); }).join(', ') + '.<br>Quy định: hôm nay có làm việc ở máy nào thì <b>bắt buộc báo cáo</b> (kể cả chỉ ảnh + ghi chú, chưa xong cũng báo). Chỉ khi không làm gì, không có thay đổi mới không cần báo cáo.</div>' : '') +
+      '<div class="v766-card"><div class="v766-row" style="margin-bottom:8px"><b>Máy đang theo dõi sản xuất</b><span style="flex:1"></span><button class="btn bg-b sm" data-act="reload">🔄 Tải lại</button><button class="btn bg-g sm" data-act="new">➕ Máy sản xuất mới</button></div>' +
+      (rows ? '<div style="overflow:auto"><table class="v766-tb"><thead><tr><th>Mã SX</th><th>Mã máy</th><th>Dòng máy</th><th>Hoàn thành</th><th>Trạng thái</th><th>Báo cáo cuối</th><th>Hôm nay</th><th></th></tr></thead><tbody>' + rows + '</tbody></table></div>' : '<i>Chưa có máy nào. Bấm « Máy sản xuất mới ».</i>') + '</div>';
+  }
+  function legacyNote(rep) {
+    var k = rep && rep.tienDo ? Object.keys(rep.tienDo) : [];
+    return k.length ? '<div class="v766-info">Báo cáo này có tiến độ theo hạng mục nhập từ bản cũ (' + k.length + ' hạng mục). Dữ liệu cũ được giữ nguyên nhưng <b>không tính vào % mới</b>; từ nay báo cáo theo từng dòng tiến độ bên dưới.</div>' : '';
+  }
+  function renderDetail(pg) {
+    var V = W.V763, c = SX.cur, rep = c ? c.report : {}, groups = V.btGroups('SX'), nhom = rep.nhom || (groups[0] && groups[0].nhom) || '';
+    var saved = !!(c && rep.id);
+    var h = head('🏭 ' + (saved ? 'Máy ' + esc(rep.maMay) + ' — ' + esc(rep.id) : 'Máy sản xuất mới'), 'Mỗi lần có làm việc: báo cáo từng dòng tiến độ + ảnh minh chứng');
+    h += '<div class="v766-card"><div class="v766-row" style="gap:12px">' +
+      '<label class="v766-sub">Dòng máy<br><select class="sel" id="v766-f-nhom" ' + (saved ? 'disabled' : '') + '>' + groups.map(function (g) { return '<option value="' + esc(g.nhom) + '" ' + (g.nhom === nhom ? 'selected' : '') + '>' + esc(g.label) + '</option>'; }).join('') + '</select></label>' +
+      '<label class="v766-sub">Mã máy / số khung *<br><input class="inp" id="v766-f-may" value="' + esc(rep.maMay || '') + '" ' + (saved ? 'readonly' : '') + ' placeholder="VD: NS200KVA-SX01"></label>' +
+      '<label class="v766-sub">Trạng thái<br><select class="sel" id="v766-f-tt">' + ['Đang sản xuất', 'Tạm dừng', 'Hoàn thành'].map(function (s) { return '<option ' + (s === (rep.trangThai || 'Đang sản xuất') ? 'selected' : '') + '>' + s + '</option>'; }).join('') + '</select></label>' +
+      '<label class="v766-sub">Phụ trách hiện tại<br><input class="inp" id="v766-f-pt" value="' + esc(rep.phuTrach || curUser()) + '"></label>' +
+      '<label class="v766-sub">Bàn giao cho<br><input class="inp" id="v766-f-bg" value="' + esc(rep.banGiao || '') + '"></label>' +
+      '<label class="v766-sub" style="flex:1;min-width:200px">Ghi chú<br><input class="inp" id="v766-f-gc" style="width:100%" value="' + esc(rep.ghiChu || '') + '"></label>' +
+      '<button class="btn bg-g" data-act="saveinfo">💾 ' + (saved ? 'Lưu thông tin máy' : 'Tạo & bắt đầu báo cáo') + '</button><button class="btn bg-gr" data-act="list">← Danh sách</button></div></div>';
+    if (!saved) { pg.innerHTML = h + '<div class="v766-info">Lưu thông tin máy trước, sau đó sẽ báo cáo được tiến độ từng hạng mục.</div>'; return; }
+    var logs = c.logs || [], hasToday = logs.some(function (l) { return l.ngay === c.homNay; }), pct = c.pct || { tong: 0, byHm: {} };
+    h += legacyNote(rep);
+    h += '<div class="v766-card"><div class="v766-kpi"><div><div class="v766-big">' + pct.tong + '%</div><div class="v766-sub">hoàn thành máy</div></div><div class="v766-prog"><i style="width:' + pct.tong + '%"></i></div>' +
+      '<div class="v766-sub">100% chia đều cho các hạng mục, rồi chia đều cho các dòng tiến độ trong hạng mục. Chỉ dòng đã <b>xác nhận Hoàn thành</b> mới được tính.</div></div>' +
+      (rep.trangThai !== 'Hoàn thành' ? (hasToday ? '<div class="v766-info" style="margin-top:8px">✅ Hôm nay đã có báo cáo tiến độ cho máy này.</div>' : '<div class="v766-warn" style="margin-top:8px"><b>⚠️ Hôm nay chưa có báo cáo.</b> Nếu hôm nay có làm ở máy này thì phải báo cáo (chỉ ảnh + ghi chú cũng được, chưa xong cũng báo). Không làm gì thì không cần báo cáo.</div>') : '') + '</div>';
+    h += '<div class="v766-card"><div class="v766-row" style="margin-bottom:4px"><b>Tiến độ theo hạng mục bóc tách</b><span style="flex:1"></span><button class="btn bg-gr sm" data-act="expand">Mở hết</button><button class="btn bg-gr sm" data-act="collapse">Thu gọn</button></div>';
+    (c.hangMuc || []).forEach(function (hm) {
+      var p = pct.byHm[hm.id] || { done: 0, tong: hm.dong.length, pct: 0 }, open = SX.open[hm.id] ? ' open' : '';
+      h += '<details class="v766-hm" data-hm="' + esc(hm.id) + '"' + open + '><summary><span>' + esc(hm.ten) + '</span><span class="v766-sub">' + p.done + '/' + p.tong + ' dòng</span><span class="v766-mini"><i style="width:' + p.pct + '%"></i></span><span class="v766-sub">' + p.pct + '%</span></summary>';
+      hm.dong.forEach(function (d) {
+        var s = (c.state || {})[d.id] || {}, vt = (d.vt || []).length ? '<div class="v766-vt">' + esc(d.vt.join(' · ')) + '</div>' : '';
+        var meta = s.n ? esc(dmy(s.lastDay)) + ' · ' + esc(s.lastBy) + ' · ' + s.n + ' lần báo cáo · ' + s.anh + ' ảnh/video' + (s.lastNote ? '<br>“' + esc(s.lastNote) + '”' : '') : 'Chưa có báo cáo';
+        var tag = s.n && !s.tt ? '<span class="v766-st note">Chỉ ảnh / ghi chú</span>' : stBadge(s.tt);
+        h += '<div class="v766-line"><div class="ln">' + tag + '<div><b>' + esc(d.ten) + '</b>' + (d.tt ? ' <span class="v766-sub">' + esc(d.tt) + '</span>' : '') + vt + '</div></div><div><button class="btn bg-g sm" data-act="rep" data-hm="' + esc(hm.id) + '" data-line="' + esc(d.id) + '"' + (rep.trangThai === 'Hoàn thành' ? ' disabled' : '') + '>📝 Báo cáo</button></div><div class="lm">' + meta + '</div></div>';
+      });
+      h += '</details>';
+    });
+    h += '</div>';
+    var rev = logs.slice().reverse().slice(0, SX.more ? 400 : 40), byDay = {};
+    h += '<div class="v766-card"><b>Nhật ký báo cáo</b> <span class="v766-sub">(mới nhất trước)</span><div class="v766-tl" style="margin-top:8px">';
+    if (!rev.length) h += '<i>Chưa có báo cáo nào.</i>';
+    rev.forEach(function (l) {
+      var th = (l.anh || []).map(function (a) { return '<a href="' + esc(a.view || ('https://drive.google.com/file/d/' + a.driveId + '/view')) + '" target="_blank" rel="noopener" class="' + (a.loai === 'video' ? 'vid' : '') + '" title="' + esc(a.ten) + '"><img loading="lazy" src="' + esc(a.thumb) + '" alt="" onerror="this.style.display=\'none\'"></a>'; }).join('');
+      var mine = fold(l.nguoi) === fold(curUser());
+      h += '<div class="it"><div class="d">' + esc(dmy(l.ngay)) + ' · ' + esc(l.nguoi) + ' <span class="v766-sub">' + esc(l.luc) + '</span></div><div>' + esc(l.hm) + ' › <b>' + esc(l.dong) + '</b> ' + (l.tt ? stBadge(l.tt) : '<span class="v766-st note">Chỉ ảnh / ghi chú</span>') + '</div>' + (l.ghiChu ? '<div>' + esc(l.ghiChu) + '</div>' : '') + (th ? '<div class="v766-th">' + th + '</div>' : '') + ((mine || isAdmin()) ? '<div><button class="btn bg-gr sm" data-act="dellog" data-id="' + esc(l.id) + '" style="margin-top:4px">🗑 Xoá dòng này</button></div>' : '') + '</div>';
+    });
+    if (logs.length > 40 && !SX.more) h += '<button class="btn bg-gr sm" data-act="more">Xem thêm</button>';
+    h += '</div></div>';
+    pg.innerHTML = h;
+  }
+  function collectInfo() {
+    var g = function (id) { var e = $(id); return e ? String(e.value || '').trim() : ''; };
+    return { nhom: g('v766-f-nhom'), maMay: g('v766-f-may').toUpperCase(), trangThai: g('v766-f-tt'), phuTrach: g('v766-f-pt'), banGiao: g('v766-f-bg'), ghiChu: g('v766-f-gc') };
+  }
+  function saveInfo() {
+    var f = collectInfo(); if (!f.maMay) { tt('Nhập mã máy / số khung', 'warn'); return; }
+    var rep = SX.cur ? SX.cur.report : {};
+    api('spx763Save', { report: Object.assign({ id: rep.id || '', tienDo: rep.tienDo || {} }, f) }).then(function (r) {
+      if (!r || r.ok === false) throw new Error(r && r.error || 'Không lưu được'); tt('💾 Đã lưu thông tin máy ' + f.maMay, 'ok'); openSx(r.id);
+    }).catch(function (e) { tt('❌ ' + (e.message || e), 'err'); });
+  }
+
+  /* ----- tải ảnh/video minh chứng ----- */
+  function compress(file) {
+    return new Promise(function (res) {
+      if (!/^image\/(jpeg|png|webp)/i.test(file.type) || file.size < 900 * 1024) return res(file);
+      var img = new Image(), url = URL.createObjectURL(file);
+      img.onload = function () {
+        try {
+          var k = Math.min(1, 1920 / Math.max(img.naturalWidth, img.naturalHeight)), c = document.createElement('canvas'); c.width = Math.round(img.naturalWidth * k); c.height = Math.round(img.naturalHeight * k);
+          c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+          c.toBlob(function (b) { URL.revokeObjectURL(url); if (b && b.size < file.size) res(new File([b], file.name.replace(/\.\w+$/, '') + '.jpg', { type: 'image/jpeg' })); else res(file); }, 'image/jpeg', 0.82);
+        } catch (e) { URL.revokeObjectURL(url); res(file); }
+      };
+      img.onerror = function () { URL.revokeObjectURL(url); res(file); }; img.src = url;
+    });
+  }
+  function b64(blob) { return new Promise(function (res, rej) { var fr = new FileReader(); fr.onload = function () { res(String(fr.result).split(',')[1] || ''); }; fr.onerror = function () { rej(new Error('Không đọc được tệp')); }; fr.readAsDataURL(blob); }); }
+  function uploadSx(file, ctx, onProg) {
+    return compress(file).then(function (f) {
+      return api('sx766MediaInit', { name: f.name, mime: f.type || 'application/octet-stream', size: f.size, sxId: ctx.sxId, hm: ctx.hm, dong: ctx.dong, ngay: ctx.ngay }).then(function (init) {
+        if (!init || init.ok === false) throw new Error(init && init.error || 'Không khởi tạo được phiên tải');
+        var size = f.size, chunk = init.chunk || 3145728, pos = 0, last = null;
+        var step = function () {
+          if (pos >= size) return last && last.photo ? Promise.resolve(last.photo) : Promise.reject(new Error('Drive chưa xác nhận tệp đã tải xong'));
+          var end = Math.min(size, pos + chunk);
+          return b64(f.slice(pos, end)).then(function (b) { return retry(function () { return api('sx766MediaChunk', { uploadId: init.uploadId, start: pos, b64: b }); }, 3); }).then(function (r) {
+            if (r && r.ok === false) throw new Error(r.error || 'Drive từ chối'); pos = end; last = r; if (onProg) onProg(pos / size); return step();
+          });
+        };
+        return step();
+      });
+    });
+  }
+  function openReport(hmId, lineId) {
+    var V = W.V763, c = SX.cur, hm = (c.hangMuc || []).filter(function (x) { return x.id === hmId; })[0], ln = hm && hm.dong.filter(function (x) { return x.id === lineId; })[0]; if (!ln) return;
+    var s = (c.state || {})[lineId] || {}, photos = [], pend = 0;
+    var body = '<div class="v766-info"><b>' + esc(hm.ten) + ' › ' + esc(ln.ten) + '</b>' + ((ln.vt || []).length ? '<br><span class="v766-sub">' + esc(ln.vt.join(' · ')) + '</span>' : '') + '<br><span class="v766-sub">Người báo cáo: <b>' + esc(curUser()) + '</b> (tài khoản đang đăng nhập)</span></div>' +
+      '<div class="v766-row"><label class="v766-sub">Ngày làm việc<br><input type="date" class="inp" id="v766-r-ngay" value="' + today() + '" max="' + today() + '"></label></div>' +
+      '<div class="il" style="margin-top:8px">Kết quả hôm nay</div><div class="v766-radio" id="v766-r-tt">' +
+      [['', 'Chỉ cập nhật ảnh / ghi chú (không đổi trạng thái)'], ['Đang làm', 'Đang làm — chưa xong'], ['Chờ vật tư', 'Chờ vật tư'], ['Hoàn thành', 'Hoàn thành (cần ảnh minh chứng)']].map(function (o, i) { return '<label class="' + (i === 1 ? 'on' : '') + '"><input type="radio" name="v766tt" value="' + esc(o[0]) + '" ' + (i === 1 ? 'checked' : '') + '>' + esc(o[1]) + '</label>'; }).join('') + '</div>' +
+      '<div class="il">Ghi chú</div><textarea class="ta" id="v766-r-gc" rows="3" placeholder="Hôm nay làm được gì, còn lại gì, vướng gì…"></textarea>' +
+      '<div class="il" style="margin-top:8px">Ảnh / video minh chứng <span class="v766-sub">(lưu vào: Sản xuất EGreen › ' + esc(rep().maMay) + ' › ' + esc(hm.ten) + ')</span></div>' +
+      '<label class="btn bg-gr" style="border:2px dashed #94a3b8;padding:8px 14px;display:inline-block;cursor:pointer">📁 Chọn ảnh / video<input type="file" id="v766-r-file" accept="image/*,video/*" multiple hidden></label>' +
+      '<div class="v766-up" id="v766-r-up"></div><div class="v766-sub">Đã có ' + (s.anh || 0) + ' ảnh/video cho dòng này từ các lần báo cáo trước.</div>';
+    var m = V.overlay('📝 Báo cáo tiến độ', body, '<button class="btn bg-gr" data-c>Hủy</button><button class="btn bg-g" id="v766-r-ok">💾 Gửi báo cáo</button>', { w: '760px', sticky: true });
+    function rep() { return (SX.cur && SX.cur.report) || {}; }
+    var up = m.q('#v766-r-up');
+    function paint() {
+      up.innerHTML = photos.map(function (p, i) { return '<div class="t">' + (p.pending ? (p.local ? '<img src="' + esc(p.local) + '">' : '') + '<div class="p" style="width:' + Math.round((p.pct || 0) * 100) + '%"></div>' : (p.loai === 'video' ? '<div style="padding:26px 0;text-align:center">▶ video</div>' : '<img src="' + esc(p.thumb) + '" onerror="this.style.display=\'none\'">') + '<button class="x" data-i="' + i + '" type="button">✕</button>') + '</div>'; }).join('');
+    }
+    m.qa('input[name=v766tt]').forEach(function (r) { r.onchange = function () { m.qa('.v766-radio label').forEach(function (l) { l.classList.toggle('on', l.querySelector('input').checked); }); }; });
+    up.addEventListener('click', function (e) { var b = e.target.closest('.x'); if (!b) return; photos.splice(Number(b.dataset.i), 1); paint(); });
+    m.q('#v766-r-file').addEventListener('change', function () {
+      var files = Array.prototype.slice.call(this.files || []); this.value = '';
+      files.forEach(function (f0) {
+        if (!/^(image|video)\//i.test(f0.type)) { tt('Bỏ qua ' + f0.name + ' — chỉ nhận ảnh hoặc video', 'warn'); return; }
+        if (f0.size > 300 * 1024 * 1024) { tt(f0.name + ' quá lớn (tối đa 300 MB)', 'warn'); return; }
+        var tile = { pending: true, pct: 0, local: /^image/.test(f0.type) ? URL.createObjectURL(f0) : '' }; photos.push(tile); pend++; paint();
+        uploadSx(f0, { sxId: rep().id, hm: hm.ten, dong: ln.ten, ngay: m.q('#v766-r-ngay').value || today() }, function (p) { tile.pct = p; paint(); })
+          .then(function (ph) { var i = photos.indexOf(tile); if (i >= 0) photos[i] = ph; if (tile.local) { try { URL.revokeObjectURL(tile.local); } catch (e) { } } tt('✅ Đã tải ' + ph.ten, 'ok'); })
+          .catch(function (e) { var i = photos.indexOf(tile); if (i >= 0) photos.splice(i, 1); tt('❌ Không tải được ' + f0.name + ': ' + (e.message || e), 'err'); })
+          .then(function () { pend--; paint(); });
+      });
+    });
+    m.q('[data-c]').onclick = function () { if (pend && !confirm('Còn ảnh đang tải lên — vẫn đóng?')) return; m.close(); };
+    m.q('#v766-r-ok').onclick = function () {
+      var b = this, tt0 = (m.q('input[name=v766tt]:checked') || {}).value || '', note = m.q('#v766-r-gc').value.trim(), done = photos.filter(function (p) { return !p.pending; });
+      if (pend) { tt('Đợi ảnh tải xong rồi gửi', 'warn'); return; }
+      if (!tt0 && !note && !done.length) { tt('Cần ít nhất ghi chú, ảnh hoặc trạng thái', 'warn'); return; }
+      if (tt0 === 'Hoàn thành' && !done.length && !(s.anh > 0)) { tt('Xác nhận hoàn thành cần có ảnh minh chứng', 'warn'); return; }
+      b.disabled = true; b.textContent = '⏳ Đang gửi…';
+      api('spx766Log', { sxId: rep().id, ngay: m.q('#v766-r-ngay').value || today(), items: [{ lineId: lineId, tt: tt0, ghiChu: note, anh: done }] }).then(function (r) {
+        if (!r || r.ok === false) throw new Error(r && r.error || 'Máy chủ từ chối');
+        SX.cur.state = r.state; SX.cur.logs = r.logs; SX.cur.pct = r.pct; SX.open[hmId] = true; m.close(); render();
+        tt('✅ Đã ghi báo cáo — hoàn thành máy ' + r.pct.tong + '%', 'ok');
+      }).catch(function (e) { b.disabled = false; b.textContent = '💾 Gửi báo cáo'; tt('❌ ' + (e.message || e), 'err'); });
+    };
+  }
+  function installSx() {
+    var V = W.V763; if (!V || V.__v766sx) return; V.__v766sx = true;
+    V.openSpx = openSx;
+    until(function () { return pageSx(); }, function () {
+      var pg = pageSx(); if (pg.__v766) return; pg.__v766 = true;
+      pg.addEventListener('click', function (e) {
+        var b = e.target.closest('[data-act]'); if (!b) return; var a = b.dataset.act;
+        if (a === 'back') W.nav('v763RepHub');
+        else if (a === 'list') { SX.cur = null; SX.newMode = false; openSx(); }
+        else if (a === 'reload') openSx();
+        else if (a === 'new') { SX.cur = null; SX.newMode = true; render(); }
+        else if (a === 'open') openSx(b.dataset.id);
+        else if (a === 'saveinfo') saveInfo();
+        else if (a === 'rep') openReport(b.dataset.hm, b.dataset.line);
+        else if (a === 'expand') { (SX.cur.hangMuc || []).forEach(function (h) { SX.open[h.id] = true; }); render(); }
+        else if (a === 'collapse') { SX.open = {}; render(); }
+        else if (a === 'more') { SX.more = true; render(); }
+        else if (a === 'dellog') {
+          if (!confirm('Xoá dòng nhật ký này?')) return;
+          api('spx766LogDel', { id: b.dataset.id }).then(function (r) { if (!r || r.ok === false) throw new Error(r && r.error || 'Không xoá được'); SX.cur.state = r.state; SX.cur.logs = r.logs; SX.cur.pct = r.pct; render(); }).catch(function (er) { tt('❌ ' + (er.message || er), 'err'); });
+        }
+      });
+      pg.addEventListener('toggle', function (e) { var d = e.target; if (d && d.matches && d.matches('details.v766-hm')) SX.open[d.dataset.hm] = d.open; }, true);
+    });
+  }
+
+  /* ───────────── 4. KẾ HOẠCH LÀM VIỆC: LƯU – CHỐT – PHÁT SINH – HOÀN THÀNH ───────────── */
+  var ST_K = { 'Nháp': 'nhap', 'Đã chốt': 'chot', 'Đang thực hiện': 'dang', 'Hoàn thành': 'xong' };
+  function stepCount(p) { var t = 0, d = 0; ((p && p.hangMuc) || []).forEach(function (h) { (h.buoc || []).forEach(function (b) { t++; if (b.done) d++; }); }); return { t: t, d: d }; }
+  var syncTimer = 0;
+  function syncState() {
+    clearTimeout(syncTimer);
+    syncTimer = setTimeout(function () {
+      if (!PL.id) { renderBar(); return; }
+      var id = PL.id;
+      api('kh766Ready', { id: id }).then(function (r) { if (r && r.ok && PL.id === id) { PL.st = r.trangThai; PL.gate = r.gate; renderBar(); } }).catch(function () { });
+    }, 250);
+  }
+  function loadOpen(force) {
+    if (!force && Date.now() - PL.openAt < 60000) return; PL.openAt = Date.now();
+    api('kh764List', {}).then(function (r) { PL.open = ((r && r.list) || []).filter(function (p) { return p.trangThai !== 'Hoàn thành' && p.trangThai !== 'Hủy'; }); renderBar(); }).catch(function () { });
+  }
+  function renderBar() {
+    var host = $('v764-plan'); if (!host) return;
+    var grid = host.parentNode, anchor = grid && grid.parentNode; if (!anchor) return;
+    var b = $('v766-bar');
+    if (!b) { b = document.createElement('div'); b.id = 'v766-bar'; anchor.insertBefore(b, grid); b.addEventListener('click', onBar); loadOpen(true); }
+    var st = PL.st || (PL.id ? 'Nháp' : ''), k = ST_K[st] || 'nhap', c = stepCount(PL.plan), locked = st === 'Hoàn thành';
+    if (host.toggleAttribute) host.toggleAttribute('data-v766-locked', locked);
+    var h = '';
+    if (PL.plan) {
+      h += '<div class="v766-bar ' + k + '"><div class="v766-row"><b>' + (PL.id ? 'Kế hoạch ' + esc(PL.id) : 'Kế hoạch chưa lưu') + '</b>' + (PL.id ? '<span class="v766-badge ' + k + '">' + esc(st) + '</span><span class="v766-sub">✅ Đã lưu trên máy chủ — mở lại bất cứ lúc nào từ « Kế hoạch đã lập »</span>' : '<span class="v766-warn" style="margin:0">⚠️ Chưa có mã — hãy nhắn AI hoặc bấm Lưu để kế hoạch được lưu</span>') + '<span style="flex:1"></span><span class="v766-sub">' + c.d + '/' + c.t + ' bước đã tick</span></div><div class="v766-row" style="margin-top:8px">';
+      if (PL.id && (st === 'Nháp' || !st)) h += '<button class="btn bg-g" data-a="chot">🔒 Chốt kế hoạch</button><span class="v766-sub">Chốt xong KTV tick công việc để kiểm soát; vẫn chỉnh được cùng AI khi có phát sinh.</span>';
+      if (PL.id && (st === 'Đã chốt' || st === 'Đang thực hiện')) h += '<button class="btn bg-a" data-a="phatsinh">🛠 Báo phát sinh tại công trình (AI chỉnh kế hoạch)</button><button class="btn bg-b" data-a="ck">📋 Checklist trước khi rời trại</button><button class="btn bg-g" data-a="xong">✔ Hoàn thành công việc</button>';
+      if (PL.id && locked) h += '<button class="btn bg-gr" data-a="mo">↩ Mở lại kế hoạch</button><span class="v766-sub">Kế hoạch đã hoàn thành và được lưu làm dữ liệu tư vấn cho các kế hoạch tương tự.</span>';
+      h += '</div>';
+      if (PL.gate && (st === 'Đã chốt' || st === 'Đang thực hiện')) h += '<ul class="v766-gate">' + PL.gate.items.map(function (i) { return '<li class="' + (i.ok ? 'ok' : 'no') + '">' + esc(i.nhan) + '</li>'; }).join('') + '</ul>';
+      var nk = (PL.plan.nhatKy || []).slice(-3).reverse();
+      if (nk.length) h += '<div class="v766-nk"><b>Nhật ký gần đây:</b><br>' + nk.map(function (x) { return esc(x.luc) + ' · ' + esc(x.nguoi) + ' — ' + esc(x.loai === 'dieu_chinh_AI' ? 'Phát sinh/chỉnh bằng AI: ' + (x.yeuCau || '') : (x.noiDung || x.loai)); }).join('<br>') + '</div>';
+      h += '</div>';
+    }
+    if (PL.open.length) h += '<div class="v766-card" style="padding:8px 12px"><span class="v766-sub"><b>Kế hoạch đang thực hiện (mọi máy):</b></span> ' + PL.open.slice(0, 14).map(function (p) { return '<span class="v766-chip" data-open="' + esc(p.id) + '" data-may="' + esc(p.maMay) + '">' + esc(p.maMay) + ' · ' + esc(p.tieuDe || p.id) + ' · <b>' + esc(p.trangThai) + '</b> ' + esc(p.tienDo) + '%</span>'; }).join('') + '</div>';
+    if (b.__html !== h) { b.innerHTML = h; b.__html = h; }
+  }
+  function decorateChips() {
+    var box = $('v764-plans'); if (!box || !PL.known.length) return;
+    var by = {}; PL.known.forEach(function (p) { by[p.id] = p; });
+    box.querySelectorAll('.v764-chip').forEach(function (ch) {
+      if (ch.querySelector('.v766-badge')) return;
+      var m = /openPlan\('([^']+)'\)/.exec(ch.getAttribute('onclick') || ''), p = m && by[m[1]]; if (!p) return;
+      var s = document.createElement('span'); s.className = 'v766-badge ' + (ST_K[p.trangThai] || 'nhap'); s.style.marginLeft = '6px'; s.textContent = p.trangThai; ch.appendChild(s);
+    });
+  }
+  function openPlanOf(id, may) {
+    var mm = $('v764-mm');
+    if (mm && fold(mm.value) !== fold(may)) { mm.value = may; mm.dispatchEvent(new Event('change')); setTimeout(function () { W.V764.openPlan(id); }, 400); } else W.V764.openPlan(id);
+  }
+  function resetPlan() { PL.id = ''; PL.st = ''; PL.plan = null; PL.gate = null; renderBar(); }
+  function onBar(e) {
+    var ch = e.target.closest('[data-open]'); if (ch) { openPlanOf(ch.dataset.open, ch.dataset.may); return; }
+    var b = e.target.closest('[data-a]'); if (!b) return; var a = b.dataset.a, V = W.V763;
+    if (a === 'chot') {
+      if (!confirm('Chốt kế hoạch ' + PL.id + '?\nSau khi chốt, KTV tick công việc đã làm để kiểm soát. Khi có phát sinh vẫn chỉnh được cùng AI.')) return;
+      b.disabled = true;
+      api('kh766Finalize', { id: PL.id }).then(function (r) { if (!r || r.ok === false) throw new Error(r && r.error || 'Không chốt được'); PL.st = r.trangThai; PL.plan = r.plan; tt('🔒 Đã chốt kế hoạch ' + r.id, 'ok'); if (W.V764 && W.V764.openPlan) W.V764.openPlan(r.id); loadOpen(true); }).catch(function (er) { b.disabled = false; tt('❌ ' + (er.message || er), 'err'); });
+    } else if (a === 'phatsinh') {
+      var m = V.overlay('🛠 Báo phát sinh tại công trình', '<div class="v766-info">Mô tả ngắn: chuyện gì phát sinh, đã làm gì, vật tư/nhân sự thay đổi ra sao. AI sẽ chỉnh các bước <b>chưa làm</b> của kế hoạch (giữ nguyên các bước đã tick) và ghi vào nhật ký.</div><textarea class="ta" id="v766-ps" rows="5" placeholder="VD: Tháo nắp máy phát hiện 2 xupap xả cháy mặt, cần thêm xử lý + đặt xupap; trại chỉ cho dừng máy đến chiều mai…"></textarea>',
+        '<button class="btn bg-gr" data-c>Hủy</button><button class="btn bg-g" id="v766-ps-ok">Gửi cho AI</button>', { w: '680px', sticky: true });
+      m.q('[data-c]').onclick = function () { m.close(); };
+      m.q('#v766-ps-ok').onclick = function () { var t = m.q('#v766-ps').value.trim(); if (t.length < 5) { tt('Mô tả phát sinh', 'warn'); return; } m.close(); W.V764.sendText('[PHÁT SINH TẠI CÔNG TRÌNH] ' + t + '\nHãy điều chỉnh kế hoạch: giữ nguyên các bước đã tick, chỉ sửa/thêm các bước chưa làm, cập nhật vật tư và thời gian.'); };
+    } else if (a === 'ck') {
+      if (W.V764 && W.V764.openCk) { W.V764.openCk('truoc_roi_trai'); setTimeout(function () { var mm = $('ck-mm'); if (mm && PL.plan && PL.plan.maMay) { mm.value = PL.plan.maMay; mm.dispatchEvent(new Event('change')); } }, 250); }
+    } else if (a === 'xong') completeDlg();
+    else if (a === 'mo') {
+      var ly = prompt('Lý do mở lại kế hoạch ' + PL.id + ':'); if (!ly) return;
+      api('kh766Reopen', { id: PL.id, lyDo: ly }).then(function (r) { if (!r || r.ok === false) throw new Error(r && r.error || 'Không mở lại được'); PL.st = r.trangThai; PL.plan = r.plan; tt('↩ Đã mở lại kế hoạch', 'ok'); W.V764.openPlan(r.id); loadOpen(true); }).catch(function (er) { tt('❌ ' + (er.message || er), 'err'); });
+    }
+  }
+  function completeDlg() {
+    var V = W.V763, id = PL.id;
+    var m = V.overlay('✔ Hoàn thành công việc — ' + esc(id), '<div id="v766-cg"><i>Đang kiểm tra điều kiện…</i></div>', '', { w: '780px', sticky: true });
+    function draw(g, st) {
+      var c = g.soBuoc - g.soXong, body = '<ul class="v766-gate">' + g.items.map(function (i) { return '<li class="' + (i.ok ? 'ok' : 'no') + '">' + esc(i.nhan) + '</li>'; }).join('') + '</ul>';
+      if (!g.items[1].ok) body += '<div class="v766-warn"><b>Chưa thể hoàn thành:</b> bắt buộc nộp « Checklist trước khi rời trại » của máy này trước.</div><div class="v766-row"><button class="btn bg-b" data-x="ck">📋 Mở checklist ngay</button><button class="btn bg-gr" data-x="re">🔄 Kiểm tra lại</button></div>';
+      else {
+        body += '<div class="il" style="margin-top:8px">Kết quả / đánh giá công việc</div><textarea class="ta" id="v766-c-dg" rows="2" placeholder="Máy chạy ổn định, đã bàn giao cho trại…"></textarea>' +
+          '<div class="il">Phát sinh thực tế đã xử lý</div><textarea class="ta" id="v766-c-ps" rows="2" placeholder="(nếu có)"></textarea>' +
+          '<div class="il">Bài học / lưu ý cho kế hoạch tương tự về sau</div><textarea class="ta" id="v766-c-bh" rows="2"></textarea>' +
+          '<div class="il">Tổng thời gian thực tế</div><input class="inp" id="v766-c-tg" placeholder="VD: 2 ngày, 2 KTV">' +
+          (c > 0 ? '<div class="il" style="color:#b45309">Còn ' + c + ' bước chưa tick — ghi lý do (bắt buộc)</div><textarea class="ta" id="v766-c-ly" rows="2" placeholder="Không áp dụng / để lần sau / thay bằng cách khác…"></textarea>' : '') +
+          '<div class="v766-row" style="margin-top:10px;justify-content:flex-end"><button class="btn bg-gr" data-x="close">Đóng</button><button class="btn bg-g" data-x="ok">✔ Hoàn thành & lưu làm dữ liệu tư vấn</button></div>';
+      }
+      m.q('#v766-cg').innerHTML = body;
+    }
+    function load() { api('kh766Ready', { id: id }).then(function (r) { if (!r || r.ok === false) throw new Error(r && r.error || 'Lỗi'); PL.gate = r.gate; PL.st = r.trangThai; draw(r.gate, r.trangThai); renderBar(); }).catch(function (e) { m.q('#v766-cg').innerHTML = '<div class="v766-warn">' + esc(e.message || e) + '</div>'; }); }
+    load();
+    m.q('#v766-cg').addEventListener('click', function (e) {
+      var b = e.target.closest('[data-x]'); if (!b) return; var x = b.dataset.x;
+      if (x === 'close') m.close(); else if (x === 're') load();
+      else if (x === 'ck') { m.close(); W.V764.openCk('truoc_roi_trai'); setTimeout(function () { var mm = $('ck-mm'); if (mm && PL.plan && PL.plan.maMay) { mm.value = PL.plan.maMay; mm.dispatchEvent(new Event('change')); } }, 250); }
+      else if (x === 'ok') {
+        var v = function (i) { var el = m.q(i); return el ? el.value.trim() : ''; }; b.disabled = true; b.textContent = '⏳ Đang lưu…';
+        api('kh766Complete', { id: id, ketQua: { danhGia: v('#v766-c-dg'), phatSinh: v('#v766-c-ps'), baiHoc: v('#v766-c-bh'), thoiGianThucTe: v('#v766-c-tg'), lyDoChuaXong: v('#v766-c-ly') } }).then(function (r) {
+          if (!r || r.ok === false) { if (r && r.gate) draw(r.gate); throw new Error(r && r.error || 'Không hoàn thành được'); }
+          PL.st = r.trangThai; PL.plan = r.plan; m.close(); tt('✅ Đã hoàn thành kế hoạch ' + id + ' — lưu làm dữ liệu tư vấn', 'ok'); W.V764.openPlan(id); loadOpen(true);
+        }).catch(function (er) { b.disabled = false; b.textContent = '✔ Hoàn thành & lưu làm dữ liệu tư vấn'; tt('❌ ' + (er.message || er), 'err'); });
+      }
+    });
+  }
+  function installPlan() {
+    var V4 = W.V764; if (!V4 || V4.__v766) return; V4.__v766 = true;
+    if (typeof V4.planNew === 'function') { var pn = V4.planNew; V4.planNew = function () { resetPlan(); return pn.apply(this, arguments); }; }
+    document.addEventListener('change', function (e) { if (e.target && e.target.id === 'v764-mm') resetPlan(); }, true);
+    var raf = 0;
+    new MutationObserver(function () {
+      if (raf) return; raf = requestAnimationFrame(function () { raf = 0; if ($('v764-plan')) { if (!$('v766-bar')) renderBar(); decorateChips(); } });
+    }).observe(document.body, { childList: true, subtree: true });
+    setInterval(function () { if ($('v766-bar') && document.visibilityState === 'visible') loadOpen(false); }, 60000);
+  }
+
+  /* ───────────── khởi động ───────────── */
+  W.V766 = { version: 'V766', toMht: toMht, _t: { toMht: toMht, fold: fold } };
+  if (!hasDom) return;
+  installBlob();
+  until(function () { return !!W.pvApi; }, installApi);
+  until(function () { return W.V763 && W.V763.overlay && W.V763.loadBt; }, function () { installSigs(); installSx(); });
+  until(function () { return W.V764 && W.V764.sendText; }, installPlan);
+  (function loop(n) {                                    /* các hàm BDSC có thể được định nghĩa muộn → thử lại tới khi gắn xong */
+    var a = installWord(), b = installSubmitNet(); if ((a && b) || n > 60) return; setTimeout(function () { loop(n + 1); }, 1000);
+  })(0);
+})();
+</script>
+
 </body>
 </html>
