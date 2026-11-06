@@ -34698,7 +34698,7 @@ details.v766-hm[open]>summary::before{content:"▾"}
     var pend = (K.pend[key] || []).map(function (p) { return '<span class="v770-tile" data-tp="' + esc(p.id) + '">' + (p.loai === 'video' ? '<span class="v">⏳</span>' : '<img src="' + esc(p.local) + '">') + '<span class="p" style="width:' + Math.round((p.pct || 0) * 100) + '%"></span></span>'; }).join('');
     var miss = nz && !x.anh.length && !(K.pend[key] || []).length;
     return '<div class="v770-th">' + x.anh.map(function (p) { return thumbHtml(p, lock); }).join('') + pend + '</div>' +
-      (lock ? '' : '<div class="v770-btns"><label class="btn bg-gr sm">📁 Tải lên<input type="file" accept="image/*,video/*" multiple hidden data-up></label><label class="btn bg-gr sm">📷 Chụp ảnh<input type="file" accept="image/*" capture="environment" hidden data-up></label><label class="btn bg-gr sm">🎥 Quay video<input type="file" accept="video/*" capture="environment" hidden data-up></label></div>') +
+      (lock ? '' : '<div class="v770-btns"><label class="btn bg-gr sm">📁 Tải lên<input type="file" accept="image/*,video/*" multiple hidden data-up></label></div>') +
       (miss ? '<div class="v770-need">⚠ Bắt buộc có ảnh / video</div>' : '');
   }
   function rowHtml(r) {
