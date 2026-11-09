@@ -31668,9 +31668,18 @@ function decorateList() {
   var box = $('pvb_selectedItems'); if (!box || P.type === 'Sản xuất') return;
   var arr = selList(); if (!arr.length) return;
   if (box.querySelector('.v769-gh')) return;                                              /* đã gắn cột (các hàm vẽ lại sẽ xoá và ta gắn lại ở lần quét kế tiếp) */
-  var kids = Array.prototype.slice.call(box.children); if (kids.length !== arr.length) return;
+  /* V770.1: bảng « Vật tư đã chọn » có thêm các dòng tiêu đề (« ✓ Vật tư cố định », « ＋ Vật tư chọn thêm ») nên số phần tử con ≠ số vật tư
+     → bản cũ thoát sớm, KHÔNG BAO GIỜ gắn ô « Ngày cần / Hạn chót » nhưng vẫn bắt buộc Hạn chót khi lưu. Nay ghép dòng ↔ vật tư theo data-id. */
+  var byId = {}; arr.forEach(function (x) { if (x && x.id != null) byId[String(x.id)] = x; });
+  var kidsAll = Array.prototype.slice.call(box.children), pairs = [];
+  kidsAll.forEach(function (el) { var id = el.getAttribute && el.getAttribute('data-id'); if (id && byId[id]) pairs.push({ x: byId[id], el: el }); });
+  if (!pairs.length) {                                                                       /* bộ vẽ cũ không có data-id → ghép theo thứ tự, bỏ qua dòng tiêu đề */
+    var rowsOnly = kidsAll.filter(function (el) { return !(el.classList && el.classList.contains('v58-section-title')) && el.tagName !== 'I'; });
+    if (rowsOnly.length !== arr.length) return;
+    rowsOnly.forEach(function (el, i) { pairs.push({ x: arr[i], el: el }); });
+  }
   var groups = {}, order = [];
-  arr.forEach(function (x, i) { var c = x.cumLinhKien || 'Khác'; if (!groups[c]) { groups[c] = []; order.push(c); } groups[c].push({ x: x, el: kids[i] }); });
+  pairs.forEach(function (o) { var c = o.x.cumLinhKien || 'Khác'; if (!groups[c]) { groups[c] = []; order.push(c); } groups[c].push(o); });
   var frag = document.createDocumentFragment(), th = document.createElement('div'); th.className = 'v769-th';
   th.innerHTML = '<span>Vật tư · SL · tình trạng</span><span class="v769-thr">Ngày yêu cầu có vật tư</span><span class="v769-thr">Hạn chót</span>'; frag.appendChild(th);
   order.forEach(function (c) {
@@ -31715,7 +31724,9 @@ function installPvHooks() {
       try {
         if ($('v763-pv-sched')) {
           var inc = selList().filter(function (x) { return x && x.included !== false && num(x.soLuongCan) > 0; });
-          var miss = inc.filter(function (x) { return !P.dl[x.id]; });
+          /* V770.1: chỉ bắt buộc Hạn chót với vật tư ĐANG CÓ ô nhập trên màn hình; vật tư không có ô để điền thì không chặn lưu phiếu */
+          var hasDlInput = function (x) { return !!document.querySelector('[data-rl="' + CSS.escape(x.id) + '"],tr[data-k="' + CSS.escape(String(x.id).replace(/^v763:/, '')) + '"] [data-rl]'); };
+          var miss = inc.filter(function (x) { return !P.dl[x.id] && hasDlInput(x); });
           if (miss.length) {
             document.querySelectorAll('.v769-miss').forEach(function (n) { n.classList.remove('v769-miss'); });
             miss.forEach(function (x) { document.querySelectorAll('[data-rl="' + CSS.escape(x.id) + '"],tr[data-k="' + CSS.escape(String(x.id).replace(/^v763:/, '')) + '"] [data-rl]').forEach(function (n) { n.classList.add('v769-miss'); }); });
