@@ -25370,7 +25370,7 @@ console.log('[V750-fix] ✅ Approver sync fix loaded');
     return TK.p;
   }
   function direct(t, body, signal){
-    var b = Object.assign({}, body, { ticket: t.ticket });
+    var b = Object.assign({}, body, { ticket: t.ticket, via: 'bdsc' });      /* V775 · báo cho eGreen biết lượt này đi từ web sửa chữa (web sửa chữa đã tự ghi nhật ký AI → eGreen không ghi trùng) */
     return fetch(t.url, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(b), signal: signal })
       .then(function (r){ return r.text(); })
       .then(function (txt){
