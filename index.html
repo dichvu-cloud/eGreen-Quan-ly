@@ -30331,9 +30331,9 @@ function openMachine(k0) {
   mask.innerHTML = '<div class="cr-modal"><div class="cr-mh"><b>📑 Báo cáo chi phí — ' + esc(ma) + ' · Tháng ' + esc(thangText(m.thang)) + '</b><span id="cr-tot"></span><span id="cr-dirty" class="cr-s" style="color:#b45309"></span><span style="flex:1"></span>' +
     '<span class="cr-seg" id="cr-seg"><button data-md="goc">💰 Chi phí gốc</button><button data-md="ban">🏷 Chi phí bán hàng</button></span><label class="cr-s"><input type="checkbox" id="cr-cmp"> cột so sánh</label>' +
     '<span id="cr-edbar"></span><button class="cr-btn" id="cr-w">📄 Xuất Word</button> <button class="cr-btn" id="cr-xl">📊 Xuất Excel</button><button class="cr-btn" id="cr-p">🖨 In / PDF</button><button class="cr-btn" id="cr-x">✕</button></div>' +
-    '<div class="cr-mb"><div class="cr-paper" id="cr-paper"></div><div class="cr-side">' +
+    '<div class="cr-mb"><div class="cr-paper" id="cr-paper"></div><div class="cr-split" id="cr-split" title="Kéo để đổi độ rộng khung chat"></div><div class="cr-side">' +
     '<div class="cr-card"><div class="cr-h">✏️ Chỉnh sửa trực tiếp</div><div class="cr-s" id="cr-edinfo"></div></div>' +
-    '<div class="cr-card"><div class="cr-h">🤖 Trợ lý AI — chat để chỉnh báo cáo</div><div class="cr-s">Gõ yêu cầu, AI sửa thẳng vào báo cáo bên trái (bấm <b>💾 Lưu</b> mới ghi). Gửi kèm ảnh bằng nút « Chụp ảnh / Chọn ảnh » hoặc dán (Ctrl+V): AI đọc ảnh và điền / sửa theo yêu cầu, hoặc chèn vào <b>Phụ lục</b> nếu bạn nhờ.</div><div id="cr-msgs" class="cr-msgs"></div><div class="cr-qrow"><div class="cr-qwrap"><textarea id="cr-q" class="cr-ta" rows="2" placeholder="VD: điền nguyên nhân theo ảnh phiếu · đổi đơn giá bơm thành 1.500.000 · chèn ảnh vào phụ lục · viết nhận xét…"></textarea></div><button class="cr-btn pri" id="cr-send" title="Gửi (Ctrl+Enter)">Gửi</button></div></div></div>' +
+    '<div class="cr-card cr-chat"><div class="cr-h">🤖 Trợ lý AI — chat để chỉnh báo cáo<span style="flex:1"></span><button class="cr-btn sm" id="cr-big" title="Phóng to / thu nhỏ khung chat">⤢ Phóng to</button></div><div class="cr-s">Gõ yêu cầu, AI sửa thẳng vào báo cáo bên trái (bấm <b>💾 Lưu</b> mới ghi). Gửi kèm ảnh bằng nút « Chụp ảnh / Chọn ảnh » hoặc dán (Ctrl+V): AI đọc ảnh và điền / sửa theo yêu cầu, hoặc chèn vào <b>Phụ lục</b> nếu bạn nhờ.</div><div id="cr-msgs" class="cr-msgs"></div><div class="cr-qrow"><div class="cr-qwrap"><textarea id="cr-q" class="cr-ta" rows="2" placeholder="VD: điền nguyên nhân theo ảnh phiếu · đổi đơn giá bơm thành 1.500.000 · chèn ảnh vào phụ lục · viết nhận xét…"></textarea></div><button class="cr-btn pri" id="cr-send" title="Gửi (Ctrl+Enter)">Gửi</button></div></div></div>' +
     '<div class="cr-card"><div class="cr-h">🚗 Chuyến đi trong tháng</div><div id="cr-trips" class="cr-s"></div></div></div></div></div>';
   document.body.appendChild(mask);
   var paper = $('cr-paper');
@@ -30509,6 +30509,18 @@ function openMachine(k0) {
   try { var c0 = window.V771Media && window.V771Media.reg && window.V771Media.reg.cost; if (c0) c0.clear(); } catch (e) { }
   paintChat();
   $('cr-send').onclick = sendChat;
+  var mb = mask.querySelector('.cr-mb'), sp = $('cr-split'), setW = function (w) { mb.style.setProperty('--crw', Math.round(w) + 'px'); };
+  try { var sw0 = +localStorage.getItem('cr775_w'); if (sw0 >= 320) setW(sw0); } catch (e) { }
+  sp.addEventListener('pointerdown', function (e) {
+    e.preventDefault(); try { sp.setPointerCapture(e.pointerId); } catch (x) { }
+    var move = function (ev) { var r = mb.getBoundingClientRect(); setW(Math.max(320, Math.min(r.right - ev.clientX - 12, r.width - 360))); };
+    var up = function () { sp.removeEventListener('pointermove', move); sp.removeEventListener('pointerup', up); try { localStorage.setItem('cr775_w', parseInt(mb.style.getPropertyValue('--crw'), 10) || 380); } catch (x) { } };
+    sp.addEventListener('pointermove', move); sp.addEventListener('pointerup', up);
+  });
+  $('cr-big').onclick = function () {
+    var big = this.dataset.big !== '1', box = $('cr-msgs'); this.dataset.big = big ? '1' : '0'; this.textContent = big ? '⤡ Thu nhỏ' : '⤢ Phóng to';
+    setW(big ? Math.min(900, mb.clientWidth * 0.55) : 380); box.style.height = big ? '62vh' : ''; try { localStorage.removeItem('cr775_w'); } catch (e) { }
+  };
   $('cr-q').addEventListener('keydown', function (e) { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); sendChat(); } });
   mask.addEventListener('input', function (e) { var t = e.target; if (t.dataset && t.dataset.ed) { applyEdit(t); refresh(); if (t.tagName === 'TEXTAREA') { t.style.height = 'auto'; t.style.height = Math.min(t.scrollHeight, 220) + 'px'; } } });
   var closeIt = function () {
@@ -30777,10 +30789,10 @@ function injectCss() {
     '.cr-quy th{width:130px;color:#14532d;font-weight:800;white-space:nowrap}.cr-scroll{overflow:auto}tr.off{opacity:.4}' +
     '.cr-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin-bottom:8px}.cr-kpi{background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:8px 10px}.cr-kpi span{display:block;font-size:10px;color:#64748b;font-weight:700;text-transform:uppercase}.cr-kpi b{font-size:15px}.cr-kpi.hi{background:#ecfdf5;border-color:#86efac}' +
     '.cr-mask{position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:99999;display:flex;align-items:center;justify-content:center;padding:14px}.cr-modal{background:#f8fafc;border-radius:14px;width:min(1280px,100%);height:min(92vh,100%);display:flex;flex-direction:column;overflow:hidden}' +
-    '.cr-mh{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:10px 14px;background:#fff;border-bottom:1px solid #e2e8f0}.cr-mh #cr-tot{font-weight:800;color:#166534}.cr-mb{flex:1;display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:12px;padding:12px;overflow:hidden}' +
-    '.cr-msgs{max-height:320px;min-height:90px;overflow:auto;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:8px;margin:6px 0;display:flex;flex-direction:column;gap:6px}.cr-msg{max-width:92%;padding:7px 10px;border-radius:12px;font-size:12.5px;line-height:1.5;word-break:break-word}.cr-msg.me{align-self:flex-end;background:#166534;color:#fff}.cr-msg.ai{align-self:flex-start;background:#fff;border:1px solid #e2e8f0;color:#0f172a}.cr-msg.me .cr-s{color:#d1fae5}.cr-log{margin-top:5px;padding-top:5px;border-top:1px dashed #cbd5e1;font-size:11.5px;color:#166534}.cr-qrow{display:flex;gap:6px;align-items:flex-end}.cr-qwrap{flex:1;min-width:0}' +
-    '.cr-paper{background:#fff;border:1px solid #cbd5e1;border-radius:6px;padding:22px 26px;overflow:auto;font-family:"Times New Roman",serif;font-size:13px;color:#000}.cr-side{overflow:auto}.cr-ta{width:100%;border:1px solid #cbd5e1;border-radius:8px;padding:6px 8px;font-size:12px;margin:4px 0;box-sizing:border-box}.cr-in{width:86px;padding:3px 5px;border:1px solid #cbd5e1;border-radius:6px;font-size:11px}' +
-    '@media(max-width:900px){.cr-mb{grid-template-columns:1fr;overflow:auto}.cr-paper{min-height:50vh}}';
+    '.cr-mh{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:10px 14px;background:#fff;border-bottom:1px solid #e2e8f0}.cr-mh #cr-tot{font-weight:800;color:#166534}.cr-mb{flex:1;display:grid;grid-template-columns:minmax(0,1fr) 8px var(--crw,380px);gap:6px;padding:12px;overflow:hidden}.cr-split{cursor:col-resize;background:#cbd5e1;border-radius:4px;touch-action:none;align-self:stretch}.cr-split:hover{background:#16a34a}' +
+    '.cr-msgs{height:40vh;min-height:120px;max-height:85vh;resize:vertical;flex:none;overflow:auto;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:8px;margin:6px 0;display:flex;flex-direction:column;gap:6px}.cr-msg{max-width:92%;padding:7px 10px;border-radius:12px;font-size:12.5px;line-height:1.5;word-break:break-word}.cr-msg.me{align-self:flex-end;background:#166534;color:#fff}.cr-msg.ai{align-self:flex-start;background:#fff;border:1px solid #e2e8f0;color:#0f172a}.cr-msg.me .cr-s{color:#d1fae5}.cr-log{margin-top:5px;padding-top:5px;border-top:1px dashed #cbd5e1;font-size:11.5px;color:#166534}.cr-qrow{display:flex;gap:6px;align-items:flex-end}.cr-qwrap{flex:1;min-width:0}' +
+    '.cr-paper{background:#fff;border:1px solid #cbd5e1;border-radius:6px;padding:22px 26px;overflow:auto;font-family:"Times New Roman",serif;font-size:13px;color:#000}.cr-side{overflow:auto;display:flex;flex-direction:column}.cr-chat{order:-1}#cr-q{resize:vertical;min-height:54px}.cr-ta{width:100%;border:1px solid #cbd5e1;border-radius:8px;padding:6px 8px;font-size:12px;margin:4px 0;box-sizing:border-box}.cr-in{width:86px;padding:3px 5px;border:1px solid #cbd5e1;border-radius:6px;font-size:11px}' +
+    '@media(max-width:900px){.cr-mb{grid-template-columns:1fr;overflow:auto}.cr-split{display:none}.cr-paper{min-height:50vh}}';
   document.head.appendChild(s);
 }
 
