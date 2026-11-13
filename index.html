@@ -30187,7 +30187,7 @@ function docBody(m, edit) {
     (V.ht.length ? V.ht.map(function (x, i) { return '<tr>' + td(i + 1, { c: 1 }) + td(ET(x.ht, 'ht', i, 'ht', edit, 2)) + td(ET(x.nn || '—', 'ht', i, 'nn', edit, 2)) + (SI ? td(ET(x.gc, 'ht', i, 'gc', edit, 2)) : '') + act2('ht-del', i, 'Xoá dòng') + '</tr>'; }).join('') : '<tr>' + td('—', { c: 1, cs: SI ? 4 : 3 }) + '</tr>') + '</table>' +
     (edit ? '<div class="cr-noprint"><button class="cr-btn sm" data-act="ht-add">➕ Thêm dòng</button></div>' : '');
   /* III — phương án xử lý */
-  h += secH('III. KIỂM TRA – PHƯƠNG ÁN XỬ LÝ') + '<p style="margin:0 0 3pt">Kỹ thuật trực tiếp tháo, kiểm tra, đánh giá chi tiết các hạng mục. Kết quả kiểm tra và phương án xử lý như sau:</p>' +
+  h += secH('III. PHƯƠNG ÁN XỬ LÝ') + '<p style="margin:0 0 3pt">Kỹ thuật trực tiếp tháo, kiểm tra, đánh giá chi tiết các hạng mục. Kết quả kiểm tra và phương án xử lý như sau:</p>' +
     W + '<tr>' + th('TT', '7%') + (multi ? th('Mã máy', '14%') : '') + th('Hạng mục', '33%') + th('Phương án xử lý') + (SI ? th('Ghi chú', '20%') : '') + (edit ? '<td class="cr-noprint" style="border:none"></td>' : '') + '</tr>' +
     (V.xl.length ? V.xl.map(function (x, i) { return '<tr>' + td(i + 1, { c: 1 }) + (multi ? td(ET(x.ma || m.ma, 'xl', i, 'ma', edit), { c: 1 }) : '') + td(ET(x.hm, 'xl', i, 'hm', edit, 2)) + td(ET(x.pa, 'xl', i, 'pa', edit)) + (SI ? td(ET(x.gc, 'xl', i, 'gc', edit, 2)) : '') + act2('xl-del', i, 'Xoá dòng') + '</tr>'; }).join('') : '<tr>' + td('—', { c: 1, cs: 3 + (multi ? 1 : 0) + (SI ? 1 : 0) }) + '</tr>') + '</table>' +
     (edit ? '<div class="cr-noprint"><button class="cr-btn sm" data-act="xl-add">➕ Thêm dòng</button></div>' : '');
@@ -30222,11 +30222,11 @@ function docBody(m, edit) {
   else if (cl || nx) h += secH('V. KẾT LUẬN') + (cl ? '<p style="margin:2pt 0">' + br(cl) + '</p>' : '') + (nx && nx.tomTat ? '<p style="margin:2pt 0">' + br(nx.tomTat) + '</p>' : '') + (nx && nx.nhanXet ? '<p style="margin:2pt 0">' + br(nx.nhanXet) + '</p>' : '');
   h += docConfirm();
   /* phụ lục ảnh — nhóm theo « Phụ lục k » */
-  var imgs = ed.img || [];
+  var offs = ed.imgOff || [], autoI = (m._bd || []).filter(function (x) { return offs.indexOf(x.mid) < 0; }), manI = (ed.img || []).map(function (x, i) { x._i = i; return x; }), imgs = autoI.concat(manI);
   if (imgs.length) {
     var gs = [], gm = {};
-    imgs.forEach(function (x, i) { var g = String(x.grp || '').trim() || 'Hình ảnh'; if (!(g in gm)) { gm[g] = gs.length; gs.push({ name: g, it: [] }); } gs[gm[g]].it.push({ x: x, i: i }); });
-    h += '<p style="page-break-before:always;font-weight:bold;font-size:13pt;text-align:center;margin:0 0 8pt">PHỤ LỤC: HÌNH ẢNH</p>';
+    imgs.forEach(function (x) { var g = String(x.grp || '').trim() || 'Hình ảnh'; if (!(g in gm)) { gm[g] = gs.length; gs.push({ name: g, it: [] }); } gs[gm[g]].it.push({ x: x, i: x._i }); });
+    h += '<p style="page-break-before:always;font-weight:bold;font-size:13pt;text-align:center;margin:0 0 8pt">PHỤ LỤC: HÌNH ẢNH XÁC THỰC VẬT TƯ HỎNG</p>';
     gs.forEach(function (g, gi) {
       h += '<p style="font-weight:bold;margin:8pt 0 3pt">Phụ lục ' + (gi + 1) + '. ' + esc(g.name) + '</p><table width="100%" style="width:100%;border-collapse:collapse;border:none">';
       for (var a = 0; a < g.it.length; a += 2) {
@@ -30234,7 +30234,7 @@ function docBody(m, edit) {
           if (!o) return '<td style="border:none;width:50%"></td>';
           var x = o.x, W0 = x.w || 560, H0 = x.h || 420, sc = Math.min(1, 280 / W0, 300 / H0), w = Math.max(1, Math.round(W0 * sc)), hh = Math.max(1, Math.round(H0 * sc));
           return '<td style="border:none;width:50%;text-align:center;vertical-align:top;padding:4pt"><img src="' + x.data + '" width="' + w + '" height="' + hh + '" style="width:' + w + 'px;height:' + hh + 'px"><br><i>Ảnh ' + (gi + 1) + '.' + (a + ci + 1) + (edit || x.cap ? ' – ' : '') + '</i>' +
-            (edit ? ET(x.cap || '', 'img', o.i, 'cap', true, 1) + '<div class="cr-noprint" style="font-size:11px;color:#64748b">Thuộc phụ lục:</div>' + ET(x.grp || '', 'img', o.i, 'grp', true, 1) + '<br><button class="cr-btn sm cr-noprint" data-act="img-del" data-i="' + o.i + '" title="Bỏ ảnh khỏi phụ lục">🗑 Bỏ ảnh</button>' : '<i>' + esc(x.cap || '') + '</i>') + '</td>';
+            (x.auto ? (edit ? '<br><button class="cr-btn sm cr-noprint" data-act="img-off" data-mid="' + esc(x.mid) + '" title="Bỏ ảnh này khỏi phụ lục (ảnh vẫn nằm trong phiếu BDSC)">🗑 Bỏ ảnh</button>' : '') : edit ? ET(x.cap || '', 'img', o.i, 'cap', true, 1) + '<div class="cr-noprint" style="font-size:11px;color:#64748b">Thuộc phụ lục:</div>' + ET(x.grp || '', 'img', o.i, 'grp', true, 1) + '<br><button class="cr-btn sm cr-noprint" data-act="img-del" data-i="' + o.i + '" title="Bỏ ảnh khỏi phụ lục">🗑 Bỏ ảnh</button>' : '<i>' + esc(x.cap || '') + '</i>') + '</td>';
         }).join('') + '</tr>';
       }
       h += '</table>';
@@ -30253,7 +30253,31 @@ function fileBase(ma, thang) {
 }
 B7.fileBase = fileBase;
 /* ảnh phụ lục nằm riêng trên máy chủ: tải về khi cần (mở báo cáo / xuất Word / in) */
-function ensureImgs(m) {
+/* V778 · ảnh phụ lục lấy thẳng từ các phiếu BDSC của kỹ thuật (chỉ ảnh, không video) */
+function ensureBdImgs(m) {
+  if (m._bdOk) return Promise.resolve();
+  if (m._bdP) return m._bdP;
+  var ids = (m.phieu || []).map(function (p) { return p && p.id; }).filter(Boolean);
+  if (!ids.length) { m._bd = []; m._bdOk = true; return Promise.resolve(); }
+  m._bd = [];
+  m._bdP = api('crBdscImgs775', { phieu: ids, max: 40 }).then(function (r) {
+    var list = (r && r.items) || [], chunks = [];
+    for (var i = 0; i < list.length; i += 6) chunks.push(list.slice(i, i + 6));
+    return chunks.reduce(function (p, ch) {
+      return p.then(function () {
+        return api('crBdscImgData775', { ids: ch.map(function (x) { return x.driveId; }) }).then(function (d) {
+          var by = {}; ((d && d.items) || []).forEach(function (it) { if (it && it.data) by[it.driveId] = it.data; });
+          ch.forEach(function (x) { if (by[x.driveId]) m._bd.push({ auto: true, mid: x.mediaId, data: by[x.driveId], w: 0, h: 0, cap: '', grp: 'Phiếu ' + x.id + ' — ảnh ' + (x.muc === 'sau' ? 'sau' : 'trước') + ' sửa chữa' }); });
+        }).catch(function () { });
+      });
+    }, Promise.resolve());
+  }).then(function () {
+    return Promise.all(m._bd.map(function (x) { return new Promise(function (res) { var im = new Image(), done = false, fin = function () { if (!done) { done = true; res(); } }; im.onload = function () { x.w = im.naturalWidth; x.h = im.naturalHeight; fin(); }; im.onerror = fin; setTimeout(fin, 2500); im.src = x.data; }); }));
+  }).then(function () { m._bdOk = true; m._bdP = null; }, function () { m._bdOk = true; m._bdP = null; });
+  return m._bdP;
+}
+function ensureImgs(m) { return Promise.all([ensureImgs0(m), ensureBdImgs(m)]).then(function () { }); }
+function ensureImgs0(m) {
   var ed = EDo(m);
   if (m._imgOk || !ed.nimg) { m._imgOk = true; return Promise.resolve(); }
   if (m._imgP) return m._imgP;
@@ -30344,6 +30368,7 @@ function normalizeEd(m) {
   if (ed.nx) { if (!String(ed.nx.tomTat || '').trim() && !String(ed.nx.nhanXet || '').trim()) delete ed.nx; }
   if (ed.promo && !ed.promo.cong && !ed.promo.vt) delete ed.promo;
   if (ed.img && !ed.img.length) delete ed.img;
+  if (ed.imgOff && !ed.imgOff.length) delete ed.imgOff;
   if (m._imgOk || !ed.nimg) delete ed.nimg;                      /* nimg = số ảnh phụ lục đang nằm trên máy chủ, chưa tải về */
   return ed;
 }
@@ -30676,6 +30701,7 @@ function openMachine(k0) {
     else if (act === 'x-add') (ed.x = ed.x || []).push({ sec: i, ten: 'Hạng mục thêm', dvt: i === '1' ? 'lần' : 'cái', sl: 1, gia: i === '1' ? 0 : '', gc: '' });
     else if (act === 'x-del') ed.x.splice(+i, 1);
     else if (act === 'img-del') { if (ed.img) ed.img.splice(+i, 1); s.imgDirty = true; }
+    else if (act === 'img-off') { var mid0 = t.dataset.mid; if (mid0) { ed.imgOff = ed.imgOff || []; if (ed.imgOff.indexOf(mid0) < 0) ed.imgOff.push(mid0); } }
     else if (act === 'r-off') { var o = (ed.r = ed.r || {})[i] = ed.r[i] || {}; o.off = true; }
     else if (act === 'r-on') { if (ed.r && ed.r[i]) delete ed.r[i].off; }
     s.dirty = true; draw();
