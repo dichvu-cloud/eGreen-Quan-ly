@@ -3522,7 +3522,7 @@ function addPhen(){
           <input class="inp" id="ph-ht-new-${i}" placeholder="Nhập hiện tượng mới..." style="display:none;margin-top:5px">
         </div>
         <div class="iw full">
-          <div class="il">Nguyên nhân</div>
+          <div class="il">Nguyên nhân * <span style="font-weight:400;color:#b91c1c">(bắt buộc, từ 10 ký tự)</span></div>
           <input class="inp" type="text" id="ph-pp-${i}" maxlength="500" autocomplete="off" placeholder="Kỹ thuật nhập nguyên nhân gây ra hiện tượng (VD: Bugi mòn, khe hở điện cực vượt quá quy định)">
           <div class="ih">Nội dung này hiển thị trong phiếu xem, file Word, PDF và báo cáo chi phí</div>
         </div>
@@ -21936,7 +21936,7 @@ function showEditBDSCModal74(r){
               '<input class="v74f-inp" data-pk="ht" value="'+esc(p.ht||'')+'" placeholder="VD: Công suất thấp">'+
             '</div>'+
             '<div class="v74f-iw" style="grid-column:1/-1">'+
-              '<label class="v74f-il">Nguyên nhân</label>'+
+              '<label class="v74f-il">Nguyên nhân * <span style="font-weight:400;color:#b91c1c">(bắt buộc, từ 10 ký tự)</span></label>'+
               '<input class="v74f-inp" data-pk="pp" value="'+esc(nnText(p.pp))+'" placeholder="Nhập nguyên nhân gây ra hiện tượng">'+
             '</div>'+
             '<div class="v74f-iw" style="grid-column:1/-1">'+
@@ -38235,6 +38235,54 @@ window.V780 = { version: 'V780', fix: 'augmentXuat-no-tot-column' };
   new MutationObserver(later).observe(D.body, { childList: true, subtree: true });
   D.addEventListener('input', function (e) { if (e.target && e.target.matches && e.target.matches('[data-k="ghiChu"]')) later(); }, true);
   window.V782View = { decorate: decorate, parse: parse, blockHtml: blockHtml };
+})();
+</script>
+
+<script id="v782-nn">
+/* ===== V782 · BẮT BUỘC « Nguyên nhân » (≥ 10 ký tự) cho MỌI hiện tượng của phiếu BDSC trước khi nộp / lưu chỉnh sửa ===== */
+(function () {
+  'use strict';
+  var MIN = 10, D = document;
+  function len(v) { return String(v == null ? '' : v).replace(/\s+/g, ' ').trim().length; }
+  function say(m) { try { var f = D.getElementById('v74f-phen-list') && window.toast74 ? window.toast74 : (window.toast || window.toast74 || window.alert); f(m, 'err'); } catch (e) { try { alert(m); } catch (x) { } } }
+  function flag(el) { if (!el) return; try { el.scrollIntoView({ block: 'center', behavior: 'smooth' }); el.focus(); el.style.borderColor = '#dc2626'; el.style.background = '#fef2f2'; el.style.boxShadow = '0 0 0 3px rgba(220,38,38,.15)'; setTimeout(function () { el.style.borderColor = ''; el.style.background = ''; el.style.boxShadow = ''; }, 3500); } catch (e) { } }
+  function msg(ten, n, total) { return '❗ Hiện tượng « ' + (ten || '(chưa đặt tên)') + ' »: bắt buộc điền Nguyên nhân từ ' + MIN + ' ký tự trở lên (hiện có ' + n + ' ký tự)' + (total > 1 ? ' — còn ' + total + ' hiện tượng chưa đạt' : '') + '.'; }
+  /* form lập / sửa báo cáo: các ô ph-pp-<i> */
+  function problemsForm() {
+    var out = [];
+    [].slice.call(D.querySelectorAll('input[id^="ph-pp-"]')).forEach(function (pp) {
+      var i = pp.id.replace('ph-pp-', ''); if (!D.getElementById('ph-' + i)) return;
+      var sel = D.getElementById('ph-ht-' + i), ni = D.getElementById('ph-ht-new-' + i);
+      var ht = sel && sel.value === '__new__' ? (ni ? ni.value.trim() : '') : (sel ? sel.value : '');
+      if (!ht) return;
+      if (len(pp.value) < MIN) out.push({ el: pp, ten: ht, n: len(pp.value) });
+    });
+    return out;
+  }
+  /* hộp « Chỉnh sửa Phiếu BDSC »: ô [data-pk="pp"] */
+  function problemsModal() {
+    var out = [];
+    [].slice.call(D.querySelectorAll('#v74f-phen-list .v74f-phen')).forEach(function (b) {
+      var pp = b.querySelector('[data-pk="pp"]'), ht = b.querySelector('[data-pk="ht"]'); if (!pp) return;
+      if (len(pp.value) < MIN) out.push({ el: pp, ten: ht ? ht.value.trim() : '', n: len(pp.value) });
+    });
+    return out;
+  }
+  function block(list) { if (!list.length) return false; say(msg(list[0].ten, list[0].n, list.length)); flag(list[0].el); return true; }
+  function wrapFn(name, probs, asPromise) {
+    var prev = window[name]; if (typeof prev !== 'function' || prev.__v782nn) return;
+    var w = function () { if (block(probs())) return asPromise ? Promise.resolve() : undefined; return prev.apply(this, arguments); };
+    w.__v782nn = true; window[name] = w;
+  }
+  wrapFn('submitReport', problemsForm, false);
+  /* nút « Lưu cập nhật » của hộp chỉnh sửa: chặn ở pha capture, trước khi handler của hộp chạy */
+  D.addEventListener('click', function (e) {
+    var b = e.target && e.target.closest ? e.target.closest('#v74f-save-btn') : null; if (!b) return;
+    if (block(problemsModal())) { e.stopImmediatePropagation(); e.preventDefault(); }
+  }, true);
+  /* gỡ viền đỏ khi gõ */
+  D.addEventListener('input', function (e) { var t = e.target; if (t && t.id && /^ph-pp-/.test(t.id) || (t && t.getAttribute && t.getAttribute('data-pk') === 'pp')) { t.style.borderColor = ''; t.style.background = ''; t.style.boxShadow = ''; } }, true);
+  window.V782NN = { MIN: MIN, block: block, len: len, problemsForm: problemsForm, problemsModal: problemsModal };
 })();
 </script>
 </body>
