@@ -26371,7 +26371,7 @@ MX.augmentXuat = function (root, ph) {
     else if (a === 'pick') linkRow(tbl, tr, { sku: b.dataset.sku, ten: b.dataset.ten, dvt: b.dataset.dvt });
     else if (a === 'choose') chooseRow(tbl, tr);
     else if (a === 'new') MX.proposeNew({ tenWeb: fld(tr, 'tenVatTu'), dvt: fld(tr, 'donViTinh'), maPhieu: ph.maPhieu });
-    else if (a === 'unlink') { setFld(tr, 'maMisa', ''); setFld(tr, 'tenMisa', ''); MX.refreshXuat(tbl); }
+    else if (a === 'unlink') chooseRow(tbl, tr);                    /* V782: « đổi » = mở ô chọn lại ngay (trước đây chỉ xoá mã rồi hệ thống tự gán lại đúng mã cũ nên bấm không thấy gì) */
   });
   MX.loadCatalog().then(function () { MX.refreshXuat(tbl); }, function () { MX.refreshXuat(tbl); });
 };
@@ -26464,6 +26464,9 @@ function chooseRow(tbl, tr) {
   line.innerHTML = '<input type="text" class="mx-pick-in" placeholder="Gõ tên vật tư trên Misa…" style="width:100%;border:1.5px solid #86efac;border-radius:7px;padding:5px 8px;font-size:12px">';
   var inp = $('input', line); inp.value = fld(tr, 'tenVatTu');
   MX.suggest(inp, { title: 'Chọn hàng trên Misa', onPick: function (rec) { linkRow(tbl, tr, rec); }, context: function () { return fld(tr, 'cumLinhKien'); }, onNew: function (q) { MX.proposeNew({ tenWeb: q || fld(tr, 'tenVatTu'), dvt: fld(tr, 'donViTinh'), maPhieu: tbl.__S.ph.maPhieu }); } });
+  var back = document.createElement('a'); back.href = '#'; back.className = 'mx-chip'; back.textContent = '✕ Giữ mã cũ'; back.onclick = function (ev) { ev.preventDefault(); MX.hideSuggest && MX.hideSuggest(); MX.refreshXuat(tbl); return false; };
+  line.appendChild(back);
+  inp.addEventListener('keydown', function (ev) { if (ev.key === 'Escape') { MX.refreshXuat(tbl); } });
   inp.focus(); inp.dispatchEvent(new Event('input'));
 }
 (function () {
@@ -30201,7 +30204,7 @@ function srcOf(r) {
   if (r.tenMisa) t += (t ? ' · ' : '') + 'Misa: ' + r.tenMisa;
   return t ? 'Giá: ' + t : '';
 }
-function bkRow(r, label, edit, cmp, SI) {
+function bkRow(r, label, edit, cmp, SI, keep) {
   var key = esc(r.key), altG = CR.mode === 'ban' ? r.goc : r.ban, altT = CR.mode === 'ban' ? r.tienGoc : r.tienBan, diff = r.tienBan - r.tienGoc, isMat = !!r.gk;
   var grp = r.kind === 'x' ? 'x' : 'r', k = r.kind === 'x' ? r.xi : r.key, dead = r.off ? 'opacity:.45;text-decoration:line-through;' : '';
   var tenCell = ET(r.ten, grp, k, 'ten', edit, 1) + (SI && r.hong && !edit ? ' <span class="cr-int" style="color:#b91c1c;font-size:11pt">⚠ hỏng/không xác định</span>' : '');
@@ -30209,6 +30212,7 @@ function bkRow(r, label, edit, cmp, SI) {
   var giaIn = EN(r.gia != null ? Math.round(r.gia) : '', grp, k, 'gia', edit, '<span data-cell="' + key + ':gia">' + giaShown + '</span>', ' data-kind="' + r.kind + '"' + (isMat ? ' data-gk="' + esc(r.gk) + '"' : ''));
   var gcClean = String(r.gc || '').replace(/(^|\n)\s*chưa có giá\s*$/i, '');
   var note = '';
+  if (!SI && keep) note = ET(gcClean, grp, k, 'gc', false, 2);           /* V782: công/dịch vụ/đi lại và vật tư nhập trại GIỮ ghi chú dù đã ẩn ghi chú nội bộ (chỉ bỏ cảnh báo giá / nguồn giá) */
   if (SI) note = ET(gcClean, grp, k, 'gc', edit, 2) +
     (isMat ? '<div class="cr-int" data-cell="' + key + ':warn" style="color:#b91c1c;font-size:11pt;' + (r.thieuGia && !r.off ? '' : 'display:none') + '">chưa có giá</div><div class="cr-int" data-cell="' + key + ':src" style="color:#64748b;font-size:10pt">' + esc(srcOf(r)) + '</div>' : '');
   var h = '<tr style="' + dead + '">' + td(label, { c: 1 }) + td(tenCell) + td(EN(r.sl, grp, k, 'sl', edit, num(r.sl)), { c: 1 }) + td(ET(r.dvt, grp, k, 'dvt', edit, 1), { c: 1 }) + td(giaIn, { r: 1 }) +
@@ -30244,13 +30248,13 @@ function docBody(m, edit) {
   h += secH('II. MÔ TẢ HIỆN TƯỢNG – NGUYÊN NHÂN') +
     (edit ? '<p class="cr-noprint" style="margin:0 0 3pt;font-size:12px">Số giờ đồng hồ máy: ' + ET(gio, 't', '', 'soGio', true) + '</p>' : '') +
     '<p style="margin:0 0 3pt">' + (gio ? 'Hệ thống đã hoạt động ' + esc(gio) + (/giờ|\bh\b/i.test(gio) ? '' : ' giờ') + '. Dẫn tới cần kiểm tra và xử lý một số hạng mục sau:' : 'Qua kiểm tra, ghi nhận các hiện tượng và nguyên nhân như sau:') + '</p>' +
-    W + '<tr>' + th('TT', '7%') + th('Hiện tượng', '36%') + th('Nguyên nhân') + (SI ? th('Ghi chú', '18%') : '') + (edit ? '<td class="cr-noprint" style="border:none"></td>' : '') + '</tr>' +
-    (V.ht.length ? V.ht.map(function (x, i) { return '<tr>' + td(i + 1, { c: 1 }) + td(ET(x.ht, 'ht', i, 'ht', edit, 2)) + td(ET(x.nn || '—', 'ht', i, 'nn', edit, 2)) + (SI ? td(ET(x.gc, 'ht', i, 'gc', edit, 2)) : '') + act2('ht-del', i, 'Xoá dòng') + '</tr>'; }).join('') : '<tr>' + td('—', { c: 1, cs: SI ? 4 : 3 }) + '</tr>') + '</table>' +
+    W + '<tr>' + th('TT', '7%') + th('Hiện tượng', '36%') + th('Nguyên nhân') + th('Ghi chú', '18%') + (edit ? '<td class="cr-noprint" style="border:none"></td>' : '') + '</tr>' +
+    (V.ht.length ? V.ht.map(function (x, i) { return '<tr>' + td(i + 1, { c: 1 }) + td(ET(x.ht, 'ht', i, 'ht', edit, 2)) + td(ET(x.nn || '—', 'ht', i, 'nn', edit, 2)) + td(ET(x.gc, 'ht', i, 'gc', edit, 2)) + act2('ht-del', i, 'Xoá dòng') + '</tr>'; }).join('') : '<tr>' + td('—', { c: 1, cs: 4 }) + '</tr>') + '</table>' +
     (edit ? '<div class="cr-noprint"><button class="cr-btn sm" data-act="ht-add">➕ Thêm dòng</button></div>' : '');
   /* III — phương án xử lý */
   h += secH('III. KIỂM TRA – PHƯƠNG ÁN XỬ LÝ') + '<p style="margin:0 0 3pt">Kỹ thuật trực tiếp tháo, kiểm tra, đánh giá chi tiết các hạng mục. Kết quả kiểm tra và phương án xử lý như sau:</p>' +
-    W + '<tr>' + th('TT', '7%') + (multi ? th('Mã máy', '14%') : '') + th('Hạng mục', '33%') + th('Phương án xử lý') + (SI ? th('Ghi chú', '20%') : '') + (edit ? '<td class="cr-noprint" style="border:none"></td>' : '') + '</tr>' +
-    (V.xl.length ? V.xl.map(function (x, i) { return '<tr>' + td(i + 1, { c: 1 }) + (multi ? td(ET(x.ma || m.ma, 'xl', i, 'ma', edit), { c: 1 }) : '') + td(ET(x.hm, 'xl', i, 'hm', edit, 2)) + td(ET(x.pa, 'xl', i, 'pa', edit)) + (SI ? td(ET(x.gc, 'xl', i, 'gc', edit, 2)) : '') + act2('xl-del', i, 'Xoá dòng') + '</tr>'; }).join('') : '<tr>' + td('—', { c: 1, cs: 3 + (multi ? 1 : 0) + (SI ? 1 : 0) }) + '</tr>') + '</table>' +
+    W + '<tr>' + th('TT', '7%') + (multi ? th('Mã máy', '14%') : '') + th('Hạng mục', '33%') + th('Phương án xử lý') + th('Ghi chú', '20%') + (edit ? '<td class="cr-noprint" style="border:none"></td>' : '') + '</tr>' +
+    (V.xl.length ? V.xl.map(function (x, i) { return '<tr>' + td(i + 1, { c: 1 }) + (multi ? td(ET(x.ma || m.ma, 'xl', i, 'ma', edit), { c: 1 }) : '') + td(ET(x.hm, 'xl', i, 'hm', edit, 2)) + td(ET(x.pa, 'xl', i, 'pa', edit)) + td(ET(x.gc, 'xl', i, 'gc', edit, 2)) + act2('xl-del', i, 'Xoá dòng') + '</tr>'; }).join('') : '<tr>' + td('—', { c: 1, cs: 4 + (multi ? 1 : 0) }) + '</tr>') + '</table>' +
     (edit ? '<div class="cr-noprint"><button class="cr-btn sm" data-act="xl-add">➕ Thêm dòng</button></div>' : '');
   /* IV — bảng kê */
   var altN = CR.mode === 'ban' ? 'gốc' : 'bán', TOT = function (name, v) { return '<span data-tot="' + name + '">' + vnd(v) + '</span>'; }, nc = 6 + (cmp ? 3 : 0) + 1;
@@ -30259,7 +30263,7 @@ function docBody(m, edit) {
   var secRow = function (no, title, tot, tG, tB, secKey) {
     return '<tr>' + td(no, { c: 1, b: 1 }) + td(title, { b: 1, cs: 4 }) + td(TOT('sub' + secKey, tot), { r: 1, b: 1 }) + (cmp ? td('', {}) + td('<b data-tot="alt' + secKey + '">' + vnd(CR.mode === 'ban' ? tG : tB) + '</b>', { r: 1 }) + td('<b data-tot="dif' + secKey + '">' + vnd(tB - tG) + '</b>', { r: 1 }) : '') + td('') + (edit ? '<td class="cr-noprint" style="border:none"><button class="cr-btn sm" data-act="x-add" data-i="' + secKey + '" title="Thêm dòng tay vào mục này">➕</button></td>' : '') + '</tr>';
   };
-  var rowsOf = function (arr) { var n = 0; return arr.map(function (r) { if (r.off && !edit) return ''; if (!r.off) n++; return bkRow(r, r.off ? '·' : n, edit, cmp, SI); }).join(''); };
+  var rowsOf = function (arr, keep) { var n = 0; return arr.map(function (r) { if (r.off && !edit) return ''; if (!r.off) n++; return bkRow(r, r.off ? '·' : n, edit, cmp, SI, keep); }).join(''); };
   var promoRow = function (p, amt, name) {
     if (!p || !(amt > 0) || CR.mode !== 'ban') return '';
     return '<tr>' + td('', {}) + td('Khuyến mại <b>' + esc(p.code) + '</b>' + (p.mo ? ' — ' + esc(p.mo) : '') + ' (giảm ' + (p.kieu === 'vnd' ? vnd(p.giaTri) + ' đ' : (Number(p.giaTri) || 0) + '%') + ')', { cs: 4 }) + td('<span data-tot="' + name + '">-' + vnd(amt) + '</span>', { r: 1 }) + (cmp ? td('') + td('') + td('') : '') + td('') + (edit ? '<td class="cr-noprint" style="border:none"></td>' : '') + '</tr>';
@@ -30267,9 +30271,9 @@ function docBody(m, edit) {
   var dpRows = IT(V.dp.map(function (l) { return '<tr class="cr-int">' + td('·', { c: 1 }) + td(br(l.ten)) + td(num(l.sl), { c: 1 }) + td(esc(l.dvt || ''), { c: 1 }) + td('—', { r: 1 }) + td('0', { r: 1 }) + (cmp ? td('—', { r: 1 }) + td('0', { r: 1 }) + td('—', { r: 1 }) : '') + td(br(l.gc)) + (edit ? '<td class="cr-noprint" style="border:none"></td>' : '') + '</tr>'; }).join(''));
   var s2G = T.vatTuGoc, s2B = T.vatTuBan, s3G = T.nhapGoc, s3B = T.nhapBan, has3 = V.s3.some(function (x) { return !x.off; }) || edit, tongName = 'Tổng I + II' + (has3 ? ' + III' : '');
   h += secH('IV. BẢNG KÊ HẠNG MỤC, VẬT TƯ THAY THẾ') + W + head +
-    secRow('I', 'Chi phí công dịch vụ/nhân sự, đi lại', T.sub1, T.sub1, T.sub1, '1') + rowsOf(V.s1) + promoRow(T.pCong, T.giamCong, 'giamCong') +
+    secRow('I', 'Chi phí công dịch vụ/nhân sự, đi lại', T.sub1, T.sub1, T.sub1, '1') + rowsOf(V.s1, true) + promoRow(T.pCong, T.giamCong, 'giamCong') +
     secRow('II', 'Chi phí vật tư thay thế, sửa chữa (theo phiếu BDSC hoàn thành, gồm vật tư hỏng / không xác định mang về)', T.vatTu, s2G, s2B, '2') + (rowsOf(V.s2) + dpRows || '<tr>' + td('—', { c: 1, cs: nc + (edit ? 1 : 0) }) + '</tr>') + promoRow(T.pVt, T.giamVt, 'giamVt') +
-    (has3 ? secRow('III', 'Vật tư nhập về trại trong tháng', T.nhap, s3G, s3B, '3') + (rowsOf(V.s3) || '<tr>' + td('—', { c: 1, cs: nc + (edit ? 1 : 0) }) + '</tr>') : '') +
+    (has3 ? secRow('III', 'Vật tư nhập về trại trong tháng', T.nhap, s3G, s3B, '3') + (rowsOf(V.s3, true) || '<tr>' + td('—', { c: 1, cs: nc + (edit ? 1 : 0) }) + '</tr>') : '') +
     '<tr>' + td(tongName, { c: 1, b: 1, cs: 5 }) + td(TOT('tong', T.tong), { r: 1, b: 1 }) + (cmp ? td('') + td('<b data-tot="altT">' + vnd(CR.mode === 'ban' ? T.tongGoc : T.tongBan) + '</b>', { r: 1 }) + td('<b data-tot="difT">' + vnd(T.chenh) + '</b>', { r: 1 }) : '') + td('') + (edit ? '<td class="cr-noprint" style="border:none"></td>' : '') + '</tr>' +
     vatRows(T, edit, cmp) +
     '<tr>' + td('<b>Bằng chữ:</b> <i data-words="1">' + esc(vnWords(T.tongVat)) + '</i>', { cs: nc - 1 }) + td('') + (edit ? '<td class="cr-noprint" style="border:none"></td>' : '') + '</tr></table>';
@@ -30277,7 +30281,7 @@ function docBody(m, edit) {
   if (cmp) h += '<p class="cr-int" style="font-weight:bold;margin:8pt 0 2pt">Thống kê so sánh hai chế độ</p><table class="cr-int" width="60%" style="border-collapse:collapse"><tr>' + th('Hạng mục') + th('Chi phí gốc') + th('Chi phí bán hàng') + th('Chênh lệch') + '</tr>' +
     [['Nhân công, đi lại', T.sub1, T.sub1], ['Vật tư dùng', s2G, s2B], ['Vật tư nhập', s3G, s3B], ['Khuyến mại', 0, -(T.giamCongB + T.giamVtB)]].map(function (x) { return '<tr>' + td(x[0]) + td(vnd(x[1]), { r: 1 }) + td(vnd(x[2]), { r: 1 }) + td(vnd(x[2] - x[1]), { r: 1 }) + '</tr>'; }).join('') +
     '<tr>' + td('Tổng', { b: 1 }) + td('<b data-tot="cmpG">' + vnd(T.tongGoc) + '</b>', { r: 1 }) + td('<b data-tot="cmpB">' + vnd(T.tongBan) + '</b>', { r: 1 }) + td('<b data-tot="cmpD">' + vnd(T.chenh) + ' (' + (T.pct >= 0 ? '+' : '') + (Math.round(T.pct * 1000) / 10) + '%)</b>', { r: 1 }) + '</tr></table>';
-  if (edit) h += '<p class="cr-noprint" style="font-size:12px;color:#475569;margin-top:6px"><b>Cách lấy giá:</b> ① Misa (giá vốn, rồi giá nhập gần nhất) → ② giá web eGreen / giá nhập tay → ③ bảng giá bóc tách (Drive). Tên vật tư trong báo cáo <b>không cần trùng tên Misa</b>: hệ thống tự quy đổi ngầm sang hàng hoá Misa để lấy giá gốc, rồi nhân hệ số ra giá bán. Ở chế độ « Chi phí bán hàng », đơn giá bạn sửa được <b>tự lưu thành giá bán chung</b> cho mọi báo cáo khác; ở chế độ « Chi phí gốc » chỉ áp dụng cho dòng này.</p>';
+  if (edit) h += '<p class="cr-noprint" style="font-size:12px;color:#475569;margin-top:6px"><b>Cách lấy giá gốc:</b> CHỈ từ Misa (giá vốn, rồi giá nhập gần nhất); vật tư Misa không có giá thì để trống « chưa có giá » và bạn <b>điền tay</b>. Tên vật tư trong báo cáo <b>không cần trùng tên Misa</b>: hệ thống tự quy đổi ngầm sang hàng hoá Misa để lấy giá gốc, rồi nhân hệ số ra giá bán. Ở chế độ « Chi phí bán hàng », đơn giá bạn sửa được <b>tự lưu thành giá bán chung</b> cho mọi báo cáo khác; ở chế độ « Chi phí gốc » chỉ áp dụng cho dòng này.</p>';
   /* V — kết luận */
   var nx = nxOf(m), cl = String(V.iv.cl || '').trim();
   if (edit) h += secH('V. KẾT LUẬN') + ET(V.iv.cl || '', 't', '', 'cl', true, 3) + '<p class="cr-noprint" style="font-size:11px;color:#64748b;margin:4pt 0 2pt">Nhận xét thêm (để trống thì không in; có thể nhờ AI viết trong khung chat):</p><div>' + ET((ed.nx && ed.nx.tomTat) || '', 'nx', '', 'tomTat', true, 3) + '</div><div style="margin-top:3pt">' + ET((ed.nx && ed.nx.nhanXet) || '', 'nx', '', 'nhanXet', true, 4) + '</div>';
@@ -30359,14 +30363,14 @@ function loadExcelJS() {
 }
 function xlModel(m) {
   var V = viewOf(m), s = ST(kOf(m)), I = V.info, a = EGF.attr((m.codes && m.codes[0]) || m.ma), SI = !CR.hideInt, cmp = CR.cmp && SI, GC = function (x) { return SI ? x : ''; };
-  var hts = V.ht.map(function (x, i) { return { ht: x.ht, nn: x.nn, pa: V.xl.filter(function (y) { return y.grp === i; }).map(function (y) { return String(y.hm).replace(/\n/g, ' ') + (y.pa && y.pa !== '—' ? ' (' + y.pa + ')' : '') + (SI && y.gc ? ' — ' + String(y.gc).replace(/\n/g, ' ') : ''); }).join('\n') }; });
+  var hts = V.ht.map(function (x, i) { return { ht: x.ht + (x.gc ? '\n(Ghi chú: ' + String(x.gc).replace(/\n/g, ' ') + ')' : ''), nn: x.nn, pa: V.xl.filter(function (y) { return y.grp === i; }).map(function (y) { return String(y.hm).replace(/\n/g, ' ') + (y.pa && y.pa !== '—' ? ' (' + y.pa + ')' : '') + (y.gc ? ' — ' + String(y.gc).replace(/\n/g, ' ') : ''); }).join('\n') }; });
   var diff = function (r) { return cmp && r.tienBan !== r.tienGoc ? '\n' + (CR.mode === 'ban' ? 'Giá gốc ' + (r.goc != null ? vnd(r.goc) : '—') + ' · tiền gốc ' + vnd(r.tienGoc) : 'Giá bán ' + (r.ban != null ? vnd(r.ban) : '—') + ' · tiền bán ' + vnd(r.tienBan)) + ' · chênh lệch (bán − gốc) ' + vnd(r.tienBan - r.tienGoc) : ''; };
   var live = function (a) { return a.filter(function (r) { return !r.off; }); };
   return { ma: m.ma, thang: m.thang, farm: I.farm, region: a.kv || EGF.region(m.region) || '', lh: a.lh || m.lh || '', owner: I.owner || a.dv || '', province: m.province || '', ngay: I.ngay,
     phieu: (m.phieu || []).map(function (p) { return { id: p.id }; }), staff: I.staffList, hienTuong: hts,
-    cong: live(V.s1).map(function (r) { return { noiDung: r.ten, sl: r.sl, dvt: r.dvt, donGia: r.sl ? Math.round(r.tien / r.sl) : r.gia, tien: r.tien, ghiChu: GC(r.gc) }; }),
+    cong: live(V.s1).map(function (r) { return { noiDung: r.ten, sl: r.sl, dvt: r.dvt, donGia: r.sl ? Math.round(r.tien / r.sl) : r.gia, tien: r.tien, ghiChu: r.gc }; }),
     vt: live(V.s2).map(function (r) { return { ten: r.ten, sl: r.sl, dvt: r.dvt, gia: r.gia > 0 ? r.gia : null, nguon: GC(CR.mode === 'ban' ? (r.sellMarked ? 'giá bán đã lưu' : 'giá gốc × ' + heSoBan()) : (r.gocEdited ? 'giá nhập tay' : r.nguon)), ghiChu: GC(r.gc + diff(r)) }; }),
-    nh: live(V.s3).map(function (r) { return { ten: r.ten, sl: r.sl, dvt: r.dvt, gia: r.gia > 0 ? r.gia : null, nguon: GC(CR.mode === 'ban' ? (r.sellMarked ? 'giá bán đã lưu' : 'giá gốc × ' + heSoBan()) : r.nguon), ghiChu: GC(r.gc + diff(r)) }; }),
+    nh: live(V.s3).map(function (r) { return { ten: r.ten, sl: r.sl, dvt: r.dvt, gia: r.gia > 0 ? r.gia : null, nguon: GC(CR.mode === 'ban' ? (r.sellMarked ? 'giá bán đã lưu' : 'giá gốc × ' + heSoBan()) : r.nguon), ghiChu: r.gc + diff(r) }; }),
     T: { nhanCong: V.T.nhanCong - V.T.giamCong, diLai: V.T.diLai, vatTu: V.T.vatTu - V.T.giamVt, nhap: V.T.nhap, tong: V.T.tong, vatOn: V.T.vatOn, vatPct: V.T.vatPct, vat: V.T.vat, tongVat: V.T.tongVat }, ai: nxOf(m), mode: modeName(CR.mode) };
 }
 function xlPromo(model, m) {
@@ -30799,7 +30803,7 @@ function renderPrice() {
   var rows = priceRows(), q = fold2(CR._pq || ''), n = sellDirty();
   rows = rows.filter(function (r) { return !q || fold2(r.ten).indexOf(q) >= 0; });
   box.innerHTML = '<details class="cr-card"' + (CR._pOpen ? ' open' : '') + ' id="cr-pd"><summary class="cr-h" style="cursor:pointer">🏷 Bảng giá bán vật tư — dùng cho « Chi phí bán hàng » <span class="cr-s">(' + priceRows().length + ' loại vật tư trong kết quả)</span></summary>' +
-    '<div class="cr-s" style="margin:4px 0 8px"><b>Thứ tự lấy giá gốc:</b> ① Misa (giá vốn → giá nhập gần nhất; tên vật tư tự quy đổi ngầm sang hàng hoá Misa) → ② giá web eGreen / giá nhập tay → ③ bảng giá bóc tách (Drive). Mặc định <b>giá bán = hệ số × giá Misa</b>. Muốn một vật tư khác công thức, nhập giá vào cột « Giá bán áp dụng » rồi bấm <b>Lưu</b> — giá đó được ghi nhớ và dùng cho <b>mọi báo cáo khác</b>, không phải sửa lại. Để trống / bấm ↺ = quay về công thức. Nhân công và đi lại giống nhau ở cả hai chế độ.</div>' +
+    '<div class="cr-s" style="margin:4px 0 8px"><b>Thứ tự lấy giá gốc:</b> ① Misa (giá vốn → giá nhập gần nhất; tên vật tư tự quy đổi ngầm sang hàng hoá Misa) → chỉ khi Misa không có giá mới điền tay. Mặc định <b>giá bán = hệ số × giá Misa</b>. Muốn một vật tư khác công thức, nhập giá vào cột « Giá bán áp dụng » rồi bấm <b>Lưu</b> — giá đó được ghi nhớ và dùng cho <b>mọi báo cáo khác</b>, không phải sửa lại. Để trống / bấm ↺ = quay về công thức. Nhân công và đi lại giống nhau ở cả hai chế độ.</div>' +
     '<div class="cr-bar" style="margin-bottom:6px"><label>Hệ số giá bán (× giá Misa) <input type="text" id="cr-heso" value="' + String(heSoBan()).replace('.', ',') + '" style="width:80px"></label><label>Tìm vật tư <input type="text" id="cr-pq" value="' + esc(CR._pq || '') + '" style="width:200px" placeholder="tên vật tư"></label>' +
     '<button class="cr-btn pri" id="cr-psave"' + (n ? '' : ' disabled') + '>💾 Lưu bảng giá bán' + (n ? ' (' + n + ' thay đổi)' : '') + '</button><button class="cr-btn" id="cr-pdisc"' + (n ? '' : ' disabled') + '>Bỏ thay đổi chưa lưu</button></div>' +
     '<div class="cr-scroll" style="max-height:340px;overflow:auto"><table class="cr-tbl"><thead><tr><th>Vật tư</th><th class="c">ĐVT</th><th class="r">Tổng SL</th><th class="r">Giá gốc (Misa)</th><th class="r">Giá theo công thức</th><th class="r">Giá bán áp dụng</th><th class="r">Chênh lệch / đơn vị</th><th>Trạng thái</th></tr></thead><tbody>' +
@@ -30903,8 +30907,8 @@ function renderOut(opt) {
   });
   tot.pct = tot.tongGoc > 0 ? tot.chenh / tot.tongGoc : 0;
   var g = d.gaps || {}, gp = [];
-  if ((g.khongMa || []).length) gp.push(g.khongMa.length + ' vật tư đã dùng nhưng CHƯA có mã Misa (dùng giá web nếu có): ' + g.khongMa.slice(0, 6).map(function (x) { return esc(x.ten); }).join('; ') + '.');
-  if ((g.khongGia || []).length) gp.push(g.khongGia.length + ' vật tư CHƯA có giá ở Misa, web eGreen lẫn bảng giá bóc tách (Drive): ' + g.khongGia.slice(0, 6).map(function (x) { return esc(x.ten); }).join('; ') + '.');
+  if ((g.khongMa || []).length) gp.push(g.khongMa.length + ' vật tư đã dùng nhưng CHƯA có mã Misa (chưa có giá — điền tay): ' + g.khongMa.slice(0, 6).map(function (x) { return esc(x.ten); }).join('; ') + '.');
+  if ((g.khongGia || []).length) gp.push(g.khongGia.length + ' vật tư CHƯA có giá ở Misa — cần điền tay: ' + g.khongGia.slice(0, 6).map(function (x) { return esc(x.ten); }).join('; ') + '.');
   if (g.giaDrive) gp.push('💾 ' + g.giaDrive + ' dòng vật tư dùng <b>giá bóc tách (Drive)</b> vì Misa chưa có giá / chưa có tên (ở chế độ chi phí bán hàng vẫn nhân hệ số ' + String(heSoBan()).replace('.', ',') + ').');
   if ((g.trung || []).length) gp.push('🧹 <b>Lọc trùng vật tư trong cùng phiếu</b> (tránh tính tiền 2 lần): ' + (g.trungBo || 0) + ' nhóm đã bỏ dòng trùng — ' + g.trung.slice(0, 5).map(function (x) { return esc(x.maPhieu) + ' · ' + esc(x.ten) + (x.bo && x.bo.length ? ' (bỏ ' + x.bo.length + ' dòng, ' + esc(x.nguon) + ')' : ' (nghi trùng — chờ quyết định)'); }).join('; ') + ((g.trung || []).length > 5 ? '…' : '') + '. QTV xem chi tiết ở sheet « 36. Lọc trùng chi phí ».');
   if ((g.khongMay || []).length) gp.push(g.khongMay.length + ' dòng vật tư chưa gán được mã máy.');
@@ -30976,11 +30980,21 @@ B7.mountCost = function (host) {
     if (!CR.tm) CR.tm = monthNow(); if (!CR.fm) CR.fm = CR.tm;
     host.innerHTML += '<div id="cr-egf"></div><div class="cr-bar"><label>Từ tháng <input type="month" id="cr-f" value="' + CR.fm + '"></label><label>Đến tháng <input type="month" id="cr-t" value="' + CR.tm + '"></label>' +
       '<label>Trại <input type="text" id="cr-fa" value="' + esc(CR.farm) + '" placeholder="tên trại (nhiều trại: ngăn bằng dấu phẩy)" style="width:230px"></label>' +
-      '<button class="cr-btn pri" id="cr-go">Lập báo cáo</button></div>' +
+      '<button class="cr-btn pri" id="cr-go">Lập báo cáo</button>' + (BX.isAdmin ? '<button class="cr-btn" id="cr-giareset" title="Xoá giá gốc nhập tay / giá tra từ nguồn không phải Misa đã lưu trong các báo cáo để nhập lại (có sao lưu)">♻ Reset giá đã lưu</button>' : '') + '</div>' +
       '<div id="cr-quy">' + quyHtml(BX.C, BX.isAdmin) + '</div><div id="cr-out"></div>';
     wireQuy(); wirePrice();
     EGF.mount('cr-egf', function () { if ($('cr-go')) { clearTimeout(CR.timer); CR.timer = setTimeout(runReport, 250); } });
     $('cr-go').onclick = runReport;
+    if ($('cr-giareset')) $('cr-giareset').onclick = function () {                      /* V782 */
+      if (!confirm('RESET GIÁ ĐÃ LƯU của các báo cáo chi phí?\n\n• Xoá giá gốc nhập tay và giá tra từ nguồn không phải Misa đang lưu trong các báo cáo (không đụng tới công / đi lại, ghi chú, số lượng, ảnh).\n• Sau đó giá gốc chỉ lấy từ Misa; vật tư không có giá Misa sẽ hiện « chưa có giá » để bạn điền tay lại.\n• Hệ thống tự sao lưu trước khi xoá (sheet « BAK 40 … »).')) return;
+      var ban = confirm('Xoá luôn các GIÁ BÁN đặt riêng cho từng vật tư (hệ số giá bán giữ nguyên)?\n\nOK = xoá cả giá bán đặt riêng · Huỷ = chỉ reset giá gốc');
+      var b = $('cr-giareset'); b.disabled = true; b.textContent = 'Đang reset…';
+      api('crGia782Reset', { giaBan: ban }).then(function (r) {
+        if (r && r.ok === false) throw new Error(r.error || 'lỗi');
+        tt('✅ Đã reset giá: ' + (r.baoCao || 0) + ' báo cáo (' + (r.dong || 0) + ' giá)' + (ban ? ' · ' + (r.giaBan || 0) + ' giá bán riêng' : '') + (r.backup && r.backup.length ? ' · sao lưu: ' + r.backup.join(', ') : ''), 'ok');
+        CR.data = null; runReport();
+      }).catch(function (e) { tt('❌ Không reset được: ' + (e.message || e), 'err'); }).then(function () { b.disabled = false; b.textContent = '♻ Reset giá đã lưu'; });
+    };
     ['cr-f', 'cr-t'].forEach(function (id) { $(id).onchange = function () { clearTimeout(CR.timer); CR.timer = setTimeout(runReport, 300); }; });
     ['cr-fa'].forEach(function (id) { $(id).onkeydown = function (e) { if (e.key === 'Enter') runReport(); }; $(id).onchange = function () { clearTimeout(CR.timer); CR.timer = setTimeout(runReport, 300); }; });
     if (CR.data && CR.data.fromMonth === CR.fm && CR.data.toMonth === CR.tm && CR.data._f === JSON.stringify(EGF.st) && (CR.data._farm || '') === (CR.farm || '')) renderOut(); else runReport();
@@ -32064,6 +32078,7 @@ function drawSanXuat(host, keepScroll) {
   h += '<div class="v763-sub">3 · Bảng bóc tách → số lượng cần cấp thêm' + (P.kiemTuId ? ' (kiểm tu ' + esc(P.kiemTuId) + ': xuất kho sẽ trừ SL có sẵn trên máy)' : ' (chưa chọn phiếu kiểm tu: cấp đủ định mức)') + '</div>' +
     '<div class="v769-tools"><button type="button" class="btn bg-gr sm" id="v769-btadd">➕ Thêm dòng vật tư (vào bóc tách chung)</button><span class="ih" style="margin:0">Bóc tách là <b>một sheet chung</b> với phiếu kiểm tu: thêm / xoá dòng ở đây thì phiếu kiểm tu cũng đổi theo. Tích / bỏ tích và sửa SL sẽ tự cập nhật vào phiếu.</span><span id="v769-sx-cnt" style="margin-left:auto"></span></div>' +
     btTable(rows, { sx: true, stock: !!P.stock }) + '<div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap"><button type="button" class="btn bg-b" id="v763-stock">🔎 Kiểm tồn kho Misa → cần mua thêm</button></div><div id="v763-stockmsg"></div>';
+  h += '<div class="v763-sub">4 · Vật tư nhân sự đề xuất thêm (ngoài bóc tách)</div><div id="v782-them">' + themHtml() + '</div>';
   body.innerHTML = h; wireSx(host, body, rows);
   bindBt(body, rows, { sx: true, nhom: P.nhom, nguon: 'Phiếu đề xuất vật tư', redraw: function () { drawSanXuat(host); } });
   loadKtSelect(host, rows); sxSync(body, rows);
@@ -32073,6 +32088,78 @@ function wireSx(host, body, rows) {
   body.querySelectorAll('[data-nhom]').forEach(function (c) { c.onclick = function () { if (P.nhom === c.dataset.nhom) return; var s = selList(); for (var i = s.length - 1; i >= 0; i--) if (s[i].v763) s.splice(i, 1); P.nhom = c.dataset.nhom; P.sxSeed = ''; P.kiemTuId = ''; P.ktRows = {}; P.kiem = {}; P.stock = null; V.loadBt(true).catch(function () { }).then(function () { drawSanXuat(host); }); }; });
   var st = $('v763-stock'); if (st) st.onclick = function () { stockCheck(host, body, rows); };
   var ad = $('v769-btadd'); if (ad) ad.onclick = function () { V.btAddDlg(P.nhom, 'Phiếu đề xuất vật tư', function () { drawSanXuat(host, true); }); };
+  wireThem(host);
+}
+/* ── V782 · Vật tư đề xuất thêm: tra trùng (code + AI) với bóc tách / kiểm tu / phiếu đề xuất, xuất trước đó; trùng thì bắt buộc ghi lý do ── */
+var T782 = { TAG: '[ĐỀ XUẤT THÊM]', REASON: 'Lý do vẫn đề xuất:' };
+function themList() { return selList().filter(function (x) { return x && x.them782; }); }
+function themHtml() {
+  var L = themList();
+  var t = L.length ? '<div class="v763-scroll"><table class="v763-tb"><thead><tr><th>Cụm</th><th>Tên vật tư</th><th>ĐVT</th><th>SL</th><th>Kết quả tra trùng</th><th></th></tr></thead><tbody>' + L.map(function (x) {
+    var inf = x.them782Info || {}, st = inf.trung ? '<span style="color:#b45309;font-weight:600">⚠️ Trùng · vẫn đề xuất</span><div class="ih" style="margin:2px 0 0">' + esc(inf.lyDo || '') + '</div>' : '<span style="color:#15803d;font-weight:600">✓ Chưa có sẵn</span>';
+    return '<tr data-them="' + esc(x.id) + '"><td>' + esc(x.cumLinhKien) + '</td><td>' + esc(x.tenVatTu) + '</td><td>' + esc(x.donViTinh) + '</td><td>' + esc(x.soLuongCan) + '</td><td>' + st + '</td><td><button type="button" class="btn bg-r sm" data-themdel="' + esc(x.id) + '" title="Bỏ khỏi phiếu">🗑</button></td></tr>';
+  }).join('') + '</tbody></table></div>' : '<div class="ih">Chưa có vật tư đề xuất thêm.</div>';
+  return t + '<div style="margin-top:8px"><button type="button" class="btn bg-a" id="v782-them-add">➕ Đề xuất thêm vật tư (ngoài bóc tách)</button></div><div class="ih">Hệ thống tự tra bóc tách, phiếu kiểm tu và các phiếu đề xuất / xuất trước đó (có AI hỗ trợ). Nếu đã có sẵn mà vẫn muốn đề xuất, phải ghi lý do — người duyệt và thủ kho sẽ thấy nội dung xác minh này.</div>';
+}
+function wireThem(host) {
+  var add = $('v782-them-add'); if (add) add.onclick = function () { themDlg(host); };
+  document.querySelectorAll('[data-themdel]').forEach(function (b) { b.onclick = function () { var s = selList(), ix = s.findIndex(function (x) { return x.id === b.dataset.themdel; }); if (ix >= 0) s.splice(ix, 1); try { window.pvBDSCRenderSelected(); } catch (e) { } P.sig = ''; var bx = $('v782-them'); if (bx) { bx.innerHTML = themHtml(); wireThem(host); } }; });
+}
+V.themDlg = function (h) { return themDlg(h); }; V.themHtml = themHtml;
+function themMay() { var e = $('pvb_maMay') || $('pv17_mamay_0'); return e ? String(e.value || '').trim() : ''; }
+function themGhi(cum, ly, chk, lyDo, who) {
+  var cl = function (z) { return String(z || '').replace(/[\[\]]/g, ' ').replace(/\s+/g, ' ').trim(); };
+  var g = T782.TAG + ' Cụm: ' + cl(cum) + '.' + (ly ? ' Cần thêm vì: ' + cl(ly) + '.' : '');
+  var ms = (chk.matches || []).slice(0, 4).map(function (m) { return cl(m.nguon + ': ' + m.ten + (m.sl !== '' && m.sl != null ? ' (SL ' + m.sl + ')' : '') + (m.lyDoAi ? ' — ' + m.lyDoAi : '')); });
+  if (chk.trung) g += ' [TRÙNG] ' + T782.REASON + ' ' + cl(lyDo) + '.';
+  g += ' [XÁC MINH ' + dmy(today()) + (who ? ' · ' + cl(who) : '') + ': ' + (chk.trung ? 'có sẵn — ' + ms.join(' | ') : 'đã tra ' + (chk.soDaSoi || 0) + ' dòng bóc tách / kiểm tu / phiếu trước, chưa thấy trùng') + (chk.nhanXet ? ' · AI: ' + cl(chk.nhanXet) : (chk.ai && chk.ai !== 'ok' && chk.ai !== 'khong-dung' ? ' · AI không khả dụng, chỉ đối chiếu bằng mã/tên' : '')) + ']';
+  return g;
+}
+function themDlg(host) {
+  if (!P.nhom) return tt('Chọn dòng máy trước', 'warn');
+  var hms = []; V.btRows(P.nhom).forEach(function (r) { if (r.hm && hms.indexOf(r.hm) < 0) hms.push(r.hm); });
+  var m = overlay('➕ Đề xuất thêm vật tư — ' + esc(P.nhom),
+    '<div class="v763-info">Dùng khi nhân sự đề xuất thêm vật tư <b>chưa nằm trong bóc tách</b>. Chọn vật tư thuộc cụm nào, nhập đúng tên, rồi bấm <b>Kiểm tra trùng</b> trước khi thêm vào phiếu.</div>' +
+    '<div class="v763-grid3"><div class="iw"><div class="il">Thuộc cụm *</div><input class="inp" id="v782-t-cum" list="v782-t-cuml" placeholder="Chọn hoặc nhập cụm"><datalist id="v782-t-cuml">' + hms.map(function (x) { return '<option value="' + esc(x) + '">'; }).join('') + '</datalist></div>' +
+    '<div class="iw"><div class="il">Tên vật tư *</div><input class="inp" id="v782-t-ten" placeholder="vd: Bugi đánh lửa NGK"></div>' +
+    '<div class="iw"><div class="il">ĐVT *</div><input class="inp" id="v782-t-dvt" value="Cái"></div></div>' +
+    '<div class="v763-grid3"><div class="iw"><div class="il">Số lượng *</div><input class="inp" type="number" min="0" step="any" id="v782-t-sl" value="1"></div>' +
+    '<div class="iw" style="grid-column:span 2"><div class="il">Cần thêm vì (không bắt buộc)</div><input class="inp" id="v782-t-ly" placeholder="vd: KTV phát hiện hỏng thêm khi kiểm tra"></div></div>' +
+    '<div style="margin:8px 0"><button type="button" class="btn bg-b" id="v782-t-chk">🔎 Kiểm tra trùng (bóc tách · kiểm tu · phiếu trước · AI)</button></div><div id="v782-t-res"></div>',
+    '<button class="btn bg-gr" data-c>Đóng</button><button class="btn bg-g" data-s disabled>✓ Thêm vào phiếu</button>', { w: '820px', sticky: true });
+  var g = function (id) { return String((m.q(id) || {}).value || '').trim(); }, chk = null, sig = '', ok = m.q('[data-s]');
+  var curSig = function () { return [g('#v782-t-cum'), g('#v782-t-ten'), g('#v782-t-dvt')].join('|'); };
+  m.q('[data-c]').onclick = m.close;
+  ['#v782-t-cum', '#v782-t-ten', '#v782-t-dvt'].forEach(function (id) { m.q(id).oninput = function () { if (chk && curSig() !== sig) { chk = null; ok.disabled = true; m.q('#v782-t-res').innerHTML = '<div class="ih">Thông tin đã đổi — kiểm tra trùng lại.</div>'; } }; });
+  var upd = function () { ok.disabled = !chk || (chk.trung && g('#v782-t-lydo').length < 8); };
+  m.q('#v782-t-chk').onclick = function () {
+    if (!g('#v782-t-cum') || !g('#v782-t-ten')) return tt('Điền Cụm và Tên vật tư', 'warn');
+    var b = this; b.disabled = true; var res = m.q('#v782-t-res'); res.innerHTML = '<div class="v763-info">⏳ Đang tra bóc tách, kiểm tu, phiếu đề xuất / xuất trước đó…</div>';
+    var dang = themList().map(function (x) { return { ten: x.tenVatTu, cum: x.cumLinhKien, sl: x.soLuongCan }; }).concat(selList().filter(function (x) { return x && x.v763; }).map(function (x) { return { ten: x.tenVatTu, cum: x.cumLinhKien, sl: x.soLuongCan }; }));
+    api('vtThem782Check', { ten: g('#v782-t-ten'), cum: g('#v782-t-cum'), dvt: g('#v782-t-dvt'), nhom: P.nhom, kiemTuId: P.kiemTuId || '', maMay: themMay(), maPhieu: P.edit || '', dangChon: dang }).then(function (r) {
+      b.disabled = false; chk = r; sig = curSig();
+      if (!r.ok) { chk = null; res.innerHTML = '<div class="v763-err">' + esc(r.error || 'Không tra được') + '</div>'; return; }
+      var ai = r.ai === 'ok' ? '' : '<div class="ih">⚠️ AI chưa dùng được — đối chiếu bằng mã Misa / tên đã chuẩn hoá.</div>';
+      if (!r.trung) { res.innerHTML = '<div class="v763-ok">✓ Đã tra ' + (r.soDaSoi || 0) + ' dòng — <b>chưa có sẵn</b>, được đề xuất thêm bình thường.' + (r.nhanXet ? '<br>AI: ' + esc(r.nhanXet) : '') + '</div>' + ai; }
+      else {
+        res.innerHTML = '<div class="v763-warn"><b>⚠️ Vật tư này có vẻ đã có sẵn:</b><ul style="margin:6px 0 6px 18px">' + (r.matches || []).slice(0, 8).map(function (x) { return '<li><b>' + esc(x.nguon) + '</b>: ' + esc(x.ten) + (x.cum ? ' <i>(' + esc(x.cum) + ')</i>' : '') + (x.sl !== '' && x.sl != null ? ' · SL ' + esc(x.sl) : '') + (x.co !== '' && x.co != null ? ' · có sẵn trên máy ' + esc(x.co) : '') + ' <span class="ih">[' + (x.muc === 'chac' ? 'trùng chắc chắn' : 'gần giống') + (x.ai === 'trung' ? ' · AI: cùng vật tư' : '') + ']</span>' + (x.lyDoAi ? '<div class="ih" style="margin:0">' + esc(x.lyDoAi) + '</div>' : '') + '</li>'; }).join('') + '</ul>' + (r.nhanXet ? '<div>AI: ' + esc(r.nhanXet) + '</div>' : '') + '</div>' + ai +
+          '<div class="iw"><div class="il">Lý do vẫn đề xuất dù đã có *  <span class="ih">(người duyệt / thủ kho sẽ đọc để quyết định có duyệt không)</span></div><textarea class="ta" id="v782-t-lydo" rows="3" placeholder="vd: Bản trong kiểm tu đã hỏng, không dùng lại được; cần mua mới để thay"></textarea></div>';
+        m.q('#v782-t-lydo').oninput = upd;
+      }
+      upd();
+    }).catch(function (e) { b.disabled = false; res.innerHTML = '<div class="v763-err">Không tra được: ' + esc(e.message) + '</div>'; });
+  };
+  ok.onclick = function () {
+    if (!chk || curSig() !== sig) return tt('Kiểm tra trùng trước khi thêm', 'warn');
+    var sl = num(g('#v782-t-sl')); if (!(sl > 0)) return tt('Số lượng phải > 0', 'warn');
+    var lyDo = chk.trung ? g('#v782-t-lydo') : ''; if (chk.trung && lyDo.length < 8) return tt('Ghi lý do vẫn đề xuất (ít nhất 8 ký tự)', 'warn');
+    var who = ''; try { who = curUser() || ''; } catch (e) { }
+    var sel = selList(); if (!sel) return tt('Form phiếu chưa sẵn sàng', 'err');
+    sel.push({ id: 'them782:' + Date.now().toString(36) + Math.floor(Math.random() * 1e3), tenVatTu: g('#v782-t-ten'), tenVatTuGoc: g('#v782-t-ten'), cumLinhKien: g('#v782-t-cum'), loaiVatTu: '', loaiVatTuDaChon: '', maVatTu: '', donViTinh: g('#v782-t-dvt') || 'Cái', soLuongCan: sl, tinhTrangXuatKho: 'Mới', nguonVatTu: 'Đề xuất thêm', fixed: false, included: true, them782: true, them782Info: { trung: !!chk.trung, lyDo: lyDo }, ghiChu: themGhi(g('#v782-t-cum'), g('#v782-t-ly'), chk, lyDo, who) });
+    try { window.pvBDSCRenderSelected(); } catch (e) { } P.sig = '';
+    var bx = $('v782-them'); if (bx) { bx.innerHTML = themHtml(); wireThem(host); }
+    m.close(); tt('✅ Đã thêm vật tư đề xuất thêm vào phiếu' + (chk.trung ? ' (kèm lý do trùng)' : ''), 'ok');
+  };
 }
 function loadKtSelect(host, rows) {
   api('kt763List', { nhom: P.nhom }).then(function (r) {
@@ -38092,5 +38179,63 @@ W.V779Fast = { clear: clear, _memo: function () { return Object.keys(memo).lengt
 window.V780 = { version: 'V780', fix: 'augmentXuat-no-tot-column' };
 </script>
 
+
+<script id="v782-them-view">
+/* ===== V782 · Hiển thị « nội dung xác minh » của vật tư đề xuất thêm ở bước DUYỆT và XUẤT KHO ===== */
+(function () {
+  'use strict';
+  var D = document, TAG = '[ĐỀ XUẤT THÊM]';
+  var css = D.createElement('style'); css.id = 'v782-style';
+  css.textContent = '.v782-vx{margin:5px 0 2px;padding:6px 9px;border-radius:7px;font-size:12px;line-height:1.45;border:1px solid #bfdbfe;background:#eff6ff;color:#1e3a8a;white-space:normal}'
+    + '.v782-vx.dup{border-color:#fcd34d;background:#fffbeb;color:#78350f}.v782-vx b{font-weight:700}.v782-vx .tg{display:inline-block;font-size:10px;font-weight:700;padding:1px 6px;border-radius:9px;background:#1d4ed8;color:#fff;margin-right:5px}.v782-vx.dup .tg{background:#d97706}'
+    + '.v782-bn{margin:6px 0;padding:7px 10px;border-radius:8px;border:1px solid #fcd34d;background:#fffbeb;color:#78350f;font-size:12.5px}';
+  D.head.appendChild(css);
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  function parse(note) {
+    var t = String(note || ''), dup = t.indexOf('[TRÙNG]') >= 0, ly = '', xm = '', cum = '', why = '', m;
+    if ((m = /Cụm:\s*([^.\[]*)/.exec(t))) cum = m[1].trim();
+    if ((m = /Cần thêm vì:\s*([^\[]*?)\.(?=\s*\[|\s*$)/.exec(t))) why = m[1].trim();
+    if ((m = /Lý do vẫn đề xuất:\s*([^\[]*?)\.?\s*(?=\[|$)/.exec(t))) ly = m[1].trim();
+    if ((m = /\[XÁC MINH([^\]]*)\]/.exec(t))) xm = m[1].trim();
+    return { dup: dup, cum: cum, why: why, ly: ly, xm: xm };
+  }
+  function blockHtml(note) {
+    var o = parse(note);
+    return '<div class="v782-vx' + (o.dup ? ' dup' : '') + '"><span class="tg">' + (o.dup ? '⚠ ĐỀ XUẤT THÊM · TRÙNG' : 'ĐỀ XUẤT THÊM') + '</span>'
+      + (o.cum ? 'Cụm: <b>' + esc(o.cum) + '</b>. ' : '') + (o.why ? 'Cần thêm vì: ' + esc(o.why) + '. ' : '')
+      + (o.dup ? '<br><b>Lý do vẫn đề xuất:</b> ' + esc(o.ly || '(chưa ghi)') : '') + (o.xm ? '<br><b>Xác minh' + esc(o.xm.replace(/^\s*(?=\d)/, ' ')).replace(/^\s*:/, ':') + '</b>' : '') + '</div>';
+  }
+  function noteOf(tr) { var el = tr.querySelector('[data-k="ghiChu"]'); return el ? String(el.value || '') : ''; }
+  function banner(tbl, n, d) {
+    var host = tbl.closest('.pv17-scroll') || tbl, id = 'v782-bn-' + (tbl.id || 'x'), old = D.getElementById(id); if (old) old.remove();
+    if (!n) return;
+    var b = D.createElement('div'); b.id = id; b.className = 'v782-bn';
+    b.innerHTML = '🧾 Phiếu có <b>' + n + '</b> vật tư <b>nhân sự đề xuất thêm</b>' + (d ? ', trong đó <b>' + d + '</b> vật tư <b>có vẻ đã có sẵn</b> — đọc lý do & nội dung xác minh ở từng dòng trước khi ' + (tbl.id === 'v43_xt' ? 'xuất kho.' : 'duyệt.') : ' — hệ thống đã tra, chưa thấy trùng với bóc tách / kiểm tu / phiếu trước.');
+    host.parentNode.insertBefore(b, host);
+  }
+  function decorate() {
+    try {
+      [['#v729_edit_rows', 'editor'], ['#v43_xt tbody', 'xuat']].forEach(function (pr) {
+        var body = D.querySelector(pr[0]); if (!body) return;
+        var tbl = body.closest('table') || body, n = 0, d = 0;
+        [].slice.call(body.querySelectorAll('tr')).forEach(function (tr) {
+          if (tr.classList.contains('v782-row')) return;
+          var note = noteOf(tr); if (note.indexOf(TAG) < 0) { if (tr.__v782) { var o = tr.nextElementSibling; if (o && o.classList.contains('v782-row')) o.remove(); var o2 = tr.querySelector('.v782-vx'); if (o2) o2.remove(); tr.__v782 = ''; } return; }
+          n++; if (parse(note).dup) d++;
+          if (tr.__v782 === note) return; tr.__v782 = note;
+          var html = blockHtml(note);
+          if (pr[1] === 'xuat') { var old = tr.querySelector('.v782-vx'); if (old) old.remove(); var cell = tr.cells[1] || tr.cells[0]; if (cell) cell.insertAdjacentHTML('beforeend', html); }
+          else { var nx = tr.nextElementSibling; if (nx && nx.classList.contains('v782-row')) nx.remove(); var cols = tr.cells.length || 7, r2 = D.createElement('tr'); r2.className = 'v782-row'; r2.innerHTML = '<td colspan="' + cols + '" style="padding:0 8px 6px">' + html + '</td>'; tr.parentNode.insertBefore(r2, tr.nextSibling); }
+        });
+        banner(tbl, n, d);
+      });
+    } catch (e) { try { console.warn('[V782 view]', e); } catch (x) { } }
+  }
+  var t = 0; function later() { clearTimeout(t); t = setTimeout(decorate, 120); }
+  new MutationObserver(later).observe(D.body, { childList: true, subtree: true });
+  D.addEventListener('input', function (e) { if (e.target && e.target.matches && e.target.matches('[data-k="ghiChu"]')) later(); }, true);
+  window.V782View = { decorate: decorate, parse: parse, blockHtml: blockHtml };
+})();
+</script>
 </body>
 </html>
