@@ -26266,7 +26266,7 @@ MX.proposeNew = async function (o) {
 /* ---------- tra Misa theo danh sách vật tư (tên, mã, tồn thực tế) ---------- */
 MX.overview = function (maPhieu, kho, items) { return api('misaStockOverview', { maPhieu: maPhieu || '', kho: kho || '', items: items }); };
 /* V756: kho chọn mã Misa cho vật tư của một máy → server tự lưu quy đổi theo máy (và nâng lên loại / động cơ khi ≥ 2 máy cùng chọn). Im lặng, không chặn thao tác. */
-function learnPick(o) { try { Promise.resolve(api('misaLearnPick', o)).then(function (r) { if (r && (r.learned || r.promoted || r.mapped)) { try { if (window.EG756Sync) window.EG756Sync.markDirty(['conv']); if (window.EG755 && EG755.loadVariants) EG755.loadVariants(true); } catch (e) { } } }).catch(function () { }); } catch (e) { } }
+function learnPick(o) { try { Promise.resolve(api('misaLearnPick', o)).then(function (r) { if (r && (r.learned || r.promoted || r.mapped || r.synced)) { try { if (window.EG756Sync) window.EG756Sync.markDirty(['conv']); if (window.EG755 && EG755.loadVariants) EG755.loadVariants(true); } catch (e) { } } }).catch(function () { }); } catch (e) { } }
 MX.learnPick = learnPick;
 
 /* theo dõi hoàn thành phiếu: bắt lệnh completePhieu thành công để mở hộp xuất file Misa */
@@ -26533,11 +26533,12 @@ function updateUseTags(tbl) {
   var x = 0, n = 0, z = 0, noMay = 0;
   useRows(tbl).forEach(function (tr) {
     var u = num(fld(tr, 'soLuongSuDung')), tag = $('.mx-use-tag', tr);
-    if (u > 0) { x++; if (!String(fld(tr, 'maMayXacMinh')).trim()) noMay++; } else if (u < 0) n++; else z++;
+    if (u > 0) x++; else if (u < 0) n++; else z++;
+    if ((Math.abs(u) > 0.0004 || num(fld(tr, 'soLuongHong')) > 0.0004) && !String(fld(tr, 'maMayXacMinh')).trim()) noMay++;   /* V783: có dùng (≠ 0) hoặc có hỏng mới cần mã máy */
     if (tag) { tag.className = 'mx-use-tag ' + (u > 0 ? 'x' : u < 0 ? 'n' : ''); tag.textContent = u > 0 ? '→ Phiếu xuất điều chuyển (đã dùng)' : u < 0 ? '→ Phiếu nhập kho (mang thêm về)' : 'Không phát sinh'; }
   });
   var s = $('#mx_csum');
-  if (s) s.innerHTML = '<b>Dự kiến ghi vào Misa:</b> <span class="mx-badge y">' + x + ' dòng xuất điều chuyển</span> <span class="mx-badge b">' + n + ' dòng nhập kho</span> <span class="mx-badge">' + z + ' dòng không phát sinh</span>' + (noMay ? ' <span class="mx-badge r">' + noMay + ' dòng đã dùng nhưng chưa ghi mã máy (cột Mã máy/Xác minh)</span>' : '');
+  if (s) s.innerHTML = '<b>Dự kiến ghi vào Misa:</b> <span class="mx-badge y">' + x + ' dòng xuất điều chuyển</span> <span class="mx-badge b">' + n + ' dòng nhập kho</span> <span class="mx-badge">' + z + ' dòng không phát sinh</span>' + (noMay ? ' <span class="mx-badge r">' + noMay + ' dòng có dùng / có hỏng nhưng chưa ghi mã máy (cột Mã máy/Xác minh)</span>' : '');
 }
 MX.augmentComplete = function (root, phieu, items) {
   var tbl = $('#pv69_complete_table', root || document); if (!tbl || tbl.__mx) return; tbl.__mx = 1;
@@ -26562,6 +26563,21 @@ MX.augmentComplete = function (root, phieu, items) {
   useRows(tbl).forEach(function (tr, i) { decorate(tr, tr.dataset.origin === 'goc' ? items[i] : null); });
   new MutationObserver(function () { useRows(tbl).forEach(function (tr) { decorate(tr, null); }); updateUseTags(tbl); }).observe(tbl.tBodies[0], { childList: true });
   tbl.addEventListener('input', function () { updateUseTags(tbl); }); tbl.addEventListener('change', function () { updateUseTags(tbl); });
+  /* V783 · đổi / điền mã máy ở một dòng: (a) dòng ĐÃ chọn mã Misa tay mà lúc chọn chưa biết máy → học cho đúng máy vừa điền; (b) dòng chưa chọn tay → tra lại mã Misa theo máy đó (quy đổi riêng của máy, dùng chung mọi phiếu) */
+  tbl.addEventListener('change', function (e) {
+    var el = e.target; if (!el || !el.matches || !el.matches('[data-k="maMayXacMinh"]')) return;
+    var tr = el.closest('tr'), mc = String(el.value || '').trim(); if (!tr || !mc || /[,;\/|]/.test(mc)) return;
+    var nm = fld(tr, 'tenVatTuGoc') || fld(tr, 'tenVatTu'), cum = fld(tr, 'cumLinhKien');
+    if (tr.__mxPicked) {
+      if (tr.__mxLearnedFor !== mc.toUpperCase() && fld(tr, 'maMisa')) { tr.__mxLearnedFor = mc.toUpperCase(); MX.learnPick({ tenVatTu: nm, cum: cum, sku: fld(tr, 'maMisa'), maPhieu: (phieu && phieu.maPhieu) || '', maMay: mc }); }
+      return;
+    }
+    MX.overview((phieu && phieu.maPhieu) || '', '', [{ tenVatTu: nm, cumLinhKien: cum, maVatTu: fld(tr, 'maVatTu'), maMisa: '', maMay: mc }]).then(function (r) {
+      var d = r && r.rows && r.rows[0]; if (!d || !d.sku || tr.__mxPicked) return;
+      if (String(fld(tr, 'maMisa')).toLowerCase() === String(d.sku).toLowerCase()) return;
+      setFld(tr, 'maMisa', d.sku); setFld(tr, 'tenMisa', d.tenMisa); paintLine(tr);
+    }).catch(function () { });
+  });
   tbl.addEventListener('click', function (e) {
     var b = e.target.closest('[data-mxa]'); if (!b) return; var tr = b.closest('tr'), a = b.dataset.mxa;
     if (a === 'clear') { setFld(tr, 'maMisa', ''); setFld(tr, 'tenMisa', ''); paintLine(tr); }
@@ -26573,6 +26589,7 @@ MX.augmentComplete = function (root, phieu, items) {
     }
   });
   function applyRec(tr, rec, keepName) {
+    tr.__mxPicked = 1; tr.__mxLearnedFor = String(fld(tr, 'maMayXacMinh') || '').trim().toUpperCase();   /* V783: dòng do người dùng chọn tay */
     setFld(tr, 'maMisa', rec.sku); setFld(tr, 'tenMisa', rec.ten);
     if (!keepName || tr.dataset.origin !== 'goc') { var nm = tr.querySelector('input[data-k="tenVatTu"]'); if (nm && tr.dataset.origin !== 'goc') { nm.__mxMute = true; nm.value = rec.ten; nm.dispatchEvent(new Event('input', { bubbles: true })); nm.__mxMute = false; } }
     if (tr.dataset.origin !== 'goc') { setFld(tr, 'maVatTu', rec.sku); var dv = tr.querySelector('[data-k="donViTinh"]'); if (dv && rec.dvt) dv.value = rec.dvt; setFld(tr, 'tenVatTuGoc', rec.ten); }
@@ -26590,7 +26607,7 @@ MX.augmentComplete = function (root, phieu, items) {
   /* gắn mã Misa tự động cho các dòng gốc (tên / mã / ánh xạ đã duyệt) */
   MX.loadCatalog().then(function () {
     var trs = useRows(tbl);
-    var its = trs.map(function (tr) { return { tenVatTu: fld(tr, 'tenVatTuGoc') || fld(tr, 'tenVatTu'), cumLinhKien: fld(tr, 'cumLinhKien'), maVatTu: fld(tr, 'maVatTu'), maMisa: fld(tr, 'maMisa') }; });
+    var its = trs.map(function (tr) { return { tenVatTu: fld(tr, 'tenVatTuGoc') || fld(tr, 'tenVatTu'), cumLinhKien: fld(tr, 'cumLinhKien'), maVatTu: fld(tr, 'maVatTu'), maMisa: fld(tr, 'maMisa'), maMay: fld(tr, 'maMayXacMinh') }; });   /* V783: tra theo đúng máy của dòng */
     return MX.overview(phieu.maPhieu, '', its);
   }).then(function (r) {
     useRows(tbl).forEach(function (tr, i) { var d = r.rows[i]; if (d && d.sku && !fld(tr, 'maMisa')) { setFld(tr, 'maMisa', d.sku); setFld(tr, 'tenMisa', d.tenMisa); paintLine(tr); } });
@@ -37285,13 +37302,20 @@ function num(v) { var n = Number(String(v == null ? '' : v).replace(',', '.')); 
 function fld(tr, k) { var e = tr.querySelector('[data-k="' + k + '"]'); return e ? e.value : ''; }
 function phieuMachines() {
   var sub = $('.pv69-sub'); if (!sub) return [];
-  return String(sub.textContent || '').split('·')[0].split(/\s*[,;]\s*/).map(function (x) { return x.trim(); }).filter(Boolean);
+  var seen = {}, out = [];
+  String(sub.textContent || '').split('·')[0].split(/\s*[,;\/|]\s*/).forEach(function (x) { x = x.trim(); var k = x.toUpperCase(); if (x && !seen[k]) { seen[k] = 1; out.push(x); } });   /* V783: bỏ mã trùng */
+  return out;
 }
-function rowUsed(tr) { return num(fld(tr, 'soLuongSuDung')) > 0 || num(fld(tr, 'soLuongXuatKho')) > 0; }
+/* V783 · CHỈ bắt buộc mã máy khi dòng CÓ DÙNG (SL sử dụng ≠ 0 — kể cả âm = mang thêm về) hoặc có HỎNG. Dòng nhập lại đủ, không hỏng → không bắt buộc (trước đây cứ SL xuất > 0 là bắt buộc). */
+function rowUsed(tr) {
+  var sx = num(fld(tr, 'soLuongXuatKho')), nh = num(fld(tr, 'soLuongNhapMoi')) + num(fld(tr, 'soLuongNhapCu')) + num(fld(tr, 'soLuongNhapTot')) + num(fld(tr, 'soLuongNhapKxd'));
+  var use = Math.round((sx - nh) * 1000) / 1000, hong = num(fld(tr, 'soLuongHong'));
+  return Math.abs(use) > 0.0004 || hong > 0.0004;
+}
 function markMachine() {
   var tb = $('#pv69_complete_table'); if (!tb) return;
   var th = $$('th', tb).filter(function (x) { return /Mã máy/i.test(x.textContent); })[0];
-  if (th && !th.querySelector('.v774m-star')) { var sp = D.createElement('span'); sp.className = 'v774m-star'; sp.title = 'Bắt buộc điền mã máy cho vật tư đã sử dụng'; sp.textContent = '*'; th.appendChild(sp); }
+  if (th && !th.querySelector('.v774m-star')) { var sp = D.createElement('span'); sp.className = 'v774m-star'; sp.title = 'Chỉ bắt buộc điền mã máy khi vật tư có sử dụng (SL sử dụng ≠ 0) hoặc có hỏng'; sp.textContent = '*'; th.appendChild(sp); }
   var ms = phieuMachines();
   $$('tbody tr', tb).forEach(function (tr) {
     var inp = tr.querySelector('[data-k="maMayXacMinh"]'); if (!inp) return;
@@ -37301,7 +37325,7 @@ function markMachine() {
     if (miss) inp.setAttribute('placeholder', 'Bắt buộc *'); else if (inp.getAttribute('placeholder') === 'Bắt buộc *') inp.removeAttribute('placeholder');
   });
 }
-D.addEventListener('input', function (e) { var t = e.target; if (t && t.closest && t.closest('#pv69_complete_table')) markMachine(); }, true);
+D.addEventListener('input', function (e) { var t = e.target; if (t && t.closest && t.closest('#pv69_complete_table')) { if (t.getAttribute && t.getAttribute('data-k') === 'maMayXacMinh') t.__v774mf = 1; markMachine(); } }, true);   /* V783: người dùng đã sửa ô mã máy thì không tự điền lại */
 D.addEventListener('change', function (e) { var t = e.target; if (t && t.closest && t.closest('#pv69_complete_table')) markMachine(); }, true);
 /* chặn bấm « Lưu hoàn thiện » khi còn vật tư đã dùng mà chưa có mã máy */
 D.addEventListener('click', function (e) {
@@ -37311,7 +37335,7 @@ D.addEventListener('click', function (e) {
   var bad = $$('tbody tr', tb).filter(function (tr) { var inp = tr.querySelector('[data-k="maMayXacMinh"]'); return inp && rowUsed(tr) && !String(inp.value || '').trim(); });
   if (!bad.length) return;
   e.preventDefault(); e.stopImmediatePropagation(); markMachine();
-  tt('⛔ Còn ' + bad.length + ' vật tư đã dùng chưa điền MÃ MÁY (ô viền đỏ, dấu *). Điền xong mới hoàn thành được phiếu.', 'err');
+  tt('⛔ Còn ' + bad.length + ' vật tư có sử dụng / có hỏng mà chưa điền MÃ MÁY (ô viền đỏ, dấu *). Điền xong mới hoàn thành được phiếu.', 'err');
   try { bad[0].querySelector('[data-k="maMayXacMinh"]').scrollIntoView({ block: 'center', behavior: 'smooth' }); bad[0].querySelector('[data-k="maMayXacMinh"]').focus(); } catch (er) { }
 }, true);
 
@@ -38283,6 +38307,37 @@ window.V780 = { version: 'V780', fix: 'augmentXuat-no-tot-column' };
   /* gỡ viền đỏ khi gõ */
   D.addEventListener('input', function (e) { var t = e.target; if (t && t.id && /^ph-pp-/.test(t.id) || (t && t.getAttribute && t.getAttribute('data-pk') === 'pp')) { t.style.borderColor = ''; t.style.background = ''; t.style.boxShadow = ''; } }, true);
   window.V782NN = { MIN: MIN, block: block, len: len, problemsForm: problemsForm, problemsModal: problemsModal };
+})();
+</script>
+
+<script id="v783-script">
+/* ===== V783 · MÃ MÁY / XÁC MINH Ở BƯỚC HOÀN THÀNH PHIẾU + MÃ MISA ĐI THEO MÃ MÁY =====
+   1) Cột « Mã máy/Xác minh » chỉ BẮT BUỘC khi dòng có dùng (SL sử dụng ≠ 0) hoặc có hỏng (xem V774m · rowUsed).
+   2) Tự điền mã máy theo phiếu: phiếu 1 máy → điền sẵn; phiếu nhiều máy → điền theo máy đã chọn cho vật tư ở bước TẠO phiếu, chưa chọn rõ thì để trống cho nhân sự điền.
+   3) Mã Misa chọn / quy đổi ở BẤT KỲ khâu nào cho một mã máy → máy chủ áp dụng cho mọi phiếu cũ và mới của ĐÚNG mã máy đó (xem Code V783).
+      Ở form tạo / sửa phiếu chưa có mã phiếu, phiếu chỉ có 1 máy thì coi máy đó là máy của dòng khi học mã. */
+(function () {
+'use strict';
+if (window.__v783) return; window.__v783 = true;
+function wrap() {
+  var MX = window.MX754; if (!MX || typeof MX.learnPick !== 'function') return false;
+  if (MX.learnPick.__v783) return true;
+  var o = MX.learnPick;
+  var w = function (p) {
+    try {
+      p = p || {};
+      if (!String(p.maMay || '').trim() && !String(p.maPhieu || '').trim()) {
+        var ms = (window.EG755 && typeof window.EG755.machineCodes === 'function' && window.EG755.machineCodes()) || [];
+        if (ms.length === 1) p.maMay = ms[0];
+      }
+    } catch (e) { }
+    return o.call(this, p);
+  };
+  w.__v783 = true; MX.learnPick = w; return true;
+}
+var n = 0, t = setInterval(function () { if (wrap() || ++n > 120) clearInterval(t); }, 300);
+wrap();
+window.V783 = { ver: 'V783', fix: 'ma-may-chi-bat-buoc-khi-co-dung-hoac-hong;tu-dien-ma-may-theo-phieu;ma-misa-dong-bo-theo-ma-may' };
 })();
 </script>
 </body>
