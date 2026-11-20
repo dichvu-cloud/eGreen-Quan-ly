@@ -38478,6 +38478,15 @@ input.v787-bad,input.v787-warnc{border-color:#f97316}
 .v787-sign{break-inside:avoid}
 .v787-row .fl{flex:1}
 
+/* V789 · ô gợi ý mã máy */
+.v787-sg{position:fixed;z-index:10050;background:#fff;border:1px solid #cbd5e1;border-radius:10px;box-shadow:0 10px 28px rgba(15,23,42,.2);max-height:280px;overflow:auto}
+.v787-sg-i{padding:7px 11px;cursor:pointer;border-bottom:1px solid #f1f5f9}
+.v787-sg-i:last-child{border-bottom:0}
+.v787-sg-i b{display:block;font-size:13px;color:#0f172a}
+.v787-sg-i small{display:block;font-size:11px;color:#64748b;line-height:1.35;margin-top:1px}
+.v787-sg-i.on,.v787-sg-i:hover{background:#ecfdf5}
+.v787-sg-e{padding:9px 11px;font-size:12px;color:#64748b}
+
 </style>
 <script id="v787-script">
 /* ===== V787 · (1) Bảng hạng mục báo cáo SX mẫu · (2) Đầu vào bắt buộc của kế hoạch · (3) Bán hàng / báo giá · (4) Theo dõi thông số trực tiếp ===== */
@@ -38490,17 +38499,62 @@ function $(id) { return D.getElementById(id); }
 function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
 function api(a, d) { return W.pvApi(a, d || {}); }
 function tt(m, t) { try { W.toast(m, t || ''); } catch (e) { } }
-function can(c) { try { return !!(W.EG && W.EG.can && W.EG.can(c)); } catch (e) { return false; } }
+function can(c) { try { var E = W.EG755 || W.EG; return !!(E && E.can && E.can(c)); } catch (e) { return false; } }
 function fold(s) { return String(s == null ? '' : s).toLowerCase().replace(/đ/g, 'd').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ').trim(); }
 function money(n) { n = Math.round(Number(n) || 0); return (n < 0 ? '-' : '') + String(Math.abs(n)).replace(/\B(?=(\d{3})+(?!\d))/g, '.'); }
 function pnum(s) { s = String(s == null ? '' : s).trim().replace(/\s/g, ''); if (!s) return 0; if (/^-?\d{1,3}(\.\d{3})+(,\d+)?$/.test(s)) s = s.replace(/\./g, '').replace(',', '.'); else s = s.replace(',', '.'); var n = Number(s); return isFinite(n) ? n : 0; }
 function dmy(s) { s = String(s || ''); var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(s); return m ? m[3] + '/' + m[2] + '/' + m[1] : s; }
 function todayIso() { var d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
 function nowTxt() { var d = new Date(), p = function (n) { return String(n).padStart(2, '0'); }; return p(d.getDate()) + '/' + p(d.getMonth() + 1) + '/' + d.getFullYear() + ' ' + p(d.getHours()) + ':' + p(d.getMinutes()); }
-function curUser() { try { return (W.CU && (W.CU.name || W.CU.fullName || W.CU.u)) || ''; } catch (e) { return ''; } }
-function machines() { try { return Array.isArray(W.MACHINES) ? W.MACHINES : []; } catch (e) { return []; } }
-function ktvList() { try { if (W.KTV_LIST && W.KTV_LIST.length) return W.KTV_LIST.slice(); } catch (e) { } try { return typeof W.pvKtvNames === 'function' ? W.pvKtvNames() : []; } catch (e) { return []; } }
-function machineDl(id) { return '<datalist id="' + id + '">' + machines().map(function (m) { return '<option value="' + esc(m.maMay) + '">' + esc((m.tt || '') + (m.dv ? ' · ' + m.dv : '')); }).join('') + '</datalist>'; }
+function curUser() { try { var u = typeof CU !== 'undefined' ? CU : W.CU; return (u && (u.name || u.fullName || u.u)) || ''; } catch (e) { return ''; } }
+function machines() { try { var a = typeof MACHINES !== 'undefined' ? MACHINES : W.MACHINES; return Array.isArray(a) ? a : []; } catch (e) { return []; } }
+function ktvList() { try { var a = typeof KTV_LIST !== 'undefined' ? KTV_LIST : W.KTV_LIST; if (a && a.length) return a.slice(); } catch (e) { } try { return typeof W.pvKtvNames === 'function' ? W.pvKtvNames() : []; } catch (e) { return []; } }
+function machineDl() { return ''; }   /* V789: thay datalist bằng ô gợi ý có thông tin đơn vị lắp đặt (xem bên dưới) */
+/* ---------- ô gợi ý MÃ MÁY: mã in đậm, bên dưới ghi nhỏ đơn vị lắp đặt · điểm trại · loại hình · tình trạng ---------- */
+function machFind(code) { code = String(code || '').trim().toUpperCase(); if (!code) return null; var a = machines(); for (var i = 0; i < a.length; i++) if (String(a[i].maMay || '').toUpperCase() === code) return a[i]; return null; }
+function machInfo(m) { return [m.dv, m.tt, m.lh && m.lh !== m.dv ? m.lh : '', m.ts].filter(Boolean).join(' · '); }
+var SG = { box: null, inp: null, list: [], i: -1 };
+function sgClose() { if (SG.box && SG.box.parentNode) SG.box.parentNode.removeChild(SG.box); SG.box = null; SG.inp = null; SG.list = []; SG.i = -1; }
+function sgMark() { if (!SG.box) return; var it = SG.box.querySelectorAll('.v787-sg-i'); for (var k = 0; k < it.length; k++) { it[k].classList.toggle('on', k === SG.i); if (k === SG.i && it[k].scrollIntoView) it[k].scrollIntoView({ block: 'nearest' }); } }
+function sgOpen(inp) {
+  var q = fold(inp.value), all = machines(), r;
+  if (!q) r = all.slice(0, 60);
+  else {
+    var tk = q.split(' ');
+    r = all.filter(function (m) { var h = fold([m.maMay, m.dv, m.tt, m.tinh, m.lh, m.kv, m.ts].join(' ')); return tk.every(function (t) { return h.indexOf(t) >= 0; }); });
+    r.sort(function (a, b) { var A = fold(a.maMay).indexOf(q) === 0 ? 0 : 1, B = fold(b.maMay).indexOf(q) === 0 ? 0 : 1; return A - B; });
+    r = r.slice(0, 60);
+  }
+  sgClose(); SG.inp = inp; SG.list = r; SG.i = -1;
+  var box = D.createElement('div'); box.className = 'v787-sg'; box.setAttribute('role', 'listbox');
+  box.innerHTML = r.length ? r.map(function (m, k) { return '<div class="v787-sg-i" role="option" data-k="' + k + '"><b>' + esc(m.maMay) + '</b><small>' + esc(machInfo(m) || '—') + '</small></div>'; }).join('')
+    : '<div class="v787-sg-e">' + (q ? 'Không có mã máy khớp trong danh sách — bạn vẫn có thể nhập tay.' : 'Chưa có danh sách máy.') + '</div>';
+  D.body.appendChild(box); SG.box = box;
+  var rc = inp.getBoundingClientRect(), w = Math.max(rc.width, 300), vh = W.innerHeight || 700, vw = W.innerWidth || 1000;
+  box.style.width = Math.min(w, vw - 12) + 'px'; box.style.left = Math.max(6, Math.min(rc.left, vw - Math.min(w, vw - 12) - 6)) + 'px';
+  var hBox = Math.min(box.scrollHeight, 280);
+  if (rc.bottom + hBox + 8 > vh && rc.top > hBox + 8) box.style.top = (rc.top - hBox - 2) + 'px'; else box.style.top = (rc.bottom + 2) + 'px';
+}
+function sgPick(k) {
+  var m = SG.list[k], inp = SG.inp; if (!m || !inp) return; inp.value = m.maMay; sgClose();
+  inp.dispatchEvent(new Event('change', { bubbles: true }));
+}
+D.addEventListener('input', function (e) { var t = e.target; if (t && t.getAttribute && t.getAttribute('data-v787mach')) sgOpen(t); });
+D.addEventListener('focusin', function (e) { var t = e.target; if (t && t.getAttribute && t.getAttribute('data-v787mach')) sgOpen(t); });
+D.addEventListener('mousedown', function (e) {
+  var it = e.target.closest && e.target.closest('.v787-sg-i');
+  if (it) { e.preventDefault(); sgPick(Number(it.getAttribute('data-k'))); return; }
+  if (SG.box && !(e.target.closest && e.target.closest('.v787-sg')) && e.target !== SG.inp) sgClose();
+}, true);
+D.addEventListener('keydown', function (e) {
+  if (!SG.box || e.target !== SG.inp) return;
+  if (e.key === 'ArrowDown') { e.preventDefault(); SG.i = Math.min(SG.list.length - 1, SG.i + 1); sgMark(); }
+  else if (e.key === 'ArrowUp') { e.preventDefault(); SG.i = Math.max(0, SG.i - 1); sgMark(); }
+  else if (e.key === 'Enter' && SG.i >= 0) { e.preventDefault(); sgPick(SG.i); }
+  else if (e.key === 'Escape' || e.key === 'Tab') sgClose();
+});
+W.addEventListener('resize', sgClose);
+D.addEventListener('scroll', function (e) { if (SG.box && !(e.target && e.target.closest && e.target.closest('.v787-sg'))) sgClose(); }, true);
 function ov(title, body, foot, opt) { if (!W.V763 || !W.V763.overlay) { tt('Chưa tải xong giao diện, thử lại sau vài giây.', 'warn'); return null; } return W.V763.overlay(title, body, foot, opt); }
 function dlg(title, body, okLabel, onOk, w) {
   var m = ov(title, body, '<button class="btn bg-gr" data-c>Hủy</button><button class="btn bg-g" data-ok>' + okLabel + '</button>', { w: w || '560px', sticky: true }); if (!m) return null;
@@ -38577,7 +38631,7 @@ function ensureSidebar() {
   var it = $('ni-v787Bh');
   if (!can('price')) { if (it) it.style.display = 'none'; return; }
   if (it) { it.style.display = ''; return; }
-  var anchor = $('ni-g771-kt') || $('ni-g771-dcl') || D.querySelector('#mainSidebar .nitem'); if (!anchor) return;
+  var anchor = $('ni-g771-kt') || $('ni-g771-dcl') || $('ni-hoanThanhPhieu') || $('ni-danhSachPhieu') || $('ni-v763Hong') || D.querySelector('#mainSidebar .nitem'); if (!anchor) return;
   anchor.insertAdjacentHTML('afterend', '<div class="nitem" id="ni-v787Bh" onclick="nav(\'v787Bh\')">' + ICO_BH + 'Bán hàng</div>');
 }
 function addTile(pageId, key, ico, name) {
@@ -38668,7 +38722,7 @@ IN.paint = function () {
   var c = $('v787-intake'); if (!c) return;
   c.innerHTML = '<h3 style="margin:0 0 4px">📝 Đầu vào bắt buộc trước khi nhờ AI lập kế hoạch</h3><div class="v787-sub" style="margin-bottom:8px">AI chỉ hỗ trợ SAU khi bạn đã tự nêu: hiện tượng, phán đoán nguyên nhân và tối thiểu 3 nội dung dự kiến xử lý. Công việc của bạn luôn nằm đầu kế hoạch; AI chỉ bổ sung thêm chẩn đoán / hạng mục còn thiếu.</div>' +
     '<span class="v787-lbl">1 · Kỹ thuật tham gia</span><div id="v787-in-ktv" class="v787-row"></div><div class="v787-row"><input id="v787-in-ktvi" class="v787-in" style="flex:1;min-width:160px" list="v787-in-kl" placeholder="Thêm KTV…" autocomplete="off">' + dl('v787-in-kl', ktvList()) + '<button class="btn bg-gr sm" data-v787="in-addk">+</button></div>' +
-    '<div class="v787-grid"><div><span class="v787-lbl">2 · Mã máy / công trình</span><input id="v787-in-mm" class="v787-in" style="width:100%" list="v787-in-ml" placeholder="VD: NS250KVA11" autocomplete="off">' + machineDl('v787-in-ml') + '</div>' +
+    '<div class="v787-grid"><div><span class="v787-lbl">2 · Mã máy / công trình</span><input id="v787-in-mm" class="v787-in" style="width:100%" data-v787mach="1" placeholder="VD: NS250KVA11 (chọn từ gợi ý)" autocomplete="off">' + '</div>' +
     '<div><span class="v787-lbl">3 · Thời gian bắt đầu (chuẩn bị vật tư)</span><input id="v787-in-bd" type="datetime-local" class="v787-in" style="width:100%"></div>' +
     '<div><span class="v787-lbl">4 · Yêu cầu có mặt tại trại</span><input id="v787-in-cm" type="datetime-local" class="v787-in" style="width:100%"></div>' +
     '<div><span class="v787-lbl">5 · Dự kiến hoàn thành</span><input id="v787-in-ht" type="datetime-local" class="v787-in" style="width:100%"></div></div>' +
@@ -38725,27 +38779,46 @@ function machineBy(code) { code = String(code || '').toUpperCase(); return machi
 /* ═══════════════ (4) THEO DÕI THÔNG SỐ TRỰC TIẾP ═══════════════ */
 var TD = { def: null, defs: null, ses: null, list: [], mm: '', fam: '', view: 'list', dirty: false, draft: {} };
 function buildTd() {
-  mkPage('v787Td', '<div class="ph"><h1>📈 Theo dõi thông số trực tiếp</h1><p>Đo liên tục khi máy đang chạy theo từng mức tải (Không tải / 50 / 80 / 100 kW) tại mốc 0 và 15 phút — cổ xả, bobin, cảm biến đánh lửa. Có thể lưu nhiều lần đo trong một phiên; hệ thống tự cảnh báo khi vượt ngưỡng. Người đo ký tắt, người thứ hai xác nhận.</p></div>' + back('g771_bdsc', 'Về Bảo dưỡng sửa chữa') +
+  mkPage('v787Td', '<div class="ph"><h1>📈 Theo dõi thông số trực tiếp</h1><p>Đo liên tục khi máy đang chạy theo từng mức tải (Không tải / 50 / 80 / 100 kW) tại mốc 0 và 15 phút — cổ xả, bobin, cảm biến đánh lửa, turbo, nhiệt độ động cơ. Có thể lưu nhiều lần đo trong một phiên; hệ thống tự cảnh báo khi vượt ngưỡng. Người đo ký tắt, người thứ hai xác nhận.</p></div>' + back('g771_bdsc', 'Về Bảo dưỡng sửa chữa') +
     '<div id="v787-td-b"></div>');
 }
 TD.open = function () { if (!$('v787-td-b')) buildTd(); TD.view = TD.ses ? 'edit' : 'list'; TD.paint(); if (!TD.defs) TD.loadDef(); TD.loadList(); };
-TD.loadDef = function () { return call('getTdl787Def', { maMay: TD.mm }).then(function (r) { if (r && r.ok) { TD.defs = r.defs; if (r.fam) TD.fam = r.fam; TD.paint(); } }).catch(function () { }); };
+TD.loadDef = function () { return call('getTdl787Def', { maMay: TD.mm }).then(function (r) { if (r && r.ok) { TD.defs = r.defs; if (r.fam && TD.mm) { TD.fam = r.fam; TD.famAuto = true; } TD.paint(); } }).catch(function () { }); };
 TD.loadList = function () { return call('getTdl787List', {}).then(function (r) { TD.list = (r && r.list) || []; if (TD.view === 'list') TD.paint(); }).catch(function (e) { var b = $('v787-td-b'); if (b && TD.view === 'list') b.innerHTML = errBox(e); }); };
 TD.paint = function () { var b = $('v787-td-b'); if (!b) return; if (TD.view === 'edit' && TD.ses) TD.paintEdit(b); else TD.paintList(b); };
-function famOf(code) { code = String(code || '').toUpperCase(); if (/^(RD10|RE10)/.test(code)) return 'RE10'; if (/^(PE6|PD6)/.test(code)) return 'PE6'; return ''; }
+function famOf(code) { code = String(code || '').toUpperCase(); if (/^(RD10|RE10)/.test(code)) return 'RE10'; if (/^(PE6|PD6)/.test(code)) return 'PE6'; return ''; }   /* chỉ dự phòng khi gọi máy chủ lỗi */
 TD.paintList = function (b) {
   var def = TD.defs;
-  b.innerHTML = '<div class="v787-card"><h3 style="margin:0 0 6px">➕ Phiên đo mới</h3><div class="v787-row"><label class="v787-sub">Mã máy <input id="v787-td-mm" class="v787-in" list="v787-td-ml" style="width:170px" value="' + esc(TD.mm) + '" placeholder="Nhập / chọn" autocomplete="off"></label>' + machineDl('v787-td-ml') +
-    '<label class="v787-sub">Bảng đo <select id="v787-td-fam" class="v787-in"><option value="">(tự nhận theo máy)</option><option value="RE10"' + (TD.fam === 'RE10' ? ' selected' : '') + '>RD10 / RE10 — 10 máy (vế R + L)</option><option value="PE6"' + (TD.fam === 'PE6' ? ' selected' : '') + '>PE6 / PD6 — 6 máy</option></select></label><button class="btn bg-g sm" data-v787="td-new">Bắt đầu đo</button></div></div>' +
+  b.innerHTML = '<div class="v787-card"><h3 style="margin:0 0 6px">➕ Phiên đo mới</h3><div class="v787-row"><label class="v787-sub">Mã máy <input id="v787-td-mm" class="v787-in" data-v787mach="1" style="width:190px" value="' + esc(TD.mm) + '" placeholder="Chọn / nhập mã máy" autocomplete="off"></label>' +
+    '<label class="v787-sub">Bảng đo <select id="v787-td-fam" class="v787-in"><option value="">— chọn bảng đo —</option><option value="RE10"' + (TD.fam === 'RE10' ? ' selected' : '') + '>RD10 / RE10 — 10 máy (vế R + L)</option><option value="PE6"' + (TD.fam === 'PE6' ? ' selected' : '') + '>PE6 / PD6 — 6 máy</option></select></label><button class="btn bg-g sm" data-v787="td-new">Bắt đầu đo</button></div><div id="v787-td-hint" class="v787-sub" style="margin-top:6px"></div></div>' +
     '<div class="v787-card"><div class="v787-row"><h3 style="margin:0">Các phiên đo gần đây</h3><span class="fl"></span><button class="btn bg-gr sm" data-v787="td-reload">🔄</button></div>' +
     (TD.list.length ? '<div class="v787-scroll"><table class="v787-tbl"><thead><tr><th>Ngày</th><th>Mã máy</th><th>Bảng</th><th>Người đo</th><th>Số lần đo</th><th>Cảnh báo</th><th>Trạng thái</th><th></th></tr></thead><tbody>' + TD.list.map(function (o) { return '<tr><td>' + esc(o.ngay) + '</td><td><b>' + esc(o.maMay) + '</b></td><td>' + esc(o.fam) + '</td><td>' + esc(o.nguoiDo) + '</td><td class="c">' + o.soLanDo + '</td><td class="c">' + (o.soCanhBao ? pill(o.soCanhBao + ' cảnh báo', 'r') : pill('ổn', 'g')) + '</td><td>' + (o.trangThai === 'Đã chốt' ? pill('Đã xác nhận', 'g') + '<div class="v787-sub">' + esc(o.nguoiXacNhan) + '</div>' : pill('Đang đo', 'y')) + '</td><td><button class="btn bg-b sm" data-v787="td-open" data-id="' + esc(o.id) + '">Mở</button></td></tr>'; }).join('') + '</tbody></table></div>' : '<div class="v787-sub" style="margin-top:6px">Chưa có phiên đo nào.</div>') + '</div>';
-  var mm = $('v787-td-mm'); if (mm) mm.addEventListener('change', function () { TD.mm = mm.value.trim().toUpperCase(); var f = famOf(TD.mm); if (f) { TD.fam = f; $('v787-td-fam').value = f; } });
+  var mm = $('v787-td-mm'); if (mm) mm.addEventListener('change', function () { TD.setMachine(mm.value); });
+  var fm = $('v787-td-fam'); if (fm) fm.addEventListener('change', function () { TD.fam = fm.value; TD.famAuto = false; TD.hint(); });
+  TD.hint();
+};
+/* chọn / gõ mã máy → tự nhận loại bảng đo từ thông tin máy chủ đã có; mã chưa có thì để nhân sự chọn */
+TD.hint = function () {
+  var h = $('v787-td-hint'); if (!h) return; var m = machFind(TD.mm), info = m ? machInfo(m) : '', fam = TD.fam, nm = fam === 'RE10' ? 'RD10 / RE10' : (fam === 'PE6' ? 'PE6 / PD6' : '');
+  if (!TD.mm) { h.innerHTML = 'Chọn mã máy — bảng đo sẽ tự nhảy theo máy.'; return; }
+  if (TD.famBusy) { h.innerHTML = (info ? esc(info) + ' · ' : '') + '⏳ Đang nhận loại bảng đo…'; return; }
+  h.innerHTML = (info ? '<b>' + esc(TD.mm) + '</b> — ' + esc(info) + '<br>' : '') + (TD.famAuto && nm ? '✔ Tự nhận bảng đo <b>' + nm + '</b> theo máy này.' : (fam ? 'Bảng đo đang chọn: <b>' + nm + '</b> (do bạn chọn).' : '<span style="color:#b45309">⚠ Chưa có thông tin động cơ của máy này — hãy chọn bảng đo RD10/RE10 hay PE6/PD6.</span>'));
+};
+TD.setMachine = function (val) {
+  var code = String(val || '').trim().toUpperCase(), tok = (TD.famTok = (TD.famTok || 0) + 1); TD.mm = code; TD.fam = ''; TD.famAuto = false;
+  var fm = $('v787-td-fam'); if (fm) fm.value = '';
+  if (!code) { TD.famBusy = false; return TD.hint(); }
+  TD.famBusy = true; TD.hint();
+  var done = function (f) { if (tok !== TD.famTok) return; TD.famBusy = false; TD.fam = f || ''; TD.famAuto = !!f; var e = $('v787-td-fam'); if (e) e.value = TD.fam; TD.hint(); };
+  return call('getTdl787Def', { maMay: code }).then(function (r) { if (r && r.defs && !TD.defs) TD.defs = r.defs; done(r && r.fam); }).catch(function () { done(famOf(code)); });
 };
 /* kiểm tra một lần đo ở máy khách — cùng quy tắc v787TdlCheck_ */
 function tdCheck(def, rd) {
   var A = [], v = (rd && rd.v) || {}, q = def.quyTac || {}, num = function (x) { if (x === '' || x == null) return null; var n = Number(String(x).replace(',', '.')); return isFinite(n) ? n : null; };
   var bob = v['Bobin'] || {};
   def.cols.forEach(function (c) { var b = num(bob[c]); if (b == null) return; if (q.bobinMax != null && b > q.bobinMax) A.push({ muc: 'vuot', hang: 'Bobin', col: c, msg: 'Bobin máy ' + c + ' = ' + b + ' — vượt ' + q.bobinMax }); else if (q.bobinCanhBao != null && b >= q.bobinCanhBao) A.push({ muc: 'canhbao', hang: 'Bobin', col: c, msg: 'Bobin máy ' + c + ' = ' + b + ' — sắp tới ngưỡng ' + q.bobinMax }); });
+  var tb = v['Turbo'] || {};
+  (def.ve || []).forEach(function (g) { var t = num(tb[g.id]); if (t != null && q.turboMax != null && t > q.turboMax) A.push({ muc: 'vuot', hang: 'Turbo', col: g.id, msg: 'Turbo' + (def.ve.length > 1 ? ' vế ' + g.id : '') + ' = ' + t + ' — vượt ' + q.turboMax }); });
   var cx = v['Cổ xả'] || {}, lim = q.chenhTrongVe != null ? q.chenhTrongVe : q.chenhCoXa;
   (def.ve || []).forEach(function (g) {
     var p = g.cols.map(function (c) { return { c: c, n: num(cx[c]) }; }).filter(function (x) { return x.n != null; }); if (p.length < 2 || lim == null) return;
@@ -38760,8 +38833,8 @@ function tdCheck(def, rd) {
   return A;
 }
 TD.startNew = function () {
-  var mm = ($('v787-td-mm').value || '').trim().toUpperCase(), fam = $('v787-td-fam').value || famOf(mm); if (!mm) return tt('Nhập mã máy', 'warn');
-  var go = function (f) { if (!f) return tt('Chưa nhận được họ động cơ — chọn bảng đo RD10/RE10 hay PE6/PD6.', 'warn'); TD.mm = mm; TD.fam = f; TD.def = TD.defs[f]; TD.ses = { id: '', maMay: mm, fam: f, ngay: dmy(todayIso()), trangThai: 'Đang đo', nguoiDo: curUser(), doCs: [], ghiChu: '' }; TD.xoa = []; TD.draft = {}; TD.newLoad = true; TD.view = 'edit'; TD.paint(); };
+  var mm = ($('v787-td-mm').value || '').trim().toUpperCase(), fam = $('v787-td-fam').value; if (!mm) return tt('Nhập mã máy', 'warn');
+  var go = function (f) { if (!f) { TD.mm = mm; TD.fam = ''; TD.hint(); return tt('Máy này chưa có thông tin động cơ — hãy chọn bảng đo RD10/RE10 hay PE6/PD6.', 'warn'); } TD.mm = mm; TD.fam = f; TD.def = TD.defs[f]; TD.ses = { id: '', maMay: mm, fam: f, ngay: dmy(todayIso()), trangThai: 'Đang đo', nguoiDo: curUser(), doCs: [], ghiChu: '' }; TD.xoa = []; TD.draft = {}; TD.newLoad = true; TD.view = 'edit'; TD.paint(); };
   if (fam) return TD.defs ? go(fam) : TD.loadDef().then(function () { go(fam); });
   call('getTdl787Def', { maMay: mm }).then(function (r) { TD.defs = r.defs; go(r.fam); }).catch(function (e) { tt('❌ ' + e.message, 'err'); });
 };
@@ -38777,8 +38850,10 @@ TD.paintEdit = function (b) {
     form = '<div class="v787-card"><h3 style="margin:0 0 6px">➕ Nhập một lần đo</h3><div class="v787-row"><label class="v787-sub">Mức tải <select id="v787-td-tai" class="v787-in">' + d.tai.map(function (t) { return '<option value="' + t.id + '">' + esc(t.ten) + '</option>'; }).join('') + '</select></label><label class="v787-sub">Mốc <select id="v787-td-moc" class="v787-in">' + d.moc.map(function (m) { return '<option value="' + m + '">' + m + ' phút</option>'; }).join('') + '</select></label><span id="v787-td-has" class="v787-sub"></span></div>' +
       d.ve.map(function (g) {
         return '<div class="v787-lbl" style="margin-top:8px">' + esc(g.ten) + '</div><div class="v787-scroll"><table class="v787-tbl v787-td"><thead><tr><th style="width:150px"></th>' + g.cols.map(function (c) { return '<th>' + esc(c) + '</th>'; }).join('') + '</tr></thead><tbody>' +
-          d.hang.map(function (h) { return '<tr><td><b>' + esc(h.k) + '</b>' + (h.dv ? ' <span class="v787-sub">(' + esc(h.dv) + ')</span>' : '') + '</td>' + g.cols.map(function (c) { return '<td><input class="v787-td-i" inputmode="decimal" data-h="' + esc(h.k) + '" data-c="' + esc(c) + '"></td>'; }).join('') + '</tr>'; }).join('') + '</tbody></table></div>';
+          d.hang.map(function (h) { return '<tr><td><b>' + esc(h.k) + '</b>' + (h.dv ? ' <span class="v787-sub">(' + esc(h.dv) + ')</span>' : '') + '</td>' + g.cols.map(function (c) { return '<td><input class="v787-td-i" inputmode="decimal" data-h="' + esc(h.k) + '" data-c="' + esc(c) + '"></td>'; }).join('') + '</tr>'; }).join('') +
+          (d.turbo ? '<tr><td><b>' + esc(d.turbo.k) + '</b>' + (d.turbo.dv ? ' <span class="v787-sub">(' + esc(d.turbo.dv) + ')</span>' : '') + (d.ve.length > 1 ? ' <span class="v787-sub">vế ' + esc(g.id) + '</span>' : '') + '</td><td colspan="' + g.cols.length + '"><input class="v787-td-i" inputmode="decimal" data-h="' + esc(d.turbo.k) + '" data-c="' + esc(g.id) + '"></td></tr>' : '') + '</tbody></table></div>';
       }).join('') +
+      (d.chung || []).map(function (h) { return '<div class="v787-row" style="margin-top:8px"><label class="v787-sub"><b>' + esc(h.k) + '</b>' + (h.dv ? ' (' + esc(h.dv) + ')' : '') + ' <input class="v787-td-i" inputmode="decimal" data-h="' + esc(h.k) + '" data-c="' + esc(h.col || 'ĐC') + '"></label></div>'; }).join('') +
       '<div class="v787-row" style="margin-top:8px"><input id="v787-td-ghi" class="v787-in" style="flex:1" placeholder="Ghi chú / bất thường của lần đo này…"><button class="btn bg-b sm" data-v787="td-add">➕ Thêm vào phiên</button></div><div id="v787-td-live" style="margin-top:6px"></div></div>';
   }
   var table = '<div class="v787-card"><h3 style="margin:0 0 6px">Các lần đo trong phiên (' + s.doCs.length + ')</h3>' + (s.doCs.length ? tdTable(d, s.doCs, locked) : '<div class="v787-sub">Chưa có lần đo nào.</div>') + '</div>';
@@ -38788,24 +38863,37 @@ TD.paintEdit = function (b) {
     '<div class="v787-card v787-sign"><div class="v787-row"><div style="flex:1;text-align:center"><b>Người đo ký tắt</b><div style="height:46px"></div>' + esc(s.nguoiDo || '') + '</div><div style="flex:1;text-align:center"><b>Người xác nhận</b><div style="height:46px"></div>' + esc(s.nguoiXacNhan || '') + '</div></div></div>';
   b.innerHTML = head + form + table + foot; TD.liveInit();
 };
-function tdRules(d) { var q = d.quyTac || {}, a = []; if (q.bobinCanhBao != null) a.push('Bobin ≥ ' + q.bobinCanhBao + ' cảnh báo'); if (q.bobinMax != null) a.push('> ' + q.bobinMax + ' vượt'); var lim = q.chenhTrongVe != null ? q.chenhTrongVe : q.chenhCoXa; if (lim != null) a.push('cổ xả chênh giữa các máy cùng vế > ' + lim); if (q.chenhHaiVe != null) a.push('trung bình hai vế chênh > ' + q.chenhHaiVe); return esc(a.join(' · ') || 'chưa có') + '. ' + esc(d.ghiChu || ''); }
+function tdRules(d) { var q = d.quyTac || {}, a = []; if (q.bobinCanhBao != null) a.push('Bobin ≥ ' + q.bobinCanhBao + ' cảnh báo'); if (q.bobinMax != null) a.push('> ' + q.bobinMax + ' vượt'); if (q.turboMax != null && d.turbo) a.push('Turbo > ' + q.turboMax + ' vượt'); var lim = q.chenhTrongVe != null ? q.chenhTrongVe : q.chenhCoXa; if (lim != null) a.push('cổ xả chênh giữa các máy cùng vế > ' + lim); if (q.chenhHaiVe != null) a.push('trung bình hai vế chênh > ' + q.chenhHaiVe); return esc(a.join(' · ') || 'chưa có') + '. ' + esc(d.ghiChu || ''); }
 function tdTable(d, rows, locked) {
   var sorted = rows.slice().sort(function (a, b) { var ta = d.tai.map(function (t) { return t.id; }).indexOf(a.tai), tb = d.tai.map(function (t) { return t.id; }).indexOf(b.tai); return ta - tb || a.moc - b.moc; });
   var taiName = function (id) { var t = d.tai.filter(function (x) { return x.id === id; })[0]; return t ? t.ten : id; };
   var cell = function (r, h, c) { var x = (r.v && r.v[h] && r.v[h][c]); return x == null || x === '' ? '' : x; };
+  var nz = function (x) { var n = Number(String(x).replace(',', '.')); return x === '' || x == null || !isFinite(n) ? null : n; };
+  var df = function (r, base, h, c) { var a = nz(cell(r, h, c)), b = nz(cell(base, h, c)); return a == null || b == null ? null : Math.round((a - b) * 10) / 10; };
+  var sg = function (x) { return (x > 0 ? '+' : '') + x; };
   var out = '<div class="v787-scroll">';
-  d.ve.forEach(function (g) {
+  d.ve.forEach(function (g, gi) {
+    var nr = d.hang.length + (d.turbo ? 1 : 0);
     out += '<div class="v787-lbl" style="margin-top:6px">' + esc(g.ten) + '</div><table class="v787-tbl"><thead><tr><th>Tải</th><th>Mốc</th><th>Lúc / người</th><th>Hạng mục</th>' + g.cols.map(function (c) { return '<th>' + esc(c) + '</th>'; }).join('') + '<th></th></tr></thead><tbody>';
     sorted.forEach(function (r) {
       var al = tdCheck(d, r), bad = {}; al.forEach(function (a) { String(a.col).split('/').forEach(function (cc) { bad[a.hang + '|' + cc] = a.muc; }); });
-      d.hang.forEach(function (h, hi) {
-        out += '<tr>' + (hi === 0 ? '<td rowspan="' + d.hang.length + '"><b>' + esc(taiName(r.tai)) + '</b></td><td rowspan="' + d.hang.length + '" class="c">' + r.moc + '′</td><td rowspan="' + d.hang.length + '" class="v787-sub">' + esc(r.luc) + '<br>' + esc(r.nguoi) + (r.ghi ? '<br><i>' + esc(r.ghi) + '</i>' : '') + '</td>' : '') + '<td>' + esc(h.k) + '</td>' + g.cols.map(function (c) { var k = bad[h.k + '|' + c]; return '<td class="c' + (k === 'vuot' ? ' v787-bad' : (k ? ' v787-warnc' : '')) + '">' + esc(cell(r, h.k, c)) + '</td>'; }).join('') +
-          (hi === 0 ? '<td rowspan="' + d.hang.length + '">' + (locked ? '' : '<button class="btn bg-gr sm" data-v787="td-edit" data-id="' + esc(r.id) + '" title="Nạp lại để sửa">✎</button> <button class="btn bg-r sm" data-v787="td-del" data-id="' + esc(r.id) + '" title="Xoá lần đo">🗑</button>') + '</td>' : '') + '</tr>';
+      var eng = (d.chung || []).map(function (h) { var x = cell(r, h.k, h.col || 'ĐC'); return x === '' ? '' : '<br><b>' + esc(h.k) + ':</b> ' + esc(x) + (h.dv ? ' ' + esc(h.dv) : ''); }).join('');
+      var rowsDef = d.hang.map(function (h) { return { h: h }; }); if (d.turbo) rowsDef.push({ h: d.turbo, turbo: true });
+      rowsDef.forEach(function (rw, hi) {
+        var h = rw.h;
+        out += '<tr>' + (hi === 0 ? '<td rowspan="' + nr + '"><b>' + esc(taiName(r.tai)) + '</b></td><td rowspan="' + nr + '" class="c">' + r.moc + '′</td><td rowspan="' + nr + '" class="v787-sub">' + esc(r.luc) + '<br>' + esc(r.nguoi) + eng + (r.ghi ? '<br><i>' + esc(r.ghi) + '</i>' : '') + '</td>' : '') + '<td>' + esc(h.k) + '</td>' +
+          (rw.turbo ? (function () { var k = bad['Turbo|' + g.id]; return '<td colspan="' + g.cols.length + '" class="c' + (k === 'vuot' ? ' v787-bad' : (k ? ' v787-warnc' : '')) + '">' + esc(cell(r, 'Turbo', g.id)) + '</td>'; })() :
+            g.cols.map(function (c) { var k = bad[h.k + '|' + c]; return '<td class="c' + (k === 'vuot' ? ' v787-bad' : (k ? ' v787-warnc' : '')) + '">' + esc(cell(r, h.k, c)) + '</td>'; }).join('')) +
+          (hi === 0 ? '<td rowspan="' + nr + '">' + (locked ? '' : '<button class="btn bg-gr sm" data-v787="td-edit" data-id="' + esc(r.id) + '" title="Nạp lại để sửa">✎</button> <button class="btn bg-r sm" data-v787="td-del" data-id="' + esc(r.id) + '" title="Xoá lần đo">🗑</button>') + '</td>' : '') + '</tr>';
       });
       /* hàng chênh lệch 15′ − 0′ */
       if (r.moc > 0) {
         var base = sorted.filter(function (x) { return x.tai === r.tai && x.moc === 0; })[0];
-        if (base) { out += '<tr class="dlt"><td colspan="4" class="v787-sub" style="text-align:right">Δ ' + r.moc + '′ − 0′ (' + esc(taiName(r.tai)) + ')</td>' + g.cols.map(function (c) { var s = []; d.hang.forEach(function (h) { var a = Number(String(cell(r, h.k, c)).replace(',', '.')), b = Number(String(cell(base, h.k, c)).replace(',', '.')); if (cell(r, h.k, c) !== '' && cell(base, h.k, c) !== '' && isFinite(a) && isFinite(b)) s.push((h.k === 'Cổ xả' ? 'CX ' : h.k === 'Bobin' ? 'B ' : 'ĐL ') + (a - b > 0 ? '+' : '') + Math.round((a - b) * 10) / 10); }); return '<td class="c v787-sub">' + s.join('<br>') + '</td>'; }).join('') + '<td></td></tr>'; }
+        if (base) {
+          var ex = []; if (d.turbo) { var dt = df(r, base, 'Turbo', g.id); if (dt != null) ex.push('Turbo ' + sg(dt)); }
+          if (gi === 0) (d.chung || []).forEach(function (h) { var dc = df(r, base, h.k, h.col || 'ĐC'); if (dc != null) ex.push(h.k + ' ' + sg(dc)); });
+          out += '<tr class="dlt"><td colspan="4" class="v787-sub" style="text-align:right">Δ ' + r.moc + '′ − 0′ (' + esc(taiName(r.tai)) + ')' + (ex.length ? '<br>' + esc(ex.join(' · ')) : '') + '</td>' + g.cols.map(function (c) { var s = []; d.hang.forEach(function (h) { var x = df(r, base, h.k, c); if (x != null) s.push((h.k === 'Cổ xả' ? 'CX ' : h.k === 'Bobin' ? 'B ' : 'ĐL ') + sg(x)); }); return '<td class="c v787-sub">' + s.join('<br>') + '</td>'; }).join('') + '<td></td></tr>';
+        }
       }
     });
     out += '</tbody></table>';
@@ -38887,7 +38975,7 @@ BH.paintEd = function (b) {
   b.innerHTML = '<div class="v787-card"><div class="v787-row"><button class="btn bg-gr sm" data-v787="bh-back">← Danh sách</button><h3 style="margin:0">' + (e.id ? 'Sửa báo giá ' + esc(e.id) : 'Báo giá mới') + '</h3><span class="fl"></span>' + (BH.init ? '' : '<span class="v787-sub">đang tải khách hàng…</span>') + '</div></div>' +
     '<div class="v787-card v787-ai"><b>🤖 Gõ cho AI dựng báo giá</b><div class="v787-sub">Chỉ cần tên khách, hàng và số lượng — ví dụ: « Công ty Hòa Phát, máy NS250KVA11: 4 bugi DCPR8E, 2 bobin đánh lửa, 1 lọc gió ». AI tìm hàng trong Misa, lấy giá; bạn kiểm tra và sửa.</div><textarea id="v787-e-ai" class="v787-in" rows="3" style="width:100%;margin-top:4px" placeholder="Khách hàng + danh sách hàng + số lượng…">' + esc(e.ai || '') + '</textarea><div class="v787-row" style="margin-top:4px"><button class="btn bg-b sm" data-v787="bh-ai">🤖 AI dựng báo giá</button><span id="v787-e-aimsg" class="v787-sub"></span></div></div>' +
     '<div class="v787-card"><h3 style="margin:0 0 6px">Khách hàng</h3><div class="v787-grid"><div><span class="v787-lbl">Tên khách / công ty *</span><input id="v787-e-kh" class="v787-in" style="width:100%" list="v787-e-khl" value="' + esc(e.khach.ten) + '" autocomplete="off">' + dl('v787-e-khl', (I.khach || []).map(function (k) { return k.ten; })) + '</div><div><span class="v787-lbl">Địa chỉ</span><input id="v787-e-diaChi" class="v787-in" style="width:100%" value="' + esc(e.khach.diaChi) + '"></div><div><span class="v787-lbl">Mã số thuế</span><input id="v787-e-mst" class="v787-in" style="width:100%" value="' + esc(e.khach.mst) + '"></div><div><span class="v787-lbl">Điện thoại</span><input id="v787-e-sdt" class="v787-in" style="width:100%" value="' + esc(e.khach.sdt) + '"></div><div><span class="v787-lbl">Email</span><input id="v787-e-email" class="v787-in" style="width:100%" value="' + esc(e.khach.email) + '"></div><div><span class="v787-lbl">Người đại diện / nhận báo giá</span><input id="v787-e-daiDien" class="v787-in" style="width:100%" value="' + esc(e.khach.daiDien) + '"></div><div><span class="v787-lbl">Chức vụ</span><input id="v787-e-chucVu" class="v787-in" style="width:100%" value="' + esc(e.khach.chucVu) + '"></div></div><div class="v787-sub" style="margin-top:4px">Thông tin khách do nhân viên nhập, lưu lại để lần sau chọn nhanh theo tên.</div></div>' +
-    '<div class="v787-card"><div class="v787-row"><h3 style="margin:0">Hàng hoá</h3><span class="fl"></span><label class="v787-sub">Mã máy (nếu bán theo máy — để lấy giá riêng của máy) <input id="v787-e-mm" class="v787-in" list="v787-e-ml" style="width:150px" value="' + esc(e.maMay) + '" autocomplete="off"></label>' + machineDl('v787-e-ml') + '</div>' +
+    '<div class="v787-card"><div class="v787-row"><h3 style="margin:0">Hàng hoá</h3><span class="fl"></span><label class="v787-sub">Mã máy (nếu bán theo máy — để lấy giá riêng của máy) <input id="v787-e-mm" class="v787-in" data-v787mach="1" style="width:170px" value="' + esc(e.maMay) + '" autocomplete="off" placeholder="Chọn / nhập"></label>' + '</div>' +
     '<div class="v787-scroll"><table class="v787-tbl" id="v787-e-items"><thead><tr><th style="width:30px">TT</th><th>Tên hàng (gõ để gợi ý từ Misa)</th><th style="width:70px">ĐVT</th><th style="width:70px">SL</th><th style="width:120px">Đơn giá</th><th style="width:130px">Nguồn giá</th><th style="width:120px;text-align:right">Thành tiền</th><th style="width:170px">Lưu giá</th><th style="width:34px"></th></tr></thead><tbody>' +
     (e.items.length ? e.items.map(function (it, i) { return edRow(it, i); }).join('') : '<tr><td colspan="9" class="v787-sub">Chưa có dòng hàng — thêm tay hoặc nhờ AI ở trên.</td></tr>') + '</tbody></table></div><div class="v787-row" style="margin-top:6px"><button class="btn bg-gr sm" data-v787="bh-addrow">➕ Thêm dòng</button><button class="btn bg-gr sm" data-v787="bh-price">💲 Lấy lại giá</button><span class="fl"></span></div><div id="v787-e-sum" style="margin-top:8px;text-align:right"></div>' +
     '<div class="v787-row" style="margin-top:6px;justify-content:flex-end"><label class="v787-sub">VAT % <input id="v787-e-vat" type="number" min="0" max="100" step="0.5" class="v787-in" style="width:70px" value="' + esc(e.vatPct) + '"></label><label class="v787-sub">Hiệu lực đến <input id="v787-e-hl" type="date" class="v787-in" value="' + esc(String(e.hieuLuc || '').slice(0, 10)) + '"></label></div><span class="v787-lbl">Ghi chú</span><input id="v787-e-gc" class="v787-in" style="width:100%" value="' + esc(e.ghiChu) + '"></div>' +
