@@ -38537,8 +38537,7 @@ input.v787-bad,input.v787-warnc{border-color:#f97316}
 .v787-sg-e{padding:9px 11px;font-size:12px;color:#64748b}
 
 </style>
-<style id="v791-style">
-/* V791 · Bán hàng */
+<style id="v791-style">/* V791 · Bán hàng */
 .v791-tiles{margin:6px 0 14px;max-width:none;grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}
 .v791-tile .v791-ts{font-size:10.5px;color:#64748b;margin-top:-5px;line-height:1.25}
 .v791-tile .v791-no{position:absolute;top:7px;left:9px;font-size:10px;font-weight:800;color:#94a3b8}
@@ -38570,6 +38569,8 @@ input.v787-bad,input.v787-warnc{border-color:#f97316}
 .v791-mf{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 #v791-pvc{overflow:auto}
 @media(max-width:560px){.v791-tiles{grid-template-columns:repeat(auto-fill,minmax(130px,1fr))}}
+.v793-acts{max-width:215px;display:flex;gap:5px;flex-wrap:wrap;align-items:center}.v793-acts .btn{white-space:nowrap}
+.v791-tile .v791-ts{min-height:2.4em}
 </style>
 <script id="v787-script">
 /* ===== V787 · (1) Bảng hạng mục báo cáo SX mẫu · (2) Đầu vào bắt buộc của kế hoạch · (3) Bán hàng / báo giá · (4) Theo dõi thông số trực tiếp ===== */
@@ -39181,13 +39182,14 @@ V.bhClick = function (a, el) {
 /* ═══════════════ V791 · BÁN HÀNG — giao diện mới (icon theo bước · thống kê lợi nhuận · xem trước chỉnh trực tiếp · phiếu xuất kho · hủy quá hạn) ═══════════════ */
 /*PURE-START*/
 var STG = [
-  { k: 'tao', st: ['Nháp'], ico: '✏️', name: 'Tạo báo giá', sub: 'chưa gửi khách' },
-  { k: 'gui', st: ['Đã gửi khách'], ico: '📤', name: 'Gửi khách hàng', sub: 'chờ khách thanh toán' },
-  { k: 'tt', st: ['Chờ xác nhận thanh toán'], ico: '💳', name: 'Chờ xác nhận thanh toán', sub: 'chờ kế toán xác nhận' },
-  { k: 'kho', st: ['Chờ xuất kho', 'Đã xác nhận thanh toán'], ico: '📦', name: 'Chờ xuất kho', sub: 'kho chuẩn bị hàng' },
-  { k: 'xuat', st: ['Đã xuất kho'], ico: '🚚', name: 'Đã xuất kho', sub: 'chờ khách nhận hàng' },
+  { k: 'tao', st: [], ico: '✏️', name: 'Tạo báo giá', sub: 'lập báo giá mới', act: true },
+  { k: 'gui', st: ['Nháp'], ico: '📤', name: 'Gửi khách hàng', sub: 'chờ xác nhận đã gửi khách' },
+  { k: 'tt', st: ['Đã gửi khách', 'Chờ xác nhận thanh toán'], ico: '💳', name: 'Chờ xác nhận thanh toán', sub: 'khách chưa trả / chờ duyệt tiền' },
+  { k: 'kho', st: ['Chờ xuất kho', 'Đã xác nhận thanh toán'], ico: '📦', name: 'Chờ xuất kho', sub: 'cũng là mục « Xuất vật tư »' },
+  { k: 'xuat', st: ['Đã xuất kho'], ico: '🚚', name: 'Đã xuất kho', sub: 'chờ xác nhận đã nhận hàng' },
   { k: 'nhan', st: ['Đã nhận hàng'], ico: '✅', name: 'Đã nhận hàng', sub: 'hoàn tất', done: true }
 ];
+var ST_LBL = { 'Nháp': 'Chờ gửi khách', 'Đã gửi khách': 'Chờ khách thanh toán', 'Chờ xác nhận thanh toán': 'Chờ duyệt thanh toán' };
 var C791 = { ban: '#2a78d6', von: '#eb6834', ln: '#1baf7a' };
 var XK_OK = ['Chờ xác nhận thanh toán', 'Đã xác nhận thanh toán', 'Chờ xuất kho', 'Đã xuất kho', 'Đã nhận hàng'];
 function p2(n) { return String(n).padStart(2, '0'); }
@@ -39457,17 +39459,35 @@ function listRows() {
     return !q || fold([o.id, o.khachTen, o.maMay, o.maPhieu, o.nguoiLap, o.xkId].join(' ')).indexOf(q) >= 0;
   });
 }
+function stPill2(s) { return pill(ST_LBL[s] || s, ST_CLR[s] || ''); }
+/* nút thao tác ngay trên dòng (bên phải nút « Mở ») — mỗi bước một việc, đúng logic riêng của bước đó */
+function rowActs(o) {
+  var id = esc(o.id), b = function (a, cls, t, extra) { return '<button class="btn ' + cls + ' sm" data-v787="' + a + '" data-id="' + id + '"' + (extra || '') + '>' + t + '</button>'; }, out = '', S = o.trangThai;
+  if (S === 'Nháp') out += b('bh-r-send', 'bg-g', '📤 Xác nhận đã gửi khách');
+  else if (S === 'Đã gửi khách') out += b('bh-r-pay', 'bg-g', '💳 Xác nhận đã thanh toán');
+  else if (S === 'Chờ xác nhận thanh toán') out += b('bh-r-ver', 'bg-g', '✅ Duyệt thanh toán');
+  else if (S === 'Đã xác nhận thanh toán' || S === 'Chờ xuất kho') {
+    if (!o.maPhieu) out += b('bh-r-mk', 'bg-b', '🔁 Tạo phiếu xuất vật tư');
+    else if (o.phieuTT === 'Chờ duyệt') out += b('bh-r-apv', 'bg-g', '✅ Duyệt phiếu ' + esc(o.maPhieu));
+    else out += b('bh-r-xuat', 'bg-b', '🚚 Xuất vật tư', ' data-ph="' + esc(o.maPhieu) + '"');
+  } else if (S === 'Đã xuất kho') out += b('bh-r-recv', 'bg-g', '📥 Xác nhận đã nhận hàng');
+  if ((S === 'Nháp' || S === 'Đã gửi khách' || S === 'Chờ xác nhận thanh toán') && o.canXoa !== false) out += b('bh-r-del', 'bg-r', '🗑 Xóa phiếu');
+  return out;
+}
 function listBody() {
   var rows = listRows();
-  return rows.length ? '<div class="v787-scroll"><table class="v787-tbl"><thead><tr><th>Mã BG</th><th>Ngày</th><th>Khách hàng</th><th>Máy</th><th style="text-align:right">Tổng thanh toán</th><th>Trạng thái</th><th>Hiệu lực đến</th><th>Phiếu xuất kho</th><th>Người lập</th><th></th></tr></thead><tbody>' +
-    rows.map(function (o) { return '<tr><td><b>' + esc(o.id) + '</b></td><td>' + esc(dmy2(o.ngay)) + '</td><td>' + esc(o.khachTen) + '</td><td>' + esc(o.maMay) + '</td><td style="text-align:right">' + money(o.tongTT) + '</td><td>' + stPill(o.trangThai) + '</td><td>' + esc(dmy2(o.hieuLuc)) + (o.hetHan ? ' ' + pill('Quá hạn', 'r') : '') + '</td><td>' + esc(o.xkId || '') + '</td><td>' + esc(o.nguoiLap) + '</td><td><button class="btn bg-b sm" data-v787="bh-open" data-id="' + esc(o.id) + '">Mở</button></td></tr>'; }).join('') + '</tbody></table></div>' +
+  return rows.length ? '<div class="v787-scroll"><table class="v787-tbl"><thead><tr><th>Mã BG / ngày</th><th>Khách hàng</th><th style="text-align:right">Tổng thanh toán</th><th>Trạng thái</th><th>Phiếu vật tư / xuất kho</th><th>Người lập</th><th>Thao tác</th></tr></thead><tbody>' +
+    rows.map(function (o) {
+      return '<tr><td><b>' + esc(o.id) + '</b><div class="v787-sub">' + esc(dmy2(o.ngay)) + '</div></td><td>' + esc(o.khachTen) + (o.maMay ? '<div class="v787-sub">Máy ' + esc(o.maMay) + '</div>' : '') + '</td><td style="text-align:right">' + money(o.tongTT) + '</td><td>' + stPill2(o.trangThai) + (o.hieuLuc && (o.trangThai === 'Nháp' || o.trangThai === 'Đã gửi khách') ? '<div class="v787-sub">hiệu lực đến ' + esc(dmy2(o.hieuLuc)) + (o.hetHan ? ' ' + pill('Quá hạn', 'r') : '') + '</div>' : '') + '</td><td>' + esc([o.maPhieu, o.xkId].filter(Boolean).join(' · ')) + '</td><td>' + esc(o.nguoiLap) + '</td>' +
+        '<td style="min-width:215px"><div class="v793-acts"><button class="btn bg-b sm" data-v787="bh-open" data-id="' + esc(o.id) + '">Mở</button>' + rowActs(o) + '</div></td></tr>';
+    }).join('') + '</tbody></table></div>' +
     '<div class="v787-sub" style="margin-top:4px">' + rows.length + ' báo giá</div>' : '<div class="v787-sub" style="padding:10px 0">' + (BH.all ? 'Không có báo giá nào ở bước này.' : '⏳ Đang tải…') + '</div>';
 }
 BH.paintList = function (b) {
   var S = stageDef(BH.stage);
   b.innerHTML = '<div class="v787-card"><div class="v787-row"><button class="btn bg-gr sm" data-v787="bh-home">← Các bước bán hàng</button><h3 style="margin:0">' + (S.ico ? S.ico + ' ' : '') + esc(S.name) + '</h3><span class="fl"></span><button class="btn bg-g" data-v787="bh-new">➕ Báo giá mới</button></div>' +
     '<div class="v787-row" style="margin-top:8px"><input id="v791-lq" class="v787-in" placeholder="Tìm: mã BG, khách, mã máy, mã phiếu…" value="' + esc(BH.q || '') + '" style="flex:1;min-width:200px">' +
-    (BH.stage === 'all' ? '<select id="v791-lst" class="v787-in"><option value="">Mọi trạng thái</option>' + Object.keys(ST_CLR).map(function (s) { return '<option value="' + esc(s) + '"' + (BH.st === s ? ' selected' : '') + '>' + esc(s === 'Nháp' ? 'Mới tạo' : s) + '</option>'; }).join('') + '</select>' : '') +
+    (BH.stage === 'all' ? '<select id="v791-lst" class="v787-in"><option value="">Mọi trạng thái</option>' + Object.keys(ST_CLR).map(function (s) { return '<option value="' + esc(s) + '"' + (BH.st === s ? ' selected' : '') + '>' + esc(ST_LBL[s] || s) + '</option>'; }).join('') + '</select>' : '') +
     '<button class="btn bg-gr sm" data-v787="bh-list-ref">🔄</button>' + (BH.stage === 'het' && (BH.home && BH.home.admin) ? '<button class="btn bg-r sm" data-v787="bh-huyhet">🚫 Hủy tất cả quá hạn</button>' : '') + '</div></div>' +
     '<div class="v787-card" id="v791-lbody">' + listBody() + '</div>';
   var q = $('v791-lq'); if (q) q.addEventListener('input', function () { BH.q = q.value.trim(); var lb = $('v791-lbody'); if (lb) lb.innerHTML = listBody(); });
@@ -39551,7 +39571,7 @@ BH.pvOpen = function (editable) {
   var _pd = BH.paintDetail;
   BH.paintDetail = function (b) {
     _pd.call(this, b); var g = BH.cur; if (!g) return;
-    var stp = b.querySelector('.v787-steps'); if (stp) stp.innerHTML = stp.innerHTML.replace('1. Nháp', '1. Tạo báo giá').replace('2. Đã gửi khách', '2. Gửi khách hàng');
+    var stp = b.querySelector('.v787-steps'); if (stp) stp.innerHTML = stp.innerHTML.replace('1. Nháp', '1. Chờ gửi khách').replace('2. Đã gửi khách', '2. Chờ khách thanh toán').replace('3. Chờ xác nhận thanh toán', '3. Chờ duyệt thanh toán');
     var row = b.querySelector('.v787-card .v787-row'); if (row) { var dx = row.querySelector('[data-v787="bh-docx"]'); if (dx) dx.insertAdjacentHTML('beforebegin', '<button class="btn bg-gr sm" data-v787="bh-pvcur">👁 Xem trước</button>'); }
     if (g.hetHan && b.firstElementChild) b.firstElementChild.insertAdjacentHTML('afterend', '<div class="v787-warn v791-het">⏰ <b>Báo giá đã quá hiệu lực</b> (đến ' + esc(dmy2(g.hieuLuc)) + ') mà khách chưa thanh toán. Nếu khách không đồng ý mua, hãy hủy báo giá.<div style="margin-top:6px"><button class="btn bg-r sm" data-v787="bh-cancel" data-id="' + esc(g.id) + '">🚫 Hủy báo giá quá hạn</button></div></div>');
     var last = b.lastElementChild;
@@ -39603,7 +39623,7 @@ BH.xkPreview = function () {
 var H791 = {};
 H791['bh-stage'] = function (el) {
   var k = el.getAttribute('data-k'); BH.q = ''; BH.st = '';
-  if (k === 'tao' && cnt(STG[0]) === 0 && BH.home) { BH.ed = newEd(); BH.view = 'edit'; return BH.paint(); }
+  if (k === 'tao') { BH.ed = newEd(); BH.cur = null; BH.view = 'edit'; return BH.paint(); }
   BH.stage = k; BH.view = 'list'; BH.paint(); BH.loadAll(true); BH.loadHome();
 };
 H791['bh-home'] = function () { goHome(); };
@@ -39633,16 +39653,94 @@ H791['bh-xksave'] = function (el) {
 };
 H791['bh-cancel'] = function (el) {
   var id = el.getAttribute('data-id') || (BH.cur && BH.cur.id) || '', late = BH.cur && BH.cur.hetHan, R = ['Quá hiệu lực, khách không thanh toán', 'Khách không đồng ý mua', 'Khách đổi nhu cầu / không còn cần', 'Lập sai, sẽ lập báo giá khác', 'Lý do khác'];
-  var body = '<div class="v787-sub">Hủy báo giá <b>' + esc(id) + '</b>. Báo giá đã hủy không khôi phục được.</div><div class="v791-rs">' + R.map(function (r, i) { return '<label><input type="radio" name="v791-rs" value="' + esc(r) + '"' + (i === (late ? 0 : 1) ? ' checked' : '') + '> ' + esc(r) + '</label>'; }).join('') + '</div><textarea id="v791-cx" class="v787-in" rows="2" placeholder="Ghi thêm chi tiết (nếu có)"></textarea>';
-  dlg('🚫 Hủy báo giá', body, 'Hủy báo giá', function (m) {
+  var body = '<div class="v787-sub">Xóa báo giá <b>' + esc(id) + '</b>. Phiếu chuyển vào mục « Đã hủy » (còn lưu vết, không khôi phục được).</div><div class="v791-rs">' + R.map(function (r, i) { return '<label><input type="radio" name="v791-rs" value="' + esc(r) + '"' + (i === (late ? 0 : 1) ? ' checked' : '') + '> ' + esc(r) + '</label>'; }).join('') + '</div><textarea id="v791-cx" class="v787-in" rows="2" placeholder="Ghi thêm chi tiết (nếu có)"></textarea>';
+  dlg('🗑 Xóa phiếu báo giá', body, 'Xóa phiếu', function (m) {
     var rs = m.q('input[name="v791-rs"]:checked'), tx = (m.q('#v791-cx').value || '').trim(), ly = (rs ? rs.value : '') + (tx ? ' — ' + tx : '');
     if (ly.length < 5) { tt('Chọn hoặc ghi lý do hủy', 'warn'); return false; }
-    return call('bh787Cancel', { id: id, lyDo: ly }).then(function (r) { if (!r || r.ok === false) throw new Error((r && r.error) || 'Lỗi'); BH.cur = r.bg; if (BH.view === 'detail') BH.paint(); tt('Đã hủy báo giá ' + id, 'ok'); afterChange(); });
+    return call('bh787Cancel', { id: id, lyDo: ly }).then(function (r) { if (!r || r.ok === false) throw new Error((r && r.error) || 'Lỗi'); BH.cur = r.bg; if (BH.view === 'detail') BH.paint(); tt('Đã xóa phiếu ' + id, 'ok'); afterChange(); });
   }, '520px');
 };
 H791['bh-huyhet'] = function (el) {
   var n = (BH.home && BH.home.soHetHan) || 0; if (!W.confirm('Hủy ' + n + ' báo giá đã quá hiệu lực mà khách chưa thanh toán? Không khôi phục được.')) return;
   busyBtn(el, function () { return call('bh791CancelExpired', {}).then(function (r) { if (!r || r.ok === false) throw new Error((r && r.error) || 'Lỗi'); tt('🚫 Đã hủy ' + r.soHuy + ' báo giá quá hạn', 'ok'); afterChange(); if (BH.view === 'list') BH.paint(); }); }, 'Đang hủy báo giá quá hạn…');
+};
+
+/* ---------- THAO TÁC NGAY TRÊN DÒNG DANH SÁCH (cạnh nút « Mở ») ---------- */
+function dlgP(t, b, lbl, fn, w) { return dlg(t, b, lbl, function (mm) { return Promise.resolve().then(function () { return fn(mm); }); }, w); }
+function rowOk(msg, kind) { tt(msg, kind || 'ok'); afterChange(); }
+function getBg(id) { return call('getBh787Get', { id: id }).then(function (r) { if (!r || r.ok === false) throw new Error((r && r.error) || 'Không đọc được báo giá'); return r.bg; }); }
+function needPhoto(pk, what) { if (!pk || !pk.files().length) throw new Error('Chưa có ảnh minh chứng ' + what + ' — bắt buộc nạp ít nhất 1 ảnh mới xác nhận được.'); }
+function inp(id, lbl, val, extra) { return '<div><span class="v787-lbl">' + lbl + '</span><input id="' + id + '" class="v787-in" style="width:100%" value="' + esc(val == null ? '' : val) + '"' + (extra || '') + '></div>'; }
+H791['bh-r-send'] = function (el) {
+  var id = el.getAttribute('data-id');
+  if (!W.confirm('Xác nhận ĐÃ GỬI báo giá ' + id + ' cho khách hàng?\nSau khi xác nhận, báo giá chuyển sang « Chờ xác nhận thanh toán ».')) return;
+  busyBtn(el, function () { return call('bh787Send', { id: id }).then(function (r) { if (!r || r.ok === false) throw new Error((r && r.error) || 'Lỗi'); rowOk('📤 ' + id + ' đã gửi khách — chuyển sang « Chờ xác nhận thanh toán »'); }); }, 'Đang xác nhận đã gửi khách…');
+};
+H791['bh-r-del'] = function (el) { return H791['bh-cancel'](el); };
+H791['bh-r-pay'] = function (el) {
+  var id = el.getAttribute('data-id');
+  busyBtn(el, function () {
+    return getBg(id).then(function (g) {
+      var k = g.khach || {}, gi = g.giao || {}, rj = g.tt && g.tt.kq === 'tuchoi' ? '<div class="v787-warn">Lần xác nhận trước bị từ chối: ' + esc(g.tt.lyDo || '') + '</div>' : '';
+      var body = rj + '<div class="v787-sub"><b>' + esc(id) + '</b> · ' + esc(k.ten || '') + ' · tổng thanh toán <b>' + money(g.tongTT) + ' đ</b>. Khách thanh toán 100% trước khi giao. <b>Bắt buộc nạp ảnh</b> uỷ nhiệm chi / tin nhắn chuyển khoản — không có ảnh thì không xác nhận được; sau đó người khác sẽ duyệt tiền.</div>' +
+        '<div class="v787-grid" style="margin-top:6px">' + inp('v793-p-tien', 'Số tiền khách đã chuyển *', g.tongTT, ' inputmode="numeric"') + '<div><span class="v787-lbl">Ngày thanh toán</span><input id="v793-p-ngay" type="date" class="v787-in" style="width:100%" value="' + todayIso() + '"></div>' + inp('v793-p-ref', 'Nội dung / mã giao dịch', '') + '</div>' +
+        '<div id="v793-p-ph" style="margin-top:6px"></div><div class="v787-lbl" style="margin-top:8px">Yêu cầu giao hàng</div><div class="v787-grid">' + inp('v793-g-nn', 'Người nhận *', gi.nguoiNhan || k.daiDien || '') + inp('v793-g-sdt', 'Điện thoại *', gi.sdt || k.sdt || '') + inp('v793-g-dc', 'Địa chỉ nhận hàng *', gi.diaChi || k.diaChi || '') + inp('v793-g-vc', 'Đơn vị vận chuyển', gi.donViVC || '') + '<div><span class="v787-lbl">Ngày cần giao</span><input id="v793-g-ng" type="date" class="v787-in" style="width:100%" value="' + esc(gi.ngayGiao || '') + '"></div>' + inp('v793-g-gc', 'Ghi chú giao hàng', gi.ghiChu || '') + '</div>';
+      var pk = null;
+      var m = dlgP('💳 Xác nhận đã thanh toán — ' + id, body, '✔ Xác nhận đã thanh toán', function (mm) {
+        var v = function (i) { return (mm.q('#' + i).value || '').trim(); }, soTien = pnum(v('v793-p-tien'));
+        if (!(soTien > 0)) throw new Error('Nhập số tiền khách đã thanh toán.');
+        needPhoto(pk, 'khách đã thanh toán');
+        if (!v('v793-g-nn') || !v('v793-g-sdt') || !v('v793-g-dc')) throw new Error('Điền đủ người nhận, điện thoại, địa chỉ nhận hàng.');
+        return upAll(pk, id, 'tt', mm.q('[data-ok]')).then(function (anh) { return call('bh787Pay', { id: id, soTien: soTien, ngay: v('v793-p-ngay'), ref: v('v793-p-ref'), anh: anh, giao: { nguoiNhan: v('v793-g-nn'), sdt: v('v793-g-sdt'), diaChi: v('v793-g-dc'), donViVC: v('v793-g-vc'), ngayGiao: v('v793-g-ng'), ghiChu: v('v793-g-gc') } }); })
+          .then(function (r) { if (!r || r.ok === false) throw new Error((r && r.error) || 'Lỗi'); rowOk('✅ ' + id + ': đã ghi nhận thanh toán kèm ảnh — chờ người khác duyệt tiền'); });
+      }, '760px');
+      if (m) pk = photoPicker(m.q('#v793-p-ph'), 'Ảnh chứng từ thanh toán * (bắt buộc ít nhất 1 ảnh)');
+    });
+  }, 'Đang mở…');
+};
+H791['bh-r-ver'] = function (el) {
+  var id = el.getAttribute('data-id');
+  busyBtn(el, function () {
+    return getBg(id).then(function (g) {
+      var t = g.tt || {}, gi = g.giao || {};
+      var body = '<div class="v787-sub"><b>' + esc(id) + '</b> · ' + esc((g.khach || {}).ten || '') + ' · tổng thanh toán <b>' + money(g.tongTT) + ' đ</b></div><div style="margin-top:6px">Đã ghi nhận: <b>' + money(t.soTien) + ' đ</b> · ' + esc(dmy(t.ngay)) + (t.ref ? ' · ' + esc(t.ref) : '') + ' · bởi ' + esc(t.nguoi) + ' ' + esc(t.luc) + '</div>' + photosHtml(t.anh) +
+        '<div class="v787-sub" style="margin-top:4px">' + esc(giaoTxt(gi)) + '</div><div class="v787-sub">Người duyệt phải khác người ghi nhận (QTV được tự duyệt). Duyệt xong hệ thống tự tạo phiếu đề xuất vật tư đã duyệt, chuyển sang « Chờ xuất kho ».</div>' +
+        '<input id="v793-v-gc" class="v787-in" style="width:100%;margin-top:6px" placeholder="Ghi chú duyệt / lý do từ chối (từ chối bắt buộc ≥ 5 ký tự)">';
+      var m = ov('✅ Duyệt thanh toán — ' + id, body, '<button class="btn bg-gr" data-c>Đóng</button><button class="btn bg-r" data-no>✖ Từ chối</button><button class="btn bg-g" data-ok>✔ Xác nhận đã nhận đủ tiền</button>', { w: '720px', sticky: true }); if (!m) return;
+      m.q('[data-c]').onclick = m.close;
+      var go = function (btn, ok) { busyBtn(btn, function () { return call('bh787Verify', { id: id, dong: ok, ghiChu: (m.q('#v793-v-gc').value || '').trim() }).then(function (r) { if (!r || r.ok === false) throw new Error((r && r.error) || 'Lỗi'); m.close(); rowOk(ok ? '✅ ' + id + ': đã xác nhận thanh toán — chuyển « Chờ xuất kho »' : '✖ ' + id + ': đã từ chối, trả về « Chờ khách thanh toán »', ok ? 'ok' : 'warn'); if (r.canhBao) tt('⚠ ' + r.canhBao, 'warn'); }); }, ok ? 'Đang xác nhận thanh toán…' : 'Đang từ chối…'); };
+      m.q('[data-ok]').onclick = function () { go(this, true); }; m.q('[data-no]').onclick = function () { go(this, false); };
+    });
+  }, 'Đang mở…');
+};
+H791['bh-r-mk'] = function (el) { var id = el.getAttribute('data-id'); busyBtn(el, function () { return call('bh787MakePhieu', { id: id }).then(function (r) { if (!r || r.ok === false) throw new Error((r && r.error) || 'Lỗi'); rowOk('📦 Đã tạo phiếu xuất vật tư cho ' + id); if (r.canhBao) tt('⚠ ' + r.canhBao, 'warn'); }); }, 'Đang tạo phiếu…'); };
+H791['bh-r-apv'] = function (el) { var id = el.getAttribute('data-id'); busyBtn(el, function () { return call('bh793ApprovePhieu', { id: id }).then(function (r) { if (!r || r.ok === false) throw new Error((r && r.error) || 'Lỗi'); rowOk('✅ Đã duyệt phiếu của ' + id + ' — kho xuất vật tư được rồi'); }); }, 'Đang duyệt phiếu…'); };
+H791['bh-r-xuat'] = function (el) {                         /* « Chờ xuất kho » = mục « Xuất vật tư »: mở thẳng phiếu bên đó, làm ở đâu cũng như nhau */
+  var ph = el.getAttribute('data-ph') || '';
+  try { W.nav('xuatVatTu'); } catch (e) { return tt('Không mở được mục « Xuất vật tư » (cần quyền xuất kho).', 'err'); }
+  tt('🚚 Đang mở phiếu ' + ph + ' ở mục Xuất vật tư…');
+  var n = 0, t = setInterval(function () {
+    n++; var root = D.getElementById('pvXuatRoot');
+    if (root && typeof W.v43OpenXuat === 'function' && root.innerHTML.indexOf(ph) >= 0 && /Xuất kho/.test(root.innerHTML) && !root.querySelector('[data-k="soLuongXuatKho"]')) { clearInterval(t); setTimeout(function () { try { W.v43OpenXuat(ph); } catch (e) { } }, 1400); }
+    else if (n > 24) clearInterval(t);
+  }, 300);
+};
+H791['bh-r-recv'] = function (el) {
+  var id = el.getAttribute('data-id');
+  busyBtn(el, function () {
+    return getBg(id).then(function (g) {
+      var body = '<div class="v787-sub"><b>' + esc(id) + '</b> · phiếu ' + esc(g.maPhieu || '') + ' đã xuất kho. Chụp ảnh hàng + phiếu giao hàng / biên bản có chữ ký người nhận. <b>Bắt buộc nạp ảnh</b> — không có ảnh thì không xác nhận được.</div>' +
+        '<div class="v787-grid" style="margin-top:6px">' + inp('v793-r-nn', 'Họ tên người nhận *', (g.giao || {}).nguoiNhan || '') + inp('v793-r-gc', 'Ghi chú', '') + '</div><div id="v793-r-ph" style="margin-top:6px"></div>';
+      var pk = null;
+      var m = dlgP('📥 Xác nhận đã nhận hàng — ' + id, body, '✔ Xác nhận đã nhận hàng', function (mm) {
+        var nn = (mm.q('#v793-r-nn').value || '').trim(); if (nn.length < 2) throw new Error('Nhập họ tên người nhận hàng.');
+        needPhoto(pk, 'nhận hàng');
+        return upAll(pk, id, 'nhan', mm.q('[data-ok]')).then(function (anh) { return call('bh787Receive', { id: id, nguoiNhan: nn, ghiChu: (mm.q('#v793-r-gc').value || '').trim(), anh: anh }); })
+          .then(function (r) { if (!r || r.ok === false) throw new Error((r && r.error) || 'Lỗi'); rowOk('✅ ' + id + ': đã xác nhận nhận hàng — hoàn tất'); });
+      }, '700px');
+      if (m) pk = photoPicker(m.q('#v793-r-ph'), 'Ảnh bằng chứng nhận hàng * (bắt buộc ít nhất 1 ảnh)');
+    });
+  }, 'Đang mở…');
 };
 (function () { var _bc = V.bhClick; V.bhClick = function (a, el) { var h = H791[a]; if (h) return h(el, a); return _bc.call(this, a, el); }; })();
 D.addEventListener('keydown', function (e) { if (e.key === 'Escape' && BUSY.n === 0) { /* giữ nguyên: đóng hộp thoại do V763 xử lý */ } });
