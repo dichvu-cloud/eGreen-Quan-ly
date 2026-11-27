@@ -2436,19 +2436,37 @@ EGF.mount('lc-egf',function(){ if(typeof curPage!=='undefined'&&curPage==='lifec
     /* 2/3 vật tư */
     function matGroup(no, title, rows, lblNote) {
       var gh = groupHead(no, title, 0), f = r;
-      rows.forEach(function (x, i) {
+      var sumOf = function (arr) { return arr.reduce(function (a, x) { return a + (!x.note && x.gia > 0 ? Math.round((x.sl || 0) * x.gia) : 0); }, 0); };
+      function putRow(x, i, pre) {
         if (x.note) { put(ws, r, 1, 7, x.ten, { border: true, italic: true, v: 'top' }); ws.getRow(r).height = estH(x.ten, 100, 16); r++; return; }   /* V786 */
         var has = x.gia > 0; if (!has) unpriced++;
-        put(ws, r, 1, 1, no + '.' + (i + 1), { h: 'center', border: true, v: 'top' }); put(ws, r, 2, 2, x.ten, { border: true, v: 'top' });
+        put(ws, r, 1, 1, pre + '.' + (i + 1), { h: 'center', border: true, v: 'top' }); put(ws, r, 2, 2, x.ten, { border: true, v: 'top' });
         put(ws, r, 3, 3, x.sl, { border: true, h: 'center', v: 'top', nf: NF_QTY }); put(ws, r, 4, 4, x.dvt || '', { border: true, h: 'center', v: 'top' });
         put(ws, r, 5, 5, has ? x.gia : 'chưa có giá', { border: true, h: 'right', v: 'top', nf: NF_MONEY, color: has ? undefined : RED, italic: !has });
         if (has) put(ws, r, 6, 6, { formula: 'ROUND(C' + r + '*E' + r + ',0)', result: Math.round((x.sl || 0) * x.gia) }, { border: true, h: 'right', v: 'top', nf: NF_MONEY });
         else put(ws, r, 6, 6, 0, { border: true, h: 'right', v: 'top', nf: NF_MONEY, color: RED });
         put(ws, r, 7, 7, (x.ghiChu || '') + (has && x.nguon ? (x.ghiChu ? '\n' : '') + (/^gi[áa]/i.test(x.nguon) ? x.nguon : 'Giá: ' + x.nguon) : ''), { border: true, v: 'top', size: 10, color: has ? undefined : RED });
         ws.getRow(r).height = Math.max(estH(x.ten, 44, 16), estH((x.ghiChu || '') + '\n' + (x.nguon || ''), 30, 15) + 4); r++;
-      });
+      }
+      var mas = []; rows.forEach(function (x) { if (!x.note && x.ma && mas.indexOf(x.ma) < 0) mas.push(x.ma); });
+      if (M.multi && mas.length) {                                       /* V795: báo cáo từ 2 máy trở lên → từng mã máy một nhóm, có dòng cộng riêng; STT đánh lại từ 1 trong nhóm */
+        var heads = [], LT = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', loose = rows.filter(function (x) { return !x.note && !x.ma; }), notes = rows.filter(function (x) { return x.note; });
+        var sub = function (idx, name, grp) {
+          put(ws, r, 1, 1, LT.charAt(idx) || String(idx + 1), { bold: true, h: 'center', border: true, fill: LGREEN }); put(ws, r, 2, 5, name, { bold: true, border: true, fill: LGREEN });
+          put(ws, r, 6, 6, 0, { bold: true, border: true, fill: LGREEN, h: 'right', nf: NF_MONEY }); put(ws, r, 7, 7, '', { border: true, fill: LGREEN });
+          ws.getRow(r).height = 18; var hr = r, f2; r++; f2 = r;
+          grp.forEach(function (x, i) { putRow(x, i, no); });
+          ws.getCell(hr, 6).value = { formula: 'SUM(F' + f2 + ':F' + (r - 1) + ')', result: sumOf(grp) }; heads.push(hr);
+        };
+        mas.forEach(function (ma, gi) { sub(gi, 'Máy ' + ma, rows.filter(function (x) { return !x.note && x.ma === ma; })); });
+        if (loose.length) sub(mas.length, 'Khác / dùng chung', loose);
+        notes.forEach(function (x) { putRow(x, 0, no); });
+        ws.getCell(gh, 6).value = { formula: heads.map(function (h) { return 'F' + h; }).join('+'), result: sumOf(rows) }; subRows.push(gh);
+        return;
+      }
+      rows.forEach(function (x, i) { putRow(x, i, no); });
       if (!rows.length) { put(ws, r, 1, 7, lblNote, { border: true, italic: true, h: 'center' }); r++; }
-      ws.getCell(gh, 6).value = { formula: 'SUM(F' + f + ':F' + (r - 1) + ')', result: rows.reduce(function (a, x) { return a + (x.gia > 0 ? Math.round((x.sl || 0) * x.gia) : 0); }, 0) }; subRows.push(gh);
+      ws.getCell(gh, 6).value = { formula: 'SUM(F' + f + ':F' + (r - 1) + ')', result: sumOf(rows) }; subRows.push(gh);
     }
     matGroup('2', 'Chi phí vật tư thay thế, sửa chữa (theo phiếu BDSC hoàn thành)', M.vt || [], 'Không có vật tư.');
     matGroup('3', 'Vật tư nhập về trại trong tháng (web eGreen)', M.nh || [], 'Không có vật tư nhập về trại.');
@@ -30149,13 +30167,13 @@ function viewOf(m) {
   var seen = {};
   (m.lines || []).forEach(function (l) {
     var key = uniqKey(seen, 'v:' + l.maPhieu + '|' + (l.gk || l.ten) + (l.hong ? '|h' : ''));
-    s2.push(matRow(r[key] || {}, { ten: l.ten, dvt: l.dvt, sl: l.sl, gia: l.gia, gk: l.gk || ('n:' + fold2(l.ten)), gc: l.maPhieu + (multi && l.ma ? ' · ' + l.ma : '') + (l.hong ? '\nHỏng / không xác định mang về — vẫn tính phí (đổi lấy hàng hỏng)' : ''), hong: l.hong, nguon: l.nguonGia }, key, '2', 'vt'));
+    s2.push(Object.assign(matRow(r[key] || {}, { ten: l.ten, dvt: l.dvt, sl: l.sl, gia: l.gia, gk: l.gk || ('n:' + fold2(l.ten)), gc: l.maPhieu + (multi && l.ma ? ' · ' + l.ma : '') + (l.hong ? '\nHỏng / không xác định mang về — vẫn tính phí (đổi lấy hàng hỏng)' : ''), hong: l.hong, nguon: l.nguonGia }, key, '2', 'vt'), { ma: l.ma || '' }));   /* V795: mã máy của dòng → nhóm bảng theo máy */
   });
   (m.dpLines || []).forEach(function (l) { dp.push({ ten: l.ten, dvt: l.dvt, sl: l.sl, gc: (l.maPhieu || '') + (l.hoanTra ? '\nCấp hoàn trả — không tính phí (vật tư của máy đã cho máy khác mượn / cất kho, kho cấp bù)' + (l.ghiHoanTra ? '\nGhi chú phiếu: ' + l.ghiHoanTra : '') : '\nVật tư dự phòng tại trại — không tính chi phí (đã tính khi chuyển về trại)') }); });   /* V784: dòng « Cấp hoàn trả » dùng chung cơ chế với vật tư dự phòng — chỉ hiện khi bật ghi chú nội bộ, không tính phí */
   seen = {};
   (m.nhap || []).forEach(function (l) {
     var key = uniqKey(seen, 'n:' + l.ngay + '|' + (l.gk || l.ten));
-    s3.push(matRow(r[key] || {}, { ten: l.ten, dvt: l.dvt, sl: l.sl, gia: l.gia, gk: l.gk || ('n:' + fold2(l.ten)), gc: (l.loai === 'mangdi' ? 'Xuất mang đi ' : 'Nhập về trại ') + rangeText2(l.ngay) + (l.nguoi ? ' (' + l.nguoi + ')' : '') + (l.loai === 'mangdi' ? '\nXuất mang đi — trừ khỏi chi phí nhập (nhập ròng = nhập − mang đi)' : ''), nguon: l.nguonGia }, key, '3', 'nh'));   /* V786 */
+    s3.push(Object.assign(matRow(r[key] || {}, { ten: l.ten, dvt: l.dvt, sl: l.sl, gia: l.gia, gk: l.gk || ('n:' + fold2(l.ten)), gc: (l.loai === 'mangdi' ? 'Xuất mang đi ' : 'Nhập về trại ') + rangeText2(l.ngay) + (l.nguoi ? ' (' + l.nguoi + ')' : '') + (l.loai === 'mangdi' ? '\nXuất mang đi — trừ khỏi chi phí nhập (nhập ròng = nhập − mang đi)' : ''), nguon: l.nguonGia }, key, '3', 'nh'), { ma: l.ma || '' }));   /* V786 */
   });
   (ed.x || []).forEach(function (x, i) {
     var key = 'x:' + i;
@@ -30167,7 +30185,7 @@ function viewOf(m) {
         var gb = Math.max(0, pnum(x.gban)); row.ban = gb; row.tienBan = Math.round(row.sl * gb); row.sellMarked = true;
         if (CR.mode === 'ban') { row.gia = gb; row.tien = row.tienBan; row.thieuGia = false; }
       }
-      row.xi = i; (row.sec === '3' ? s3 : s2).push(row);
+      row.xi = i; row.ma = String(x.ma || ''); (row.sec === '3' ? s3 : s2).push(row);
     }
   });
   V.s1 = s1; V.s2 = s2; V.s3 = s3; V.dp = dp;
@@ -30187,6 +30205,23 @@ function viewOf(m) {
   return V;
 }
 function calcM(m) { var V = viewOf(m); return { T: V.T, V: V }; }
+/* V795 · báo cáo từ 2 máy trở lên: tách dòng vật tư theo mã máy (A. Máy X · B. Máy Y …), mỗi nhóm có dòng cộng riêng, STT đánh lại từ 1 trong từng nhóm */
+function splitMa(arr) {
+  var mas = [], by = {}, loose = [], notes = [];
+  (arr || []).forEach(function (r) { if (r.noteOnly) { notes.push(r); return; } var ma = String(r.ma || '').trim(); if (!ma) { loose.push(r); return; } if (!by[ma]) { by[ma] = []; mas.push(ma); } by[ma].push(r); });
+  return { mas: mas, by: by, loose: loose, notes: notes };
+}
+function grpSums(V) {
+  var o = {};
+  [['2', V.s2], ['3', V.s3]].forEach(function (p) {
+    var S = splitMa(p[1]), groups = S.mas.map(function (ma) { return S.by[ma]; }); if (S.loose.length) groups.push(S.loose);
+    groups.forEach(function (rows, gi) {
+      var g = 0, b = 0; rows.forEach(function (r) { if (r.off) return; g += r.tienGoc || 0; b += r.tienBan || 0; });
+      o['g' + p[0] + '_' + gi] = CR.mode === 'ban' ? b : g; o['ga' + p[0] + '_' + gi] = CR.mode === 'ban' ? g : b; o['gd' + p[0] + '_' + gi] = b - g;
+    });
+  });
+  return o;
+}
 /*PURE-END*/
 
 /* ---- tài liệu (xem trước & Word) theo mẫu BBSC-01 ---- */
@@ -30299,7 +30334,22 @@ function docBody(m, edit) {
   var secRow = function (no, title, tot, tG, tB, secKey) {
     return '<tr>' + td(no, { c: 1, b: 1 }) + td(title, { b: 1, cs: 4 }) + td(TOT('sub' + secKey, tot), { r: 1, b: 1 }) + (cmp ? td('', {}) + td('<b data-tot="alt' + secKey + '">' + vnd(CR.mode === 'ban' ? tG : tB) + '</b>', { r: 1 }) + td('<b data-tot="dif' + secKey + '">' + vnd(tB - tG) + '</b>', { r: 1 }) : '') + td('') + (edit ? '<td class="cr-noprint" style="border:none"><button class="cr-btn sm" data-act="x-add" data-i="' + secKey + '" title="Thêm dòng tay vào mục này">➕</button></td>' : '') + '</tr>';
   };
-  var rowsOf = function (arr, keep) { var n = 0; return arr.map(function (r) { if (r.noteOnly) return '<tr>' + td('', {}) + td('<i>' + br(r.ten) + '</i>', { cs: nc - 1 }) + (edit ? '<td class="cr-noprint" style="border:none"><button class="cr-btn sm" data-act="x-del" data-i="' + r.xi + '" title="Xoá dòng ghi chú chung">🗑</button></td>' : '') + '</tr>'; if (r.off && !edit) return ''; if (!r.off) n++; return bkRow(r, r.off ? '·' : n, edit, cmp, SI, keep); }).join(''); };
+  var rowsOf = function (arr, keep, pre) { var n = 0; return arr.map(function (r) { if (r.noteOnly) return '<tr>' + td('', {}) + td('<i>' + br(r.ten) + '</i>', { cs: nc - 1 }) + (edit ? '<td class="cr-noprint" style="border:none"><button class="cr-btn sm" data-act="x-del" data-i="' + r.xi + '" title="Xoá dòng ghi chú chung">🗑</button></td>' : '') + '</tr>'; if (r.off && !edit) return ''; if (!r.off) n++; return bkRow(r, r.off ? '·' : (pre ? pre + n : n), edit, cmp, SI, keep); }).join(''); };
+  var groupedRows = function (arr, sec, keep) {   /* V795 */
+    var S = splitMa(arr); if (!S.mas.length && !S.loose.length) return rowsOf(arr, keep, sec + '.');
+    var out = '', LT = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', shown = 0;
+    var block = function (gi, title, rows, ma) {
+      var live = rows.filter(function (x) { return !x.off; }); if (!edit && !live.length) return '';
+      var g = 0, b = 0; live.forEach(function (x) { g += x.tienGoc || 0; b += x.tienBan || 0; });
+      var lab = LT.charAt(shown) || String(shown + 1); shown++;
+      return '<tr>' + td(lab, { c: 1, b: 1 }) + td(title, { b: 1, cs: 4 }) + td('<span data-tot="g' + sec + '_' + gi + '">' + vnd(CR.mode === 'ban' ? b : g) + '</span>', { r: 1, b: 1 }) +
+        (cmp ? td('') + td('<b data-tot="ga' + sec + '_' + gi + '">' + vnd(CR.mode === 'ban' ? g : b) + '</b>', { r: 1 }) + td('<b data-tot="gd' + sec + '_' + gi + '">' + vnd(b - g) + '</b>', { r: 1 }) : '') + td('') +
+        (edit ? '<td class="cr-noprint" style="border:none"><button class="cr-btn sm" data-act="x-add" data-i="' + sec + '" data-ma="' + esc(ma || '') + '" title="Thêm dòng tay vào máy này">➕</button></td>' : '') + '</tr>' + rowsOf(rows, keep, sec + '.');
+    };
+    S.mas.forEach(function (ma, gi) { out += block(gi, 'Máy ' + esc(ma), S.by[ma], ma); });
+    if (S.loose.length) out += block(S.mas.length, 'Khác / dùng chung', S.loose, '');
+    return out + rowsOf(S.notes, keep, sec + '.');
+  };
   var promoRow = function (p, amt, name) {
     if (!p || !(amt > 0) || CR.mode !== 'ban') return '';
     return '<tr>' + td('', {}) + td('Khuyến mại <b>' + esc(p.code) + '</b>' + (p.mo ? ' — ' + esc(p.mo) : '') + ' (giảm ' + (p.kieu === 'vnd' ? vnd(p.giaTri) + ' đ' : (Number(p.giaTri) || 0) + '%') + ')', { cs: 4 }) + td('<span data-tot="' + name + '">-' + vnd(amt) + '</span>', { r: 1 }) + (cmp ? td('') + td('') + td('') : '') + td('') + (edit ? '<td class="cr-noprint" style="border:none"></td>' : '') + '</tr>';
@@ -30307,9 +30357,9 @@ function docBody(m, edit) {
   var dpRows = IT(V.dp.map(function (l) { return '<tr class="cr-int">' + td('·', { c: 1 }) + td(br(l.ten)) + td(num(l.sl), { c: 1 }) + td(esc(l.dvt || ''), { c: 1 }) + td('—', { r: 1 }) + td('0', { r: 1 }) + (cmp ? td('—', { r: 1 }) + td('0', { r: 1 }) + td('—', { r: 1 }) : '') + td(br(l.gc)) + (edit ? '<td class="cr-noprint" style="border:none"></td>' : '') + '</tr>'; }).join(''));
   var s2G = T.vatTuGoc, s2B = T.vatTuBan, s3G = T.nhapGoc, s3B = T.nhapBan, has3 = V.s3.some(function (x) { return !x.off; }) || edit, tongName = 'Tổng I + II' + (has3 ? ' + III' : '');
   h += secH('IV. BẢNG KÊ HẠNG MỤC, VẬT TƯ THAY THẾ') + W + head +
-    secRow('I', 'Chi phí công dịch vụ/nhân sự, đi lại', T.sub1, T.sub1, T.sub1, '1') + rowsOf(V.s1, true) + promoRow(T.pCong, T.giamCong, 'giamCong') +
-    secRow('II', 'Chi phí vật tư thay thế, sửa chữa (theo phiếu BDSC hoàn thành, gồm vật tư hỏng / không xác định mang về)', T.vatTu, s2G, s2B, '2') + (rowsOf(V.s2) + dpRows || '<tr>' + td('—', { c: 1, cs: nc + (edit ? 1 : 0) }) + '</tr>') + promoRow(T.pVt, T.giamVt, 'giamVt') +
-    (has3 ? secRow('III', 'Vật tư nhập về trại trong tháng', T.nhap, s3G, s3B, '3') + (rowsOf(V.s3, true) || '<tr>' + td('—', { c: 1, cs: nc + (edit ? 1 : 0) }) + '</tr>') : '') +
+    secRow('I', 'Chi phí công dịch vụ/nhân sự, đi lại', T.sub1, T.sub1, T.sub1, '1') + rowsOf(V.s1, true, multi ? '1.' : '') + promoRow(T.pCong, T.giamCong, 'giamCong') +
+    secRow('II', 'Chi phí vật tư thay thế, sửa chữa (theo phiếu BDSC hoàn thành, gồm vật tư hỏng / không xác định mang về)', T.vatTu, s2G, s2B, '2') + ((multi ? groupedRows(V.s2, '2') : rowsOf(V.s2)) + dpRows || '<tr>' + td('—', { c: 1, cs: nc + (edit ? 1 : 0) }) + '</tr>') + promoRow(T.pVt, T.giamVt, 'giamVt') +
+    (has3 ? secRow('III', 'Vật tư nhập về trại trong tháng', T.nhap, s3G, s3B, '3') + ((multi ? groupedRows(V.s3, '3', true) : rowsOf(V.s3, true)) || '<tr>' + td('—', { c: 1, cs: nc + (edit ? 1 : 0) }) + '</tr>') : '') +
     '<tr>' + td(tongName, { c: 1, b: 1, cs: 5 }) + td(TOT('tong', T.tong), { r: 1, b: 1 }) + (cmp ? td('') + td('<b data-tot="altT">' + vnd(CR.mode === 'ban' ? T.tongGoc : T.tongBan) + '</b>', { r: 1 }) + td('<b data-tot="difT">' + vnd(T.chenh) + '</b>', { r: 1 }) : '') + td('') + (edit ? '<td class="cr-noprint" style="border:none"></td>' : '') + '</tr>' +
     vatRows(T, edit, cmp) +
     '<tr>' + td('<b>Bằng chữ:</b> <i data-words="1">' + esc(vnWords(T.tongVat)) + '</i>', { cs: nc - 1 }) + td('') + (edit ? '<td class="cr-noprint" style="border:none"></td>' : '') + '</tr></table>';
@@ -30402,11 +30452,11 @@ function xlModel(m) {
   var hts = V.ht.map(function (x, i) { return { ht: x.ht + (x.gc ? '\n(Ghi chú: ' + String(x.gc).replace(/\n/g, ' ') + ')' : ''), nn: x.nn, pa: V.xl.filter(function (y) { return y.grp === i; }).map(function (y) { return String(y.hm).replace(/\n/g, ' ') + (y.pa && y.pa !== '—' ? ' (' + y.pa + ')' : '') + (y.gc ? ' — ' + String(y.gc).replace(/\n/g, ' ') : ''); }).join('\n') }; });
   var diff = function (r) { return cmp && r.tienBan !== r.tienGoc ? '\n' + (CR.mode === 'ban' ? 'Giá gốc ' + (r.goc != null ? vnd(r.goc) : '—') + ' · tiền gốc ' + vnd(r.tienGoc) : 'Giá bán ' + (r.ban != null ? vnd(r.ban) : '—') + ' · tiền bán ' + vnd(r.tienBan)) + ' · chênh lệch (bán − gốc) ' + vnd(r.tienBan - r.tienGoc) : ''; };
   var live = function (a) { return a.filter(function (r) { return !r.off; }); };
-  return { ma: m.ma, thang: m.thang, farm: I.farm, region: a.kv || EGF.region(m.region) || '', lh: a.lh || m.lh || '', owner: I.owner || a.dv || '', province: m.province || '', ngay: I.ngay,
+  return { ma: m.ma, multi: (m.codes || []).length > 1, thang: m.thang, farm: I.farm, region: a.kv || EGF.region(m.region) || '', lh: a.lh || m.lh || '', owner: I.owner || a.dv || '', province: m.province || '', ngay: I.ngay,
     phieu: (m.phieu || []).map(function (p) { return { id: p.id }; }), staff: I.staffList, hienTuong: hts,
     cong: live(V.s1).map(function (r) { if (r.noteOnly) return { note: true, noiDung: r.ten, ten: r.ten, sl: 0, tien: 0 }; return { noiDung: r.ten, sl: r.sl, dvt: r.dvt, donGia: r.sl ? Math.round(r.tien / r.sl) : r.gia, tien: r.tien, ghiChu: r.gc }; }),
-    vt: live(V.s2).map(function (r) { if (r.noteOnly) return { note: true, ten: r.ten, sl: 0, gia: null }; return { ten: r.ten, sl: r.sl, dvt: r.dvt, gia: r.gia > 0 ? r.gia : null, nguon: GC(CR.mode === 'ban' ? (r.sellMarked ? 'giá bán đã lưu' : 'giá gốc × ' + heSoBan()) : (r.gocEdited ? 'giá nhập tay' : r.nguon)), ghiChu: GC(r.gc + diff(r)) }; }),
-    nh: live(V.s3).map(function (r) { if (r.noteOnly) return { note: true, ten: r.ten, sl: 0, gia: null }; return { ten: r.ten, sl: r.sl, dvt: r.dvt, gia: r.gia > 0 ? r.gia : null, nguon: GC(CR.mode === 'ban' ? (r.sellMarked ? 'giá bán đã lưu' : 'giá gốc × ' + heSoBan()) : r.nguon), ghiChu: r.gc + diff(r) }; }),
+    vt: live(V.s2).map(function (r) { if (r.noteOnly) return { note: true, ten: r.ten, sl: 0, gia: null }; return { ten: r.ten, ma: r.ma || '', sl: r.sl, dvt: r.dvt, gia: r.gia > 0 ? r.gia : null, nguon: GC(CR.mode === 'ban' ? (r.sellMarked ? 'giá bán đã lưu' : 'giá gốc × ' + heSoBan()) : (r.gocEdited ? 'giá nhập tay' : r.nguon)), ghiChu: GC(r.gc + diff(r)) }; }),
+    nh: live(V.s3).map(function (r) { if (r.noteOnly) return { note: true, ten: r.ten, sl: 0, gia: null }; return { ten: r.ten, ma: r.ma || '', sl: r.sl, dvt: r.dvt, gia: r.gia > 0 ? r.gia : null, nguon: GC(CR.mode === 'ban' ? (r.sellMarked ? 'giá bán đã lưu' : 'giá gốc × ' + heSoBan()) : r.nguon), ghiChu: r.gc + diff(r) }; }),
     T: { nhanCong: V.T.nhanCong - V.T.giamCong, diLai: V.T.diLai, vatTu: V.T.vatTu - V.T.giamVt, nhap: V.T.nhap, tong: V.T.tong, vatOn: V.T.vatOn, vatPct: V.T.vatPct, vat: V.T.vat, tongVat: V.T.tongVat }, ai: nxOf(m), mode: modeName(CR.mode) };
 }
 function xlPromo(model, m) {
@@ -30507,7 +30557,7 @@ function openMachine(k0) {
       el.textContent = f === 'tien' ? vnd(r.tien) : f === 'gia' ? (r.gia != null ? vnd(r.gia) : '—') : f === 'altGia' ? (altG != null ? vnd(altG) : '—') : f === 'altTien' ? vnd(altT) : f === 'diff' ? fmtDiff(diff) : el.textContent;
     });
     var altOf = function (g, b) { return CR.mode === 'ban' ? g : b; };
-    var tv = { sub1: T.sub1, sub2: T.vatTu, sub3: T.nhap, alt1: T.sub1, alt2: altOf(T.vatTuGoc, T.vatTuBan), alt3: altOf(T.nhapGoc, T.nhapBan), dif1: 0, dif2: T.vatTuBan - T.vatTuGoc, dif3: T.nhapBan - T.nhapGoc, tong: T.tong, altT: altOf(T.tongGoc, T.tongBan), difT: T.chenh, cmpG: T.tongGoc, cmpB: T.tongBan, vat: T.vat, tongVat: T.tongVat };
+    var tv = { sub1: T.sub1, sub2: T.vatTu, sub3: T.nhap, alt1: T.sub1, alt2: altOf(T.vatTuGoc, T.vatTuBan), alt3: altOf(T.nhapGoc, T.nhapBan), dif1: 0, dif2: T.vatTuBan - T.vatTuGoc, dif3: T.nhapBan - T.nhapGoc, tong: T.tong, altT: altOf(T.tongGoc, T.tongBan), difT: T.chenh, cmpG: T.tongGoc, cmpB: T.tongBan, vat: T.vat, tongVat: T.tongVat }; try { Object.assign(tv, grpSums(V)); } catch (e) { }   /* V795: dòng cộng từng máy */
     paper.querySelectorAll('[data-tot="giamCong"]').forEach(function (el) { el.textContent = '-' + vnd(T.giamCong); });
     paper.querySelectorAll('[data-tot="giamVt"]').forEach(function (el) { el.textContent = '-' + vnd(T.giamVt); });
     paper.querySelectorAll('[data-words]').forEach(function (el) { el.textContent = vnWords(T.tongVat); });
@@ -30784,7 +30834,7 @@ function openMachine(k0) {
     else if (act === 'ht-del') ed.ht.splice(+i, 1);
     else if (act === 'xl-add') ed.xl.push({ ma: m.ma, hm: '', pa: '', gc: '', grp: Math.max(0, ed.ht.length - 1) });
     else if (act === 'xl-del') ed.xl.splice(+i, 1);
-    else if (act === 'x-add') (ed.x = ed.x || []).push({ sec: i, ten: 'Hạng mục thêm', dvt: i === '1' ? 'lần' : 'cái', sl: 1, gia: i === '1' ? 0 : '', gc: '' });
+    else if (act === 'x-add') (ed.x = ed.x || []).push({ sec: i, ten: 'Hạng mục thêm', dvt: i === '1' ? 'lần' : 'cái', sl: 1, gia: i === '1' ? 0 : '', gc: '', ma: i === '1' ? '' : String(t.dataset.ma || '') });
     else if (act === 'x-del') ed.x.splice(+i, 1);
     else if (act === 'img-del') { if (ed.img) ed.img.splice(+i, 1); s.imgDirty = true; }
     else if (act === 'r-off') { var o = (ed.r = ed.r || {})[i] = ed.r[i] || {}; o.off = true; }
