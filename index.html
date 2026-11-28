@@ -8283,8 +8283,10 @@ function exportWord(id, mode){
 
     const ttSau  = clStatus(rep.cl);
     const gcGT   = rep.gc||(rep.note||'');
+    const _tnOn = !!(rep.thueNgoai || (rep.bx && rep.bx.thueNgoai));   /* V799: báo cáo « Tại hiện trường (thuê nhân sự ngoài) » */
+    const _tnSpec = _tnOn && rep.bx && rep.bx.tnChuyenMon ? [].concat(rep.bx.tnChuyenMon).filter(Boolean).join(', ') : '';
     const ktv2Line = ktv2
-      ? `<p style="margin:4pt 0 4pt 0;line-height:1.5">Ông/bà: <u><b>${esc(ktv2)}</b></u> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Chức vụ: KTV hỗ trợ</p>`
+      ? `<p style="margin:4pt 0 4pt 0;line-height:1.5">Ông/bà: <u><b>${esc(ktv2)}</b></u> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Chức vụ: ${_tnOn ? 'Nhân sự thuê ngoài' + (_tnSpec ? ' (chuyên môn: ' + esc(_tnSpec) + ')' : '') : 'KTV hỗ trợ'}</p>`
       : '';
 
     // ── LOGO eGreen dạng inline SVG ──────────────────────────
@@ -30113,6 +30115,14 @@ function matRow(ov, base, key, sec, kind) {
     gc: String(ov.gc != null ? ov.gc : (base.gc || '')).replace(/(^|\n)\s*chưa có giá\s*$/i, ''), off: !!ov.off, hong: !!base.hong, thieuGia: act == null, nguon: rs && rs.gia != null && goc === rs.gia ? (rs.nguon || 'Misa') : (base.nguon || ''), tenMisa: rs ? (rs.tenMisa || '') : '', sellMarked: sellOv(gk) != null, gocEdited: ov.gg != null, thua: base.thua || '' };
 }
 function promoAmt(p, base) { if (!p || !(base > 0)) return 0; var a = p.kieu === 'vnd' ? Math.min(base, Number(p.giaTri) || 0) : Math.round(base * Math.min(100, Number(p.giaTri) || 0) / 100); return Math.max(0, a); }
+/* V799 · chi phí thuê nhân sự ngoài: giá gốc = số đã nhập, giá bán = × 1,2 (khác với công / đi lại: hai chế độ giống nhau) */
+var TN_HS_BAN = 1.2;
+function tnRow(ov, base, key) {
+  var sl = ov.sl != null ? pnum(ov.sl) : base.sl, goc = base.gia, ban = Math.round(base.gia * TN_HS_BAN);
+  if (ov.gia != null) { var g = pnum(ov.gia); if (CR.mode === 'ban') ban = g; else { goc = g; ban = Math.round(g * TN_HS_BAN); } }
+  var tG = Math.round(sl * goc), tB = Math.round(sl * ban), ban0 = CR.mode === 'ban';
+  return { key: key, sec: '1', kind: 'nc', ten: ov.ten != null ? ov.ten : base.ten, dvt: ov.dvt != null ? ov.dvt : base.dvt, sl: sl, goc: goc, ban: ban, gia: ban0 ? ban : goc, tienGoc: tG, tienBan: tB, tien: ban0 ? tB : tG, gc: ov.gc != null ? ov.gc : (base.gc || ''), off: !!ov.off };
+}
 /* dòng công / đi lại: giá như nhau ở cả hai chế độ */
 function svcRow(ov, base, key, kind) {
   var sl = ov.sl != null ? pnum(ov.sl) : base.sl, gia = ov.gia != null ? pnum(ov.gia) : base.gia, edited = ov.sl != null || ov.gia != null;
@@ -30152,7 +30162,7 @@ function viewOf(m) {
            cl: t.cl != null ? t.cl : (all.map(function (p) { return p.cl; }).filter(Boolean).slice(-1)[0] || ''), gc: t.gc != null ? t.gc : all.map(function (p) { return p.gc; }).filter(Boolean).join('; ') };
   /* V — bảng kê */
   var s1 = [], s2 = [], s3 = [], dp = [];
-  var trips = m.trips && m.trips.length ? m.trips : all.filter(function (p) { return p.ext && !p.ext.tuXa; }).map(function (p, i) { var e = p.ext; return { id: 'CD' + (i + 1), tu: p.nd, den: p.nkt || p.nd, diLai: Number(e.tienDiLai) || 0, luuTru: Number(e.tienLuuTru) || 0, soPhieu: 1, soMay: 1, phieu: [p.id], dau: p.id }; });
+  var trips = m.trips && m.trips.length ? m.trips : all.filter(function (p) { return p.ext && !p.ext.tuXa && !p.ext.thueNgoai; }).map(function (p, i) { var e = p.ext; return { id: 'CD' + (i + 1), tu: p.nd, den: p.nkt || p.nd, diLai: Number(e.tienDiLai) || 0, luuTru: Number(e.tienLuuTru) || 0, soPhieu: 1, soMay: 1, phieu: [p.id], dau: p.id }; });
   var byId = {}; all.forEach(function (p) { byId[p.id] = p; });
   trips.forEach(function (tr) {
     var head = byId[tr.dau] || all[0] || {}, e = head.ext || {}, key = 'c:di:' + tr.id, tien = (Number(tr.diLai) || 0) + (Number(tr.luuTru) || 0);
@@ -30162,6 +30172,14 @@ function viewOf(m) {
   });
   all.forEach(function (p) {
     if (!p.ext) return; var e = p.ext, key = 'c:nc:' + p.id, names = [p.ktv1].concat(p.ktv2 || []).filter(Boolean).join(', '), rg = rangeText2(p.nd, p.nkt);
+    if (e.thueNgoai) {   /* V799: thuê nhân sự ngoài — không nhân công / đi lại / ăn ở; 3 khoản nhập tay */
+      var tnN = [].concat(p.ktv2 || []).filter(Boolean).join(', '), tnGc = 'Thuê nhân sự ngoài' + (tnN ? ': ' + tnN : '') + (e.tnChuyenMon ? ' (' + e.tnChuyenMon + ')' : '') + '\n' + rg;
+      [['tn', 'Chi phí thuê nhân sự ngoài', Number(e.tnChiPhi) || 0, true], ['gv', 'Chi phí gửi vật tư', Number(e.tnGuiVT) || 0, false], ['nl', 'Chi phí nhập lại vật tư', Number(e.tnNhapLaiVT) || 0, false]].forEach(function (x) {
+        if (!x[3] && !(x[2] > 0)) return; var k2 = 'c:' + x[0] + ':' + p.id;
+        s1.push(tnRow(r[k2] || {}, { ten: x[1] + (multi ? ' — ' + (p.ma || '') : ''), sl: 1, dvt: 'lần', gia: x[2], gc: x[0] === 'tn' ? tnGc : rg }, k2));
+      });
+      return;
+    }
     s1.push(svcRow(r[key] || {}, { ten: (e.tuXa ? 'Nhân công hỗ trợ từ xa (' : 'Nhân công sửa chữa tại trại (') + (e.soNhanSu || 1) + ' nhân sự: ' + names + ')' + (multi ? ' — ' + (p.ma || '') : ''), sl: Number(e.nhanCong) || 0, dvt: 'công', gia: Number(e.donGia) || 0, tien: Number(e.tienCong) || 0, gc: e.tuXa ? ('Hỗ trợ từ xa · bắt đầu ' + rangeText2(p.nd) + '\nTổng thời gian: ' + String(p.tg || '').replace(/^\s*Hỗ\s*trợ\s*từ\s*xa\s*·\s*/i, '') + ' — không di chuyển, không ăn ở') : rg + (e.otGio ? '\ntăng ca ' + e.otGio + ' giờ/người' : '') }, key, 'nc'));
   });
   var seen = {};
@@ -30190,13 +30208,13 @@ function viewOf(m) {
   });
   V.s1 = s1; V.s2 = s2; V.s3 = s3; V.dp = dp;
   var sum = function (a, k) { return a.reduce(function (s, x) { return s + (x.off ? 0 : (x[k] || 0)); }, 0); };
-  var T = { nhanCong: 0, diLai: 0 };
-  s1.forEach(function (x) { if (x.off) return; if (x.kind === 'trip') T.diLai += x.tien; else T.nhanCong += x.tien; });
+  var T = { nhanCong: 0, diLai: 0, ncG: 0, ncB: 0 };
+  s1.forEach(function (x) { if (x.off) return; if (x.kind === 'trip') T.diLai += x.tien; else { T.nhanCong += x.tien; T.ncG += x.tienGoc; T.ncB += x.tienBan; } });
   T.vatTuGoc = sum(s2, 'tienGoc'); T.vatTuBan = sum(s2, 'tienBan'); T.nhapGoc = sum(s3, 'tienGoc'); T.nhapBan = sum(s3, 'tienBan');
   T.vatTu = CR.mode === 'ban' ? T.vatTuBan : T.vatTuGoc; T.nhap = CR.mode === 'ban' ? T.nhapBan : T.nhapGoc;
   T.sub1 = T.nhanCong + T.diLai; var pr = ed.promo || {}; T.pCong = pr.cong || null; T.pVt = pr.vt || null;
-  T.giamCongB = promoAmt(pr.cong, T.sub1); T.giamVtB = promoAmt(pr.vt, T.vatTuBan); T.giamCong = CR.mode === 'ban' ? T.giamCongB : 0; T.giamVt = CR.mode === 'ban' ? T.giamVtB : 0;
-  T.tongGoc = T.nhanCong + T.diLai + T.vatTuGoc + T.nhapGoc; T.tongBan = T.nhanCong + T.diLai + T.vatTuBan + T.nhapBan - T.giamCongB - T.giamVtB;
+  T.giamCongB = promoAmt(pr.cong, T.ncB + T.diLai); T.giamVtB = promoAmt(pr.vt, T.vatTuBan); T.giamCong = CR.mode === 'ban' ? T.giamCongB : 0; T.giamVt = CR.mode === 'ban' ? T.giamVtB : 0;
+  T.tongGoc = T.ncG + T.diLai + T.vatTuGoc + T.nhapGoc; T.tongBan = T.ncB + T.diLai + T.vatTuBan + T.nhapBan - T.giamCongB - T.giamVtB;
   T.tong = CR.mode === 'ban' ? T.tongBan : T.tongGoc; T.chenh = T.tongBan - T.tongGoc; T.pct = T.tongGoc > 0 ? T.chenh / T.tongGoc : 0;
   T.sub1 = T.nhanCong + T.diLai; T.sub2 = T.vatTu; T.sub3 = T.nhap;
   var ve = ed.vat || {}; T.vatAuto = isMayBan(m); T.vatOn = ve.on != null ? !!ve.on : T.vatAuto; T.vatPct = ve.pct != null && ve.pct !== '' ? Math.max(0, pnum(ve.pct)) : vatDefault();
@@ -30357,7 +30375,7 @@ function docBody(m, edit) {
   var dpRows = IT(V.dp.map(function (l) { return '<tr class="cr-int">' + td('·', { c: 1 }) + td(br(l.ten)) + td(num(l.sl), { c: 1 }) + td(esc(l.dvt || ''), { c: 1 }) + td('—', { r: 1 }) + td('0', { r: 1 }) + (cmp ? td('—', { r: 1 }) + td('0', { r: 1 }) + td('—', { r: 1 }) : '') + td(br(l.gc)) + (edit ? '<td class="cr-noprint" style="border:none"></td>' : '') + '</tr>'; }).join(''));
   var s2G = T.vatTuGoc, s2B = T.vatTuBan, s3G = T.nhapGoc, s3B = T.nhapBan, has3 = V.s3.some(function (x) { return !x.off; }) || edit, tongName = 'Tổng I + II' + (has3 ? ' + III' : '');
   h += secH('IV. BẢNG KÊ HẠNG MỤC, VẬT TƯ THAY THẾ') + W + head +
-    secRow('I', 'Chi phí công dịch vụ/nhân sự, đi lại', T.sub1, T.sub1, T.sub1, '1') + rowsOf(V.s1, true, multi ? '1.' : '') + promoRow(T.pCong, T.giamCong, 'giamCong') +
+    secRow('I', 'Chi phí công dịch vụ/nhân sự, đi lại', T.sub1, T.ncG + T.diLai, T.ncB + T.diLai, '1') + rowsOf(V.s1, true, multi ? '1.' : '') + promoRow(T.pCong, T.giamCong, 'giamCong') +
     secRow('II', 'Chi phí vật tư thay thế, sửa chữa (theo phiếu BDSC hoàn thành, gồm vật tư hỏng / không xác định mang về)', T.vatTu, s2G, s2B, '2') + ((multi ? groupedRows(V.s2, '2') : rowsOf(V.s2)) + dpRows || '<tr>' + td('—', { c: 1, cs: nc + (edit ? 1 : 0) }) + '</tr>') + promoRow(T.pVt, T.giamVt, 'giamVt') +
     (has3 ? secRow('III', 'Vật tư nhập về trại trong tháng', T.nhap, s3G, s3B, '3') + ((multi ? groupedRows(V.s3, '3', true) : rowsOf(V.s3, true)) || '<tr>' + td('—', { c: 1, cs: nc + (edit ? 1 : 0) }) + '</tr>') : '') +
     '<tr>' + td(tongName, { c: 1, b: 1, cs: 5 }) + td(TOT('tong', T.tong), { r: 1, b: 1 }) + (cmp ? td('') + td('<b data-tot="altT">' + vnd(CR.mode === 'ban' ? T.tongGoc : T.tongBan) + '</b>', { r: 1 }) + td('<b data-tot="difT">' + vnd(T.chenh) + '</b>', { r: 1 }) : '') + td('') + (edit ? '<td class="cr-noprint" style="border:none"></td>' : '') + '</tr>' +
@@ -30365,7 +30383,7 @@ function docBody(m, edit) {
     '<tr>' + td('<b>Bằng chữ:</b> <i data-words="1">' + esc(vnWords(T.tongVat)) + '</i>', { cs: nc - 1 }) + td('') + (edit ? '<td class="cr-noprint" style="border:none"></td>' : '') + '</tr></table>';
   if (SI && CR.mode !== 'ban' && (T.pCong || T.pVt)) h += '<p class="cr-int" style="font-size:11pt;color:#92400e;margin:3pt 0">⚠ Đã chọn mã khuyến mại nhưng chỉ tính ở chế độ « Chi phí bán hàng » (giảm trên giá bán). Chuyển sang chế độ đó để thấy dòng khuyến mại.</p>';
   if (cmp) h += '<p class="cr-int" style="font-weight:bold;margin:8pt 0 2pt">Thống kê so sánh hai chế độ</p><table class="cr-int" width="60%" style="border-collapse:collapse"><tr>' + th('Hạng mục') + th('Chi phí gốc') + th('Chi phí bán hàng') + th('Chênh lệch') + '</tr>' +
-    [['Nhân công, đi lại', T.sub1, T.sub1], ['Vật tư dùng', s2G, s2B], ['Vật tư nhập', s3G, s3B], ['Khuyến mại', 0, -(T.giamCongB + T.giamVtB)]].map(function (x) { return '<tr>' + td(x[0]) + td(vnd(x[1]), { r: 1 }) + td(vnd(x[2]), { r: 1 }) + td(vnd(x[2] - x[1]), { r: 1 }) + '</tr>'; }).join('') +
+    [['Nhân công, đi lại', T.ncG + T.diLai, T.ncB + T.diLai], ['Vật tư dùng', s2G, s2B], ['Vật tư nhập', s3G, s3B], ['Khuyến mại', 0, -(T.giamCongB + T.giamVtB)]].map(function (x) { return '<tr>' + td(x[0]) + td(vnd(x[1]), { r: 1 }) + td(vnd(x[2]), { r: 1 }) + td(vnd(x[2] - x[1]), { r: 1 }) + '</tr>'; }).join('') +
     '<tr>' + td('Tổng', { b: 1 }) + td('<b data-tot="cmpG">' + vnd(T.tongGoc) + '</b>', { r: 1 }) + td('<b data-tot="cmpB">' + vnd(T.tongBan) + '</b>', { r: 1 }) + td('<b data-tot="cmpD">' + vnd(T.chenh) + ' (' + (T.pct >= 0 ? '+' : '') + (Math.round(T.pct * 1000) / 10) + '%)</b>', { r: 1 }) + '</tr></table>';
   if (edit) h += '<p class="cr-noprint" style="font-size:12px;color:#475569;margin-top:6px"><b>Cách lấy giá gốc:</b> CHỈ từ Misa (giá vốn, rồi giá nhập gần nhất); vật tư Misa không có giá thì để trống « chưa có giá » và bạn <b>điền tay</b>. Tên vật tư trong báo cáo <b>không cần trùng tên Misa</b>: hệ thống tự quy đổi ngầm sang hàng hoá Misa để lấy giá gốc, rồi nhân hệ số ra giá bán. Ở chế độ « Chi phí bán hàng », đơn giá bạn sửa được <b>tự lưu thành giá bán chung</b> cho mọi báo cáo khác; ở chế độ « Chi phí gốc » chỉ áp dụng cho dòng này.</p>';
   /* V — kết luận */
@@ -30557,7 +30575,7 @@ function openMachine(k0) {
       el.textContent = f === 'tien' ? vnd(r.tien) : f === 'gia' ? (r.gia != null ? vnd(r.gia) : '—') : f === 'altGia' ? (altG != null ? vnd(altG) : '—') : f === 'altTien' ? vnd(altT) : f === 'diff' ? fmtDiff(diff) : el.textContent;
     });
     var altOf = function (g, b) { return CR.mode === 'ban' ? g : b; };
-    var tv = { sub1: T.sub1, sub2: T.vatTu, sub3: T.nhap, alt1: T.sub1, alt2: altOf(T.vatTuGoc, T.vatTuBan), alt3: altOf(T.nhapGoc, T.nhapBan), dif1: 0, dif2: T.vatTuBan - T.vatTuGoc, dif3: T.nhapBan - T.nhapGoc, tong: T.tong, altT: altOf(T.tongGoc, T.tongBan), difT: T.chenh, cmpG: T.tongGoc, cmpB: T.tongBan, vat: T.vat, tongVat: T.tongVat }; try { Object.assign(tv, grpSums(V)); } catch (e) { }   /* V795: dòng cộng từng máy */
+    var tv = { sub1: T.sub1, sub2: T.vatTu, sub3: T.nhap, alt1: altOf(T.ncG + T.diLai, T.ncB + T.diLai), alt2: altOf(T.vatTuGoc, T.vatTuBan), alt3: altOf(T.nhapGoc, T.nhapBan), dif1: T.ncB - T.ncG, dif2: T.vatTuBan - T.vatTuGoc, dif3: T.nhapBan - T.nhapGoc, tong: T.tong, altT: altOf(T.tongGoc, T.tongBan), difT: T.chenh, cmpG: T.tongGoc, cmpB: T.tongBan, vat: T.vat, tongVat: T.tongVat }; try { Object.assign(tv, grpSums(V)); } catch (e) { }   /* V795: dòng cộng từng máy */
     paper.querySelectorAll('[data-tot="giamCong"]').forEach(function (el) { el.textContent = '-' + vnd(T.giamCong); });
     paper.querySelectorAll('[data-tot="giamVt"]').forEach(function (el) { el.textContent = '-' + vnd(T.giamVt); });
     paper.querySelectorAll('[data-words]').forEach(function (el) { el.textContent = vnWords(T.tongVat); });
@@ -31250,7 +31268,7 @@ V.loadRecent = function (force) {
       (s.length ? '<div class="v763-sub">Sản xuất</div><div class="v763-scroll" style="max-height:260px"><table class="v763-tb"><thead><tr><th>Mã</th><th>Dòng máy</th><th>Máy / số khung</th><th>Giai đoạn</th><th>Phụ trách</th><th>Tiến độ</th><th></th></tr></thead><tbody>' + rows2 + '</tbody></table></div>' : '');
   });
 };
-function egPill(s) { s = String(s || ''); var c = /^Đã đồng bộ/.test(s) ? 'g' : (/^Lỗi/.test(s) ? 'r' : (/Chờ/.test(s) ? 'a' : '')); return '<span class="v763-pill ' + c + '">' + esc(s.length > 34 ? s.slice(0, 34) + '…' : (s || '—')) + '</span>'; }
+function egPill(s) { s = String(s || ''); var c = /^Đã đồng bộ/.test(s) ? 'g' : (/^Lỗi/.test(s) ? 'r' : (/Chờ/.test(s) ? 'a' : '')); return '<span class="v763-pill ' + c + '" title="' + esc(s) + '">' + esc(s.length > 34 ? s.slice(0, 34) + '…' : (s || '—')) + '</span>'; }
 function progPct(tien) { var k = Object.keys(tien || {}); if (!k.length) return 0; var done = 0; k.forEach(function (h) { var s = (tien[h] || {}).tt; done += s === 'Hoàn thành' ? 1 : (s === 'Đang làm' ? 0.5 : 0); }); return Math.round(done / k.length * 100); }
 V.progPct = progPct; V.egPill = egPill;
 
@@ -31908,11 +31926,20 @@ V.viewDcr = function (id) {
     var o = a[0].report, sigs = a[1].list || [], media = (a[2].rows || []).filter(function (m) { return m.id === id; }), ext = a[0].ext;
     var canSync = !/^Đã đồng bộ/.test(o.egStatus || '') && o.form && o.form.dc && o.form.dc.mode;
     var m = overlay('📄 ' + esc(o.id) + ' — ' + esc(o.modeLabel) + ' · ' + esc(o.maMay),
-      '<div class="v763-info">eGreen: ' + egPill(o.egStatus) + (o.eg && o.eg.link ? ' ' + esc(o.eg.link) : '') + '<br>Vị trí: ' + esc(o.viTriCu || '—') + ' → ' + esc(o.viTriMoi || '—') + ' · ' + (o.km ? fmt(o.km) + ' km' : 'chưa có km') + '<br>KTV: ' + esc(o.ktv1) + (o.ktv2 ? ' + ' + esc(o.ktv2) : '') + ' · ' + esc(dmy(o.nd)) + ' → ' + esc(dmy(o.nkt)) + '<br>Lý do: ' + esc(o.lyDo) + (o.ketLuan ? '<br>Kết luận: ' + esc(o.ketLuan) : '') + (o.phieu.length ? '<br>Phiếu vật tư: ' + o.phieu.map(esc).join(', ') : '') + (ext && ext.tong != null ? '<br>💰 Tổng chi phí công + đi lại + lưu trú: <b>' + fmt(ext.tong) + ' đ</b>' : '') + '<br>Chữ ký: ' + (sigs.length ? sigs.map(function (s) { return esc(s.role) + ' (' + esc(s.name) + (s.hasFace ? ', có ảnh mặt' : '') + ')'; }).join('; ') : 'chưa có') + '</div><div id="v763-vmedia" style="display:flex;gap:6px;flex-wrap:wrap"></div>',
-      (canSync ? '<button class="btn bg-b" data-s>🔁 Đồng bộ lại sang eGreen</button>' : '') + '<button class="btn bg-gr" data-c>Đóng</button><button class="btn bg-g" data-p>📄 Xem / in biên bản</button>', { w: '760px' });
+      '<div class="v763-info">eGreen: ' + egPill(o.egStatus) + (o.eg && o.eg.link ? ' ' + esc(o.eg.link) : '') + (/^Lỗi/.test(o.egStatus || '') ? '<div style="margin:6px 0;padding:8px;border:1px solid #fecaca;background:#fef2f2;border-radius:8px;font-size:12px"><b>Nội dung lỗi đầy đủ:</b> ' + esc(o.egStatus) + ((o.eg && o.eg.hint) ? '<br><b>Nguyên nhân / cách xử lý:</b> ' + esc(o.eg.hint) : '') + ((o.eg && o.eg.errors && o.eg.errors.length) ? '<br>' + o.eg.errors.slice(0, 10).map(function (x) { return '• ' + esc(typeof x === "string" ? x : JSON.stringify(x)); }).join('<br>') : '') + '</div>' : '') + '<br>Vị trí: ' + esc(o.viTriCu || '—') + ' → ' + esc(o.viTriMoi || '—') + ' · ' + (o.km ? fmt(o.km) + ' km' : 'chưa có km') + '<br>KTV: ' + esc(o.ktv1) + (o.ktv2 ? ' + ' + esc(o.ktv2) : '') + ' · ' + esc(dmy(o.nd)) + ' → ' + esc(dmy(o.nkt)) + '<br>Lý do: ' + esc(o.lyDo) + (o.ketLuan ? '<br>Kết luận: ' + esc(o.ketLuan) : '') + (o.phieu.length ? '<br>Phiếu vật tư: ' + o.phieu.map(esc).join(', ') : '') + (ext && ext.tong != null ? '<br>💰 Tổng chi phí công + đi lại + lưu trú: <b>' + fmt(ext.tong) + ' đ</b>' : '') + '<br>Chữ ký: ' + (sigs.length ? sigs.map(function (s) { return esc(s.role) + ' (' + esc(s.name) + (s.hasFace ? ', có ảnh mặt' : '') + ')'; }).join('; ') : 'chưa có') + '</div><div id="v763-vmedia" style="display:flex;gap:6px;flex-wrap:wrap"></div>',
+      (canSync ? '<button class="btn bg-b" data-s>🔁 Đồng bộ lại sang eGreen</button><button class="btn bg-b" data-q title="Ghi ngay Loại hình / Đơn vị / Trại / Khu vực / Tỉnh / Trạng thái vào danh sách máy rồi đẩy sang eGreen — không chờ 5 phút, không cần eGreen chạy được bước SIM / Smartgen">⚡ Đồng bộ nhanh thông tin máy</button>' : '') + '<button class="btn bg-gr" data-c>Đóng</button><button class="btn bg-g" data-p>📄 Xem / in biên bản</button>', { w: '760px' });
     m.q('#v763-vmedia').innerHTML = media.map(function (x) { return '<div class="v763-tile2" data-o="' + esc(x.mediaId) + '"><img src="' + esc(x.thumb) + '"><div class="nm">' + esc(x.muc === 'sau' ? 'Sau' : 'Trước') + '</div></div>'; }).join('');
     m.q('#v763-vmedia').onclick = function (e) { var t = e.target.closest('[data-o]'); if (t && window.BX759) { var mm = media.find(function (x) { return x.mediaId === t.dataset.o; }); if (mm) BX759.lightbox(mm); } };
     m.q('[data-c]').onclick = m.close; m.q('[data-p]').onclick = function () { showDoc(dcrDocHtml(o, sigs, media), 'Biên bản ' + o.id); };
+    if (canSync) m.q('[data-q]').onclick = function () {
+      var b = this; if (!confirm('Ghi thông tin máy theo báo cáo này (trại / khu vực / tỉnh / trạng thái…) vào danh sách máy và đẩy sang eGreen ngay?\n\nLưu ý: các bước phụ của eGreen (SIM, Smartgen, nhật ký điều chuyển) KHÔNG chạy ở đường này.')) return;
+      b.disabled = true; b.textContent = '⏳ Đang đồng bộ…';
+      api('dcr763SyncBasic', { id: id }).then(function (r) {
+        var lines = (r.chk || []).map(function (x) { return (x.khop ? '✅ ' : '❌ ') + x.code + (x.khop ? ' — hai web đã khớp' : ' — ' + (x.lech || []).join('; ')); });
+        alert((r.ok ? 'Đã đồng bộ nhanh thành công.\n\n' : 'Chưa khớp hoàn toàn.\n\n') + lines.join('\n') + (r.err ? '\n\nLỗi: ' + r.err : '') + ((r.missing || []).length ? '\n\nKhông thấy trong Sheet 2: ' + r.missing.join(', ') : ''));
+        tt(r.ok ? '⚡ ' + r.status : '⚠️ ' + r.status, r.ok ? 'ok' : 'warn'); m.close(); V.loadRecent(); if (window.loadMachines) try { window.loadMachines(); } catch (e) { }
+      }).catch(function (e) { b.disabled = false; b.textContent = '⚡ Đồng bộ nhanh thông tin máy'; tt('❌ ' + e.message, 'err'); });
+    };
     if (canSync) m.q('[data-s]').onclick = function () { var b = this; b.disabled = true; api('dcr763Resync', { id: id }).then(function (r) { tt('Kết quả: ' + (r.eg && r.eg.status), /^Đã/.test((r.eg || {}).status || '') ? 'ok' : 'warn'); m.close(); V.loadRecent(); }).catch(function (e) { b.disabled = false; tt('❌ ' + e.message, 'err'); }); };
   }).catch(function (e) { tt('❌ ' + e.message, 'err'); });
 };
@@ -40068,7 +40095,9 @@ function sendAnswers(skipAll) {
 /* ---------- (1) chẩn đoán liên kết ---------- */
 var LYDO = {
   'chua-hoan-thanh': 'Phiếu vật tư chưa « Hoàn thành » — chi phí chỉ tính phiếu đã hoàn thành',
-  'khong-dung': 'Phiếu đã hoàn thành nhưng mọi dòng đã nhập lại đủ (SL sử dụng = 0)',
+  'khong-dung': 'Phiếu đã hoàn thành nhưng mọi dòng của máy này đã nhập lại đủ (xuất = nhập, không có hàng hỏng mang về) → không phát sinh chi phí',
+  'khong-xuat': 'Phiếu đã hoàn thành nhưng không có dòng nào của máy này có SL xuất > 0 (chưa nhập SL xuất, hoặc dòng gán sang mã máy khác)',
+  'dong-may-khac': 'Phiếu có vật tư dùng thật nhưng các dòng đó gán cho MÃ MÁY KHÁC — không dòng nào gán cho máy này nên chốt cũng không có chi phí',
   'khac-thang': 'Cách cũ xếp phiếu vào tháng NGÀY NHẬP KHO (khác tháng báo cáo)',
   'nhieu-bao-cao': 'Phiếu khớp thời gian với nhiều báo cáo khác tháng — nên chốt báo cáo đúng',
   'khong-co-phieu': 'Máy không có phiếu vật tư nào trong ± 45 ngày quanh ngày báo cáo (chưa lập phiếu, hoặc lập dưới mã máy khác)'
@@ -40085,16 +40114,16 @@ function openDiag() {
   function paint(d) {
     var host = $('#v794-dg', m.body); if (!host) return; var t = d.tong || {};
     var h = '<div class="v794-why"><b>Logic cũ (lý do báo cáo tháng này trống phiếu):</b> báo cáo lập theo <i>tháng của BDSC</i> nhưng vật tư bị xếp theo <i>tháng ngày nhập kho</i> (không có thì ngày cập nhật cuối) và chỉ lấy phiếu <i>Hoàn thành</i>. Phiếu xuất tháng này mà hoàn thành / bị sửa lại ở tháng sau sẽ rơi sang tháng khác. Cột « Mã BDSC liên kết » của phiếu gần như không được điền nên không có liên kết cứng.<br><b>Logic mới:</b> ' + esc(d.cachTinh || '') + '</div>';
-    h += '<div style="margin:6px 0"><span class="v794-tg b">' + (t.baoCao || 0) + ' báo cáo</span> <span class="v794-tg g">' + (t.daChot || 0) + ' đã chốt</span> <span class="v794-tg y">' + (t.tuKhop || 0) + ' tự khớp theo thời gian</span> <span class="v794-tg r">' + (t.chuaCo || 0) + ' chưa có phiếu tính được</span> <span class="v794-tg">cách cũ có phiếu: ' + (t.coPhieuCu || 0) + ' · cách mới: ' + (t.coPhieuMoi || 0) + '</span></div>';
+    h += '<div style="margin:6px 0"><span class="v794-tg b">' + (t.baoCao || 0) + ' báo cáo</span> <span class="v794-tg g">' + (t.daChot || 0) + ' đã chốt</span> <span class="v794-tg y">' + (t.tuKhop || 0) + ' tự khớp theo thời gian</span>' + (t.chotKhongTinh ? ' <span class="v794-tg y">' + t.chotKhongTinh + ' đã chốt nhưng chưa có chi phí (xem cột lý do)</span>' : '') + ' <span class="v794-tg r">' + (t.chuaCo || 0) + ' chưa có phiếu tính được</span> <span class="v794-tg">cách cũ có phiếu: ' + (t.coPhieuCu || 0) + ' · cách mới: ' + (t.coPhieuMoi || 0) + '</span></div>';
     if ((d.lyDo || []).length) h += '<div class="v794-why"><b>Vì sao các báo cáo chưa có phiếu:</b><br>' + d.lyDo.map(function (x) { return '• <b>' + x.n + '</b> báo cáo — ' + esc(x.text); }).join('<br>') + '</div>';
     h += '<div style="margin:6px 0"><button class="v794-b pri" data-d="auto">🔒 Chốt tất cả liên kết chắc chắn (tự khớp, 1 báo cáo, phiếu hoàn thành)</button> <span class="v794-s">Ghi mã báo cáo vào cột « Mã BDSC liên kết » của phiếu; sau đó báo cáo chi phí tính theo liên kết này, không bị trôi tháng.</span></div>';
     h += '<div style="max-height:52vh;overflow:auto"><table class="v794-tb"><thead><tr><th>Báo cáo BDSC</th><th>Trạng thái</th><th>Phiếu vật tư của máy (± 45 ngày)</th><th>Lý do chưa tính</th></tr></thead><tbody>' + (d.rows || []).map(function (r) {
-      var tg = r.trangThai === 'chot' ? '<span class="v794-tg g">🔒 đã chốt</span>' : r.trangThai === 'tu-khop' ? '<span class="v794-tg y">tự khớp</span>' : '<span class="v794-tg r">chưa có phiếu</span>';
+      var tg = r.trangThai === 'chot' ? '<span class="v794-tg g">🔒 đã chốt</span>' : r.trangThai === 'chot-khong-tinh' ? '<span class="v794-tg y">🔒 đã chốt · nhưng chưa có chi phí vật tư</span>' : r.trangThai === 'tu-khop' ? '<span class="v794-tg y">tự khớp</span>' : '<span class="v794-tg r">chưa có phiếu</span>';
       var ph = (r.phieu || []).map(function (c) {
         var act = '';
         if (c.khop === 'da-chot') act = ' <button class="v794-b" data-d="unlink" data-p="' + esc(c.maPhieu) + '" data-b="' + esc(r.id) + '">Bỏ chốt</button>';
         else if (c.trangThai === 'Hoàn thành') act = ' <button class="v794-b" data-d="link" data-p="' + esc(c.maPhieu) + '" data-b="' + esc(r.id) + '">Chốt vào BC này</button>';
-        return '<div class="v794-ph"><b>' + esc(c.maPhieu) + '</b> · ' + esc(c.trangThai) + ' · xuất ' + esc(dmy(c.xuat)) + ' → nhập ' + esc(dmy(c.nhap || c.cap)) + ' · ' + c.soDongDung + '/' + c.soDong + ' dòng có SL dùng ' + (c.tinhMoi ? '<span class="v794-tg g">✔ đang tính</span>' : (c.lyDo || []).map(function (k) { return '<span class="v794-tg y">' + esc(k) + '</span>'; }).join(' ')) + act + '</div>';
+        return '<div class="v794-ph"><b>' + esc(c.maPhieu) + '</b> · ' + esc(c.trangThai) + ' · xuất ' + esc(dmy(c.xuat)) + ' → nhập ' + esc(dmy(c.nhap || c.cap)) + ' · ' + c.soDongDung + '/' + c.soDong + ' dòng có tính phí' + (c.soDongHong ? ' (gồm ' + c.soDongHong + ' dòng hỏng mang về)' : '') + (c.tongXuat != null ? ' · xuất ' + c.tongXuat + ' / nhập ' + c.tongNhap + ' (máy này)' : '') + (c.dongMayKhac ? ' · <b style="color:#b45309">' + c.dongMayKhac + ' dòng dùng thật gán cho máy ' + esc((c.mayKhac || []).join(', ')) + '</b>' : '') + ' ' + (c.tinhMoi ? '<span class="v794-tg g">✔ đang tính</span>' : (c.lyDo || []).map(function (k) { return '<span class="v794-tg y">' + esc(k) + '</span>'; }).join(' ')) + act + '</div>';
       }).join('') || '<span style="color:#94a3b8">—</span>';
       return '<tr><td><b>' + esc(r.id) + '</b><div>' + esc(r.ma) + ' · ' + esc(dmy(r.ngay)) + (r.nkt && r.nkt !== r.ngay ? ' → ' + esc(dmy(r.nkt)) : '') + '</div><div style="color:#64748b">' + esc(r.farm || '') + '</div></td><td>' + tg + '</td><td>' + ph + '</td><td style="font-size:11.5px">' + (r.lyDo || []).map(function (k) { return '• ' + esc(LYDO[k] || k); }).join('<br>') + '</td></tr>';
     }).join('') + '</tbody></table></div>' + (d.conLai ? '<div class="v794-s">… còn ' + d.conLai + ' báo cáo nữa — lọc theo trại / mã máy để xem.</div>' : '');
@@ -40382,6 +40411,282 @@ var tries = 0, iv = setInterval(function () { tries++; if (inject() || tries > 4
 V.tag = function (p) { return p && p.ext && p.ext.tuXa ? '<span class="v795-tag">💻 Từ xa</span>' : ''; };
 })();
 
+</script>
+<script id="v799-patch">
+/* V799 — Báo cáo BDSC « Tại hiện trường (thuê nhân sự ngoài) »
+ *  · radio thứ 3 nằm bên phải « Tại hiện trường (có di chuyển, ăn ở) »
+ *  · vẫn có ngày / giờ bắt đầu – kết thúc, « Tổng thời gian làm việc » vẫn tự tính nhưng KHÔNG dùng tính chi phí
+ *  · bỏ ô giờ tăng ca → ô « KTV báo cáo » lên chỗ đó
+ *  · « KTV hỗ trợ » → « Nhân sự thuê ngoài » (bắt buộc) + SĐT (bắt buộc) + chuyên môn (Động cơ / Điện / Bể biogas / Cơ khí đơn thuần)
+ *  · khối « Quy đổi công » → 3 ô nhập: Chi phí thuê nhân sự · Chi phí gửi vật tư · Chi phí nhập lại vật tư (mọi KTV đều nhập được; người lập phiếu + QTV / admin / quản lý sửa được) */
+(function () {
+'use strict';
+var W = window, D = document; if (W.V799 && W.V799.ver) return;
+var V = W.V799 = { ver: 'V799', on: false, prev: { ktv2: '' }, known: {}, el: null, SPECS: ['Động cơ', 'Điện', 'Bể biogas', 'Cơ khí đơn thuần'] };
+var P = W.V795, BX = W.BX759, B7 = W.BX760, ready = false;
+function $(id) { return D.getElementById(id); }
+function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+function toast(m, k) { try { if (typeof W.toast === 'function') return W.toast(m, k || ''); } catch (e) { } try { console.log('[V799]', m); } catch (e) { } }
+function digits(x) { return String(x == null ? '' : x).replace(/\D/g, ''); }
+function numOf(x) { var n = Number(digits(x)); return isFinite(n) ? n : 0; }
+function vnd(n) { return (Math.round(Number(n) || 0)).toLocaleString('vi-VN') + ' đ'; }
+function fmtIn(e) { var d = digits(e.value); e.value = d ? Number(d).toLocaleString('vi-VN') : ''; }
+function money(n) { n = Number(n) || 0; return n > 0 ? n.toLocaleString('vi-VN') : ''; }
+function val(id) { var e = $(id); return e ? String(e.value == null ? '' : e.value) : ''; }
+function specArr(x) { var a = Array.isArray(x) ? x : String(x == null ? '' : x).split(/[;,\n]+/), out = []; a.forEach(function (t) { t = String(t == null ? '' : t).trim(); if (t && out.indexOf(t) < 0) out.push(t); }); return out; }
+function reps() { try { return typeof REPORTS !== 'undefined' && Array.isArray(REPORTS) ? REPORTS : []; } catch (e) { return []; } }
+/* sửa thông tin thuê ngoài: người lập phiếu (canEdit) + QTV / admin / quản lý */
+function canEditTn(rep) {
+  try { if (typeof W.canEdit === 'function' && W.canEdit(rep)) return true; } catch (e) { }
+  var u = null; try { u = typeof CU !== 'undefined' && CU ? CU : (W.CU || null); } catch (e) { }
+  return !!(u && /admin|qtv|quanly|quan ly|manager/i.test(String(u.role || '')));
+}
+/* không đối số → form đang ở chế độ thuê ngoài?; có phiếu → phiếu đó là thuê ngoài? */
+V.isTn = function (rep) { if (!arguments.length) return !!V.on; return !!(rep && (rep.thueNgoai === true || (rep.bx && rep.bx.thueNgoai === true))); };
+V.specArr = specArr;
+
+/* ---------- CSS ---------- */
+var st = D.createElement('style'); st.id = 'v799-css';
+st.textContent = '.v799-spec{display:flex;gap:8px;flex-wrap:wrap;margin-top:2px}.v799-note{background:#fff7ed;border:1px solid #fdba74;color:#9a3412;border-radius:8px;padding:7px 10px;font-size:12px;margin:6px 0}';
+D.head.appendChild(st);
+
+/* ---------- dựng thêm trên form (một lần) ---------- */
+function inject() {
+  if (ready) return true;
+  var bar = $('v795-mode'), site = $('v795-o-site'), ot = $('rf-ot'), bxb = $('bx-box'), k1 = $('rf-ktv1'), k2 = $('rf-ktv2'), kb = $('rf-ktvbc'), nkt = $('rf-nkt');
+  if (!bar || !site || !ot || !bxb || !k1 || !k2 || !kb || !nkt) return false;     /* chờ V795 + BX759 dựng xong form */
+  var g3 = k1.closest('.fgrid'), g2 = nkt.closest('.fgrid'), otIw = ot.closest('.iw'), k2Iw = k2.closest('.iw'), kbIw = kb.closest('.iw');
+  if (!g3 || !g2 || !otIw || !k2Iw || !kbIw) return false;
+  /* radio thứ 3: ngay bên phải « Tại hiện trường (có di chuyển, ăn ở) » */
+  var lb = D.createElement('label'); lb.className = 'v795-opt'; lb.id = 'v799-o-tn';
+  lb.innerHTML = '<input type="radio" name="v795m" value="tn"> 👷 Tại hiện trường (thuê nhân sự ngoài)';
+  site.insertAdjacentElement('afterend', lb);
+  /* ô Nhân sự thuê ngoài + SĐT (thay chỗ KTV hỗ trợ và KTV báo cáo trong hàng KTV) */
+  var tnIw = D.createElement('div'); tnIw.className = 'iw'; tnIw.id = 'v799-tn-iw'; tnIw.style.display = 'none';
+  tnIw.innerHTML = '<div class="il">Nhân sự thuê ngoài <span style="color:#dc2626;font-weight:800">*</span></div><input class="inp" id="rf-tn-ten" type="text" list="v799-tn-list" autocomplete="off" placeholder="Họ tên nhân sự / đơn vị thuê ngoài (bắt buộc)"><datalist id="v799-tn-list"></datalist><div class="ih" style="color:#dc2626;font-weight:600">⚠️ Bắt buộc — hiển thị trên biên bản</div>';
+  k2Iw.insertAdjacentElement('afterend', tnIw);
+  var sdIw = D.createElement('div'); sdIw.className = 'iw'; sdIw.id = 'v799-sdt-iw'; sdIw.style.display = 'none';
+  sdIw.innerHTML = '<div class="il">SĐT nhân sự thuê ngoài <span style="color:#dc2626;font-weight:800">*</span></div><input class="inp" id="rf-tn-sdt" type="tel" inputmode="tel" autocomplete="off" placeholder="VD: 0912 345 678 (bắt buộc)"><div class="ih" style="color:#dc2626;font-weight:600">⚠️ Bắt buộc — không in lên biên bản</div>';
+  tnIw.insertAdjacentElement('afterend', sdIw);
+  /* hàng chuyên môn */
+  var sp = D.createElement('div'); sp.className = 'fgrid fg3'; sp.id = 'v799-spec-row'; sp.style.cssText = 'padding-top:0;display:none';
+  sp.innerHTML = '<div class="iw" style="grid-column:1/-1"><div class="il">Chuyên môn nhân sự thuê ngoài (chọn một hoặc nhiều)</div><div class="v799-spec" id="v799-specs">'
+    + V.SPECS.map(function (s) { return '<label class="bx-opt"><input type="checkbox" value="' + esc(s) + '"> ' + esc(s) + '</label>'; }).join('')
+    + '</div><div class="ih">Lưu lại để sau này cần thuê thợ chỉ cần hỏi chatbot (vd: « thợ điện thuê ngoài ») là ra tên + SĐT.</div></div>';
+  g3.insertAdjacentElement('afterend', sp);
+  /* khối chi phí thay cho « Quy đổi công » */
+  var box = D.createElement('div'); box.id = 'v799-box'; box.className = 'bx-box'; box.style.display = 'none';
+  box.innerHTML = '<div class="bx-lbl" style="margin-top:0">💰 Chi phí thuê nhân sự ngoài (nhập tay)</div>'
+    + '<div id="v799-costs"><div class="bx-f2"><div><label>Chi phí thuê nhân sự (đ)</label><input class="inp" id="rf-tn-c1" type="text" inputmode="numeric" placeholder="0" autocomplete="off"></div>'
+    + '<div><label>Chi phí gửi vật tư (đ)</label><input class="inp" id="rf-tn-c2" type="text" inputmode="numeric" placeholder="0" autocomplete="off"></div>'
+    + '<div><label>Chi phí nhập lại vật tư (đ)</label><input class="inp" id="rf-tn-c3" type="text" inputmode="numeric" placeholder="0" autocomplete="off"></div></div><div class="bx-row" id="v799-sum"></div></div>'
+    + '<div class="ih">Thời gian làm việc vẫn được ghi nhận nhưng <b>không dùng để tính chi phí</b>. Loại báo cáo này không có chi phí nhân công, đi lại, ăn ở của eGreen.</div>';
+  sp.insertAdjacentElement('afterend', box);
+  V.el = { g2: g2, g3: g3, otIw: otIw, k2Iw: k2Iw, kbIw: kbIw, tnIw: tnIw, sdIw: sdIw, sp: sp, box: box, bxb: bxb };
+  /* sự kiện */
+  ['rf-tn-c1', 'rf-tn-c2', 'rf-tn-c3'].forEach(function (id) { var e = $(id); e.addEventListener('input', function () { fmtIn(e); V.paint(); }); });
+  $('v799-specs').addEventListener('change', function (ev) { var t = ev.target; if (t && t.type === 'checkbox' && t.parentNode) t.parentNode.classList.toggle('on', t.checked); });
+  $('rf-tn-ten').addEventListener('change', autofill); $('rf-tn-ten').addEventListener('focus', function () { try { fillList(); } catch (e) { } });
+  ready = true; return true;
+}
+function specs() { var out = []; D.querySelectorAll('#v799-specs input[type=checkbox]').forEach(function (c) { if (c.checked) out.push(c.value); }); return out; }
+function setSpecs(a) { a = specArr(a); D.querySelectorAll('#v799-specs input[type=checkbox]').forEach(function (c) { c.checked = a.indexOf(c.value) >= 0; if (c.parentNode) c.parentNode.classList.toggle('on', c.checked); }); }
+/* gợi ý lại những nhân sự thuê ngoài đã từng nhập (tên → SĐT + chuyên môn) */
+function fillList() {
+  var dl = $('v799-tn-list'); if (!dl) return; V.known = {}; var h = '';
+  reps().forEach(function (r) {
+    if (!V.isTn(r)) return; var n = String(r.ktv2 || '').trim(), k = n.toLowerCase(); if (!n || V.known[k]) return;
+    var b = r.bx || {}; V.known[k] = { sdt: b.tnSdt || '', spec: specArr(b.tnChuyenMon) }; h += '<option value="' + esc(n) + '"></option>';
+  });
+  dl.innerHTML = h;
+}
+function autofill() {
+  var k = V.known[val('rf-tn-ten').trim().toLowerCase()]; if (!k) return;
+  if (!val('rf-tn-sdt').trim() && k.sdt) $('rf-tn-sdt').value = k.sdt;
+  if (!specs().length && k.spec.length) setSpecs(k.spec);
+}
+
+/* ---------- chuyển chế độ ---------- */
+function paintRadios() {
+  var remote = !!(P && P.mode === 'remote'), mode = V.on ? 'tn' : (remote ? 'remote' : 'site');
+  [['v795-o-site', 'site'], ['v799-o-tn', 'tn'], ['v795-o-remote', 'remote']].forEach(function (x) {
+    var l = $(x[0]); if (!l) return; var on = x[1] === mode; l.classList.toggle('on', on); if (l.firstElementChild) l.firstElementChild.checked = on;
+  });
+}
+function relabelTg(on) {
+  var e = $('rf-tg'), iw = e && e.closest('.iw'), il = iw && iw.querySelector('.il'); if (!il) return;
+  if (!il.__v795) il.__v795 = il.textContent;                         /* V795 giữ nhãn gốc ở đây — dùng chung để khôi phục */
+  if (on) il.textContent = 'Tổng thời gian làm việc (tự tính: ngày × 8h — chỉ ghi nhận, không dùng tính chi phí)';
+}
+function apply(on) {
+  if (!inject()) return;
+  var E = V.el, was = V.on; V.on = !!on;
+  if (on) {
+    if (!was) { V.prev.ktv2 = val('rf-ktv2'); try { if (V.prev.ktv2 && typeof W.resetKTV2 === 'function') W.resetKTV2(); } catch (e) { } }
+    if ($('rf-ot')) $('rf-ot').value = ''; if ($('bx-hs')) $('bx-hs').value = '';
+    E.otIw.style.display = 'none'; if (E.kbIw.parentNode !== E.g2) E.g2.insertBefore(E.kbIw, E.otIw);   /* KTV báo cáo lên vị trí ô giờ tăng ca */
+    E.k2Iw.style.display = 'none'; E.tnIw.style.display = ''; E.sdIw.style.display = ''; E.sp.style.display = ''; E.box.style.display = ''; E.bxb.style.display = 'none';
+    try { fillList(); } catch (e) { }
+  } else {
+    if (E.kbIw.parentNode !== E.g3) E.g3.appendChild(E.kbIw);
+    E.otIw.style.display = ''; E.k2Iw.style.display = ''; E.tnIw.style.display = 'none'; E.sdIw.style.display = 'none'; E.sp.style.display = 'none'; E.box.style.display = 'none';
+    if (was) {
+      if (!(P && P.mode === 'remote')) E.bxb.style.display = '';
+      var names = String(V.prev.ktv2 || '').split(/[;,]/).map(function (s) { return s.trim(); }).filter(Boolean); V.prev.ktv2 = '';
+      if (!val('rf-ktv2')) names.forEach(function (n) { try { W.addKTV2Tag(n); } catch (e) { } });
+    }
+  }
+  relabelTg(V.on); paintRadios(); V.paint();
+}
+/* nhập / đọc số liệu cho phiếu đang sửa */
+function loadFrom(rep) {
+  var b = rep.bx || (BX && BX.ext && BX.ext[rep.id] && BX.fromServer(BX.ext[rep.id])) || {}, set = function (id, v) { var e = $(id); if (e) e.value = v == null ? '' : v; };
+  P.setMode('tn');
+  set('rf-tn-ten', rep.ktv2 || ''); set('rf-tn-sdt', b.tnSdt || ''); setSpecs(b.tnChuyenMon);
+  set('rf-tn-c1', money(b.tnChiPhi)); set('rf-tn-c2', money(b.tnGuiVT)); set('rf-tn-c3', money(b.tnNhapLaiVT));
+  V.paint();
+}
+function resetInputs() {
+  ['rf-tn-ten', 'rf-tn-sdt', 'rf-tn-c1', 'rf-tn-c2', 'rf-tn-c3'].forEach(function (id) { var e = $(id); if (e) e.value = ''; });
+  setSpecs([]); V.prev.ktv2 = '';
+}
+V.paint = function () {
+  if (!ready) return;
+  var s = $('v799-sum'); if (s && V.on) s.innerHTML = '<div class="bx-chip cost"><b>' + vnd(numOf(val('rf-tn-c1')) + numOf(val('rf-tn-c2')) + numOf(val('rf-tn-c3'))) + '</b><span>TỔNG chi phí thuê ngoài</span></div>';
+};
+
+/* V795 đã nghe sự kiện đổi radio → gọi V795.setMode(value); gói lại để hiểu giá trị « tn » */
+if (P && typeof P.setMode === 'function') {
+  var _sm = P.setMode;
+  P.setMode = function (m, opt) {
+    var tn = m === 'tn', r = _sm.call(P, tn ? 'site' : m, opt);
+    try { apply(tn); } catch (e) { console.warn('[V799 mode]', e); }
+    return r;
+  };
+}
+
+/* ---------- móc vào luồng nhập phiếu ---------- */
+function wrap(name, fn) { var o = W[name]; if (typeof o !== 'function') return; W[name] = fn(o); }
+function stamp(r) {
+  if (!r) return r;
+  if (!V.on) { r.thueNgoai = false; if (r.bx) r.bx.thueNgoai = false; return r; }
+  var nb = { otGio: 0, heSoManual: '', noiO: '', kmTay: 0, km: 0, xuong: '', xuongChon: '', tuXa: false, thueNgoai: true, tnSdt: val('rf-tn-sdt').trim(), tnChuyenMon: specs() };
+  nb.tnChiPhi = numOf(val('rf-tn-c1')); nb.tnGuiVT = numOf(val('rf-tn-c2')); nb.tnNhapLaiVT = numOf(val('rf-tn-c3'));
+  r.thueNgoai = true; r.tuXa = false; r.ktv2 = val('rf-tn-ten').trim();
+  r.bx = Object.assign({}, r.bx || {}, nb);
+  return r;
+}
+wrap('collectReport', function (o) { return function () { return stamp(o.apply(this, arguments)); }; });
+wrap('previewReport', function (o) { return function () { return stamp(o.apply(this, arguments)); }; });
+wrap('initForm', function (o) { return function () { var r = o.apply(this, arguments); try { resetInputs(); if (ready) apply(false); } catch (e) { } return r; }; });
+wrap('submitReport', function (o) { return function () {
+  if (V.on) {
+    if (!val('rf-tn-ten').trim()) { toast('❗ Nhập tên nhân sự thuê ngoài', 'err'); try { $('rf-tn-ten').focus(); } catch (x) { } return; }
+    if (digits(val('rf-tn-sdt')).length < 8) { toast('❗ Nhập SĐT nhân sự thuê ngoài (bắt buộc, tối thiểu 8 chữ số)', 'err'); try { $('rf-tn-sdt').focus(); } catch (x) { } return; }
+  }
+  return o.apply(this, arguments);
+}; });
+
+/* ---------- phía BX759 (lưu Sheet 21 / hiển thị / tài liệu) ---------- */
+if (BX) {
+  var _pay = BX.payloadOf;
+  if (typeof _pay === 'function') BX.payloadOf = function (rep, b) {
+    var p = _pay.apply(this, arguments), bb = b || (rep && rep.bx) || {};
+    if (V.isTn(rep) || bb.thueNgoai) {
+      var rb = (rep && rep.bx) || {};
+      p.thueNgoai = true; p.tuXa = false; p.otGio = 0; p.heSoOT = ''; p.noiO = ''; p.kmTay = 0; p.xuongChon = '';
+      p.tnTen = String((rep && rep.ktv2) || ''); p.tnSdt = String(bb.tnSdt != null ? bb.tnSdt : (rb.tnSdt || '')); p.tnChuyenMon = specArr(bb.tnChuyenMon != null ? bb.tnChuyenMon : rb.tnChuyenMon).join('; ');
+      p.tnChiPhi = Number(bb.tnChiPhi != null ? bb.tnChiPhi : rb.tnChiPhi) || 0; p.tnGuiVT = Number(bb.tnGuiVT != null ? bb.tnGuiVT : rb.tnGuiVT) || 0; p.tnNhapLaiVT = Number(bb.tnNhapLaiVT != null ? bb.tnNhapLaiVT : rb.tnNhapLaiVT) || 0;
+    } else p.thueNgoai = false;
+    return p;
+  };
+  var _fs = BX.fromServer;
+  if (typeof _fs === 'function') BX.fromServer = function (e) {
+    var r = _fs.apply(this, arguments);
+    if (e && e.thueNgoai) {
+      r.thueNgoai = true; r.otGio = 0; r.noiO = ''; r.kmTay = 0; r.km = 0; r.xuong = ''; r.xuongChon = '';
+      r.tnSdt = e.tnSdt || ''; r.tnChuyenMon = specArr(e.tnChuyenMon);
+      if (e.tnChiPhi != null) { r.tnChiPhi = e.tnChiPhi; r.tnGuiVT = e.tnGuiVT; r.tnNhapLaiVT = e.tnNhapLaiVT; }
+    } else r.thueNgoai = false;
+    return r;
+  };
+  var _mg = BX.merge;
+  if (typeof _mg === 'function') BX.merge = function () {
+    var n = _mg.apply(this, arguments);
+    try { reps().forEach(function (r) { var e = BX.ext && BX.ext[r.id]; if (!e) return; if (e.thueNgoai) { r.thueNgoai = true; if (!String(r.ktv2 || '').trim() && e.tnTen) r.ktv2 = e.tnTen; } else if (r.thueNgoai) r.thueNgoai = false; }); } catch (x) { }
+    return n;
+  };
+  var _se = BX.saveExt;
+  if (typeof _se === 'function') BX.saveExt = function (rep) {
+    return _se.apply(this, arguments).then(function (e) { try { if (V.isTn(rep) || (e && e.thueNgoai)) { rep.thueNgoai = true; if (typeof W.save === 'function') W.save(); } } catch (x) { } return e; });
+  };
+  var _eo = BX.extOf;
+  if (typeof _eo === 'function') BX.extOf = function (rep) {
+    var t = _eo.apply(this, arguments); if (!V.isTn(rep)) return t;
+    var b = rep.bx || {}, c1 = Number(b.tnChiPhi) || 0, c2 = Number(b.tnGuiVT) || 0, c3 = Number(b.tnNhapLaiVT) || 0;
+    return Object.assign({}, t, { tienCong: 0, tienDiLai: 0, tienLuuTru: 0, tnChiPhi: c1, tnGuiVT: c2, tnNhapLaiVT: c3, tong: c1 + c2 + c3, thueNgoai: true });
+  };
+  var _dt = BX.docTime;
+  if (typeof _dt === 'function') BX.docTime = function (rep) {
+    if (!V.isTn(rep)) return _dt.apply(this, arguments);
+    try {
+      var c = BX.extOf(rep).cong, f = function (x) { return String(Math.round((Number(x) || 0) * 100) / 100).replace('.', ','); };
+      return '<p class="body-p">Hình thức: <b>Tại hiện trường (thuê nhân sự ngoài)</b>' + (c && c.ok ? ' &nbsp;·&nbsp; Số ngày làm việc: <b>' + c.soNgay + '</b> ngày &nbsp;·&nbsp; Tổng thời gian làm việc: <b>' + f(c.gioLam) + '</b> giờ' : '') + '</p>';
+    } catch (e) { return ''; }
+  };
+  var _rf = BX.refresh;
+  if (typeof _rf === 'function') BX.refresh = function () { var r = _rf.apply(this, arguments); try { V.paint(); } catch (x) { } return r; };
+  /* « Xem phiếu »: thay khối giờ tăng ca / ăn ở bằng thông tin nhân sự thuê ngoài + 3 khoản chi phí */
+  var _rv = BX.renderViewPanel;
+  if (typeof _rv === 'function') BX.renderViewPanel = function (id) {
+    var r = _rv.apply(this, arguments);
+    try {
+      var rep = reps().filter(function (x) { return x.id === id; })[0]; if (!rep || !V.isTn(rep)) return r;
+      var d = $('bx-vp'); if (!d) return r;
+      var can = canEditTn(rep), cp = true, b = rep.bx || {}, c = BX.extOf(rep).cong, f = function (x) { return String(Math.round((Number(x) || 0) * 100) / 100).replace('.', ','); };
+      var h4 = d.querySelector('h4'); if (h4) h4.textContent = '👷 Tại hiện trường · Thuê nhân sự ngoài';
+      d.querySelectorAll('.bx-row').forEach(function (row) { if (row.querySelector('.bx-chip') || row.querySelector('#bxv-o1')) row.style.display = 'none'; });
+      var f2 = d.querySelector('.bx-f2'); if (f2) f2.style.display = 'none';
+      var sv0 = $('bxv-save'); if (sv0 && sv0.parentElement) sv0.parentElement.style.display = 'none';
+      var blk = D.createElement('div'); blk.id = 'v799-vp';
+      blk.innerHTML = '<div class="ih" style="margin:6px 0">Thời gian làm việc ' + (c && c.ok ? '<b>' + c.soNgay + ' ngày · ' + f(c.gioLam) + ' giờ</b>' : '') + ' chỉ ghi nhận — <b>không dùng tính chi phí</b>. Không có chi phí nhân công, đi lại, ăn ở.</div>'
+        + '<div class="bx-f2"><div><label>Nhân sự thuê ngoài</label><input class="inp" value="' + esc(rep.ktv2 || '') + '" disabled></div>'
+        + '<div><label>SĐT</label><input class="inp" id="v799-v-sdt" type="tel" value="' + esc(b.tnSdt || '') + '"' + (can ? '' : ' disabled') + '></div>'
+        + '<div><label>Chuyên môn</label><input class="inp" value="' + esc(specArr(b.tnChuyenMon).join(', ')) + '" disabled></div></div>'
+        + (cp ? '<div class="bx-f2"><div><label>Chi phí thuê nhân sự (đ)</label><input class="inp" id="v799-v-c1" type="text" inputmode="numeric" value="' + money(b.tnChiPhi) + '"' + (can ? '' : ' disabled') + '></div>'
+          + '<div><label>Chi phí gửi vật tư (đ)</label><input class="inp" id="v799-v-c2" type="text" inputmode="numeric" value="' + money(b.tnGuiVT) + '"' + (can ? '' : ' disabled') + '></div>'
+          + '<div><label>Chi phí nhập lại vật tư (đ)</label><input class="inp" id="v799-v-c3" type="text" inputmode="numeric" value="' + money(b.tnNhapLaiVT) + '"' + (can ? '' : ' disabled') + '></div></div>'
+          + '<div class="bx-row"><div class="bx-chip cost"><b id="v799-v-sum">' + vnd((Number(b.tnChiPhi) || 0) + (Number(b.tnGuiVT) || 0) + (Number(b.tnNhapLaiVT) || 0)) + '</b><span>TỔNG chi phí thuê ngoài</span></div></div>' : '')
+        + (can ? '<div style="display:flex;justify-content:flex-end"><button class="btn bg-g sm" id="v799-v-save">💾 Lưu' + ' SĐT &amp; chi phí' + '</button></div>' : '');
+      var anchor = d.querySelector('h4'); if (anchor) anchor.insertAdjacentElement('afterend', blk); else d.insertBefore(blk, d.firstChild);
+      ['v799-v-c1', 'v799-v-c2', 'v799-v-c3'].forEach(function (i) { var e = $(i); if (e) e.addEventListener('input', function () { fmtIn(e); var s = $('v799-v-sum'); if (s) s.textContent = vnd(numOf(val('v799-v-c1')) + numOf(val('v799-v-c2')) + numOf(val('v799-v-c3'))); }); });
+      var sv = $('v799-v-save');
+      if (sv) sv.onclick = function () {
+        var nb = Object.assign({}, rep.bx || {}, { thueNgoai: true, tnSdt: val('v799-v-sdt').trim() });
+        nb.tnChiPhi = numOf(val('v799-v-c1')); nb.tnGuiVT = numOf(val('v799-v-c2')); nb.tnNhapLaiVT = numOf(val('v799-v-c3'));
+        sv.disabled = true; sv.textContent = 'Đang lưu…';
+        BX.saveExt(rep, nb).then(function () { toast('✅ Đã lưu thông tin thuê nhân sự ngoài', 'ok'); if (typeof W.viewRep === 'function') W.viewRep(rep.id); })
+          .catch(function (e) { sv.disabled = false; sv.textContent = '💾 Lưu'; toast('❌ Không lưu được: ' + (e && e.message || e), 'err'); });
+      };
+    } catch (x) { console.warn('[V799 view]', x); }
+    return r;
+  };
+}
+if (B7 && typeof B7.fillForm === 'function') {
+  var _ff = B7.fillForm;
+  B7.fillForm = function (rep) {
+    var r = _ff.apply(this, arguments);
+    try { if (rep && (V.isTn(rep) || (BX && BX.ext && BX.ext[rep.id] && BX.ext[rep.id].thueNgoai))) { inject(); loadFrom(rep); } } catch (e) { console.warn('[V799 fill]', e); }
+    return r;
+  };
+}
+/* báo cáo chi phí: gắn nhãn « Thuê ngoài » */
+if (P && typeof P.tag === 'function') { var _tag = P.tag; P.tag = function (p) { var h = _tag.apply(this, arguments); return h + (p && p.ext && p.ext.thueNgoai ? '<span class="v795-tag">👷 Thuê ngoài</span>' : ''); }; }
+
+/* form có thể dựng muộn hơn script này */
+var tries = 0, iv = setInterval(function () { tries++; if (inject() || tries > 80) { clearInterval(iv); try { V.paint(); } catch (e) { } } }, 500);
+setInterval(function () { try { if (V.on) V.paint(); } catch (e) { } }, 1500);   /* quyền xem giá nạp xong sau → hiện ô chi phí */
+})();
 </script>
 </body>
 </html>
